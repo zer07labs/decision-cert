@@ -42,6 +42,7 @@ dk certify --predictions reports/predictions/<name>.jsonl --data calib.jsonl \
     --domain-dir domains/<id> --backend <name> --key operator.pem \
     --audit sample --in-environment             # or --audit full-label on a fully labelled public set
 dk certify verify --calibration domains/<id>/calibration/<name>.json --domain-dir domains/<id>
+dk certify verify --calibration <name>.json --keys trusted-keys.json   # or trust an explicit keys file
 ```
 
 - **Output.** `domains/<id>/calibration/<backend>.json` gets, per decision, the temperature, the
@@ -110,4 +111,9 @@ alpha 0.05 and delta 0.1:
 - **Verification:** the server loaded it and returned the same `certificate_id` as
   `dk certify verify`.
 
-P7's evidence pack reissues certificates like this one, with the signing key outside the repo.
+P7 reissued it for the evidence pack: the signed calibration, its aggregate record and the trusted public key are committed under `runs/p7/certificate/`; the signing key stays outside the repo.
+
+**Losing or leaking the signing key: replace it, never recover it.** Run `dk certify keygen` for a new
+key, replace `trusted-keys.json`, and log the swap with the retired key id in `DECISIONS.md`.
+Certificates signed by the retired id then verify only against the key map in git history. A live
+domain gets its own key; it never trusts the evidence key.
