@@ -380,10 +380,9 @@ mod tests {
     use super::*;
 
     fn valid() -> serde_json::Value {
-        let f: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../../tests/fixtures/cert_conformance/valid_segments_unicode.json"
-        ))
-        .unwrap();
+        let f: serde_json::Value =
+            serde_json::from_str(include_str!("../../fixtures/valid_segments_unicode.json"))
+                .unwrap();
         f["certificate"].clone()
     }
 

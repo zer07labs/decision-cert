@@ -1,0 +1,26 @@
+# cargo-deny configuration. Run from rust/: cargo deny check
+# Same policy as decisiond and the seam-* repos: permissive licences only, crates.io only.
+
+[advisories]
+version = 2
+yanked = "deny"
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[licenses]
+version = 2
+allow = [
+    "Apache-2.0",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

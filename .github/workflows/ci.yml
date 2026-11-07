@@ -1,0 +1,44 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - run: cargo fmt --all --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+      # The conformance suite reads ../fixtures; run it by name so a skipped or empty run fails loudly.
+      - name: conformance fixtures (fixtures/)
+        run: |
+          test "$(ls ../fixtures/*.json | wc -l)" -ge 8
+          cargo test --locked --test conformance -- --exact rust_and_python_agree_on_every_fixture every_schema_invalid_mutation_is_rejected
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: rust/Cargo.toml
+          command: check

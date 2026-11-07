@@ -2,8 +2,11 @@
 name = "decision-cert"
 version = "0.1.0"
 edition = "2021"
-description = "Load, verify and apply decision-certificate.v1 (spec/decision-certificate.v1.md)"
+description = "Load, verify and apply decision-certificate.v1 (decision-certificate.v1)"
 license = "Apache-2.0"
+repository = "https://github.com/zer07labs/decision-cert"
+readme = "../README.md"
+publish = false  # not on crates.io yet; consumers pin a git rev
 
 [dependencies]
 base64 = "0.22"
