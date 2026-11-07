@@ -15,6 +15,19 @@ permissions:
   contents: read
 
 jobs:
+  wording:
+    # A certificate describes a measured process and never promises an outcome. Fail on any promise
+    # word in the public docs, except the sentences that say a certificate never guarantees one.
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: no outcome promises in spec, docs or top-level docs
+        run: |
+          hits="$(grep -rniE 'warrant|guarantee|assur|underwrit' spec docs plans README.md CONTRIBUTING.md SECURITY.md CHANGELOG.md \
+            | grep -viE 'never guarantees? (an|one) outcome' || true)"
+          if [ -n "$hits" ]; then echo "$hits"; exit 1; fi
+
   rust:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: blacksmith-4vcpu-ubuntu-2404
