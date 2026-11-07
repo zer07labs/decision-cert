@@ -3,10 +3,22 @@ name: release
 # Publishes decision-cert to crates.io and PyPI when the owner pushes a tag vX.Y.Z on main.
 # crates.io: the CRATES_IO_TOKEN repository secret. PyPI: trusted publishing (OIDC), no token;
 # the PyPI project trusts this repository, workflow `release.yml` and environment `pypi`.
+#
+# The two registries are separate jobs: a failure in one never blocks the other. To publish one
+# registry alone (e.g. PyPI once trusted publishing is set up, after crates.io went out), run this
+# workflow by hand on the tag (Actions -> release -> Run workflow, "Use workflow from": the tag)
+# and pick the target, or re-run just that failed job.
 
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Registry to publish to (run on a vX.Y.Z tag)
+        type: choice
+        options: [both, crates-io, pypi]
+        default: both
 
 concurrency:
   group: release-${{ github.ref }}
@@ -25,6 +37,7 @@ jobs:
           fetch-depth: 0
       - name: the tag is on main and matches both package versions
         run: |
+          if [ "$GITHUB_REF_TYPE" != tag ]; then echo "run on a vX.Y.Z tag, not $GITHUB_REF"; exit 1; fi
           v="${GITHUB_REF_NAME#v}"
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main
           grep -qx "version = \"$v\"" rust/Cargo.toml
@@ -39,6 +52,7 @@ jobs:
 
   crates-io:
     needs: check
+    if: github.event_name == 'push' || inputs.target != 'pypi'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
     environment: crates-io
@@ -53,6 +67,7 @@ jobs:
 
   pypi:
     needs: check
+    if: github.event_name == 'push' || inputs.target != 'crates-io'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
     environment: pypi
