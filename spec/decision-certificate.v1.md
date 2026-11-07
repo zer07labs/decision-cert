@@ -209,5 +209,6 @@ the paths these files had in the repository where the spec was written. In this 
 - Python verifier (verify): [`python/`](../python/), module `decision_cert`.
 - Conformance fixtures: [`fixtures/`](../fixtures/).
 - The reference issuer is not in this repository yet.
+- Errata and clarifications: [`ERRATA.md`](ERRATA.md).
 
 The frozen text above is unchanged.

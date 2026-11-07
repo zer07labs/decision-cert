@@ -18,7 +18,16 @@ publish = false  # not on crates.io yet; consumers pin a git rev
 [package.metadata.docs.rs]
 all-features = true
 
+[features]
+# The `decision-cert` command-line verifier.
+cli = ["dep:clap"]
+
+[[bin]]
+name = "decision-cert"
+required-features = ["cli"]
+
 [dependencies]
+clap = { version = "4", features = ["derive"], optional = true }
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 ed25519-dalek = "2"
