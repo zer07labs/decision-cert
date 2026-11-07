@@ -197,3 +197,16 @@ Once loaded, decisiond:
 - **Fairness, legality, labels.** Nothing about fairness or legality, or the quality of the labels
   themselves.
 - **`crc`.** It certifies an average, not a high-probability bound.
+
+---
+
+## Note, 2026-11-07: implementations (not part of the frozen text)
+
+The "Reference implementations" and "Conformance fixtures" lines at the top of this document name
+the paths these files had in the repository where the spec was written. In this repository:
+
+- Rust crate (verify, apply): [`rust/`](../rust/), `rust/src/lib.rs`.
+- Conformance fixtures: [`fixtures/`](../fixtures/).
+- The reference issuer is not in this repository yet.
+
+The frozen text above is unchanged.
