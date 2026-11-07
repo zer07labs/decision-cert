@@ -1,29 +1,28 @@
 # decision-cert
 
-The open `decision-certificate.v1` spec, the Rust verifier crate (`rust/`), and the conformance
-fixtures. Split from `zer07labs/decisiond`; see [`README.md`](README.md).
+The open `decision-certificate.v1` spec, the Rust verifier crate (`rust/`), the Python verifier
+(`python/`), and the conformance fixtures. See [`README.md`](README.md).
 
-Cross-repo context (Seam services, contracts):
-
-@../seam/CLAUDE.md
-
-decision-cert depends on nothing of ours. Consumers pin it by git rev: decision-api (apply),
-decisiond (KG0 gates), and later `seam-sdk/verify` and `seam-learning`. It never reads or writes
-Seam state.
+decision-cert depends on nothing else of ours. Consumers pin it by git revision until 0.1.0 is
+published. It holds no data and never calls a network service.
 
 ## Repo rules
 
-- **Certificates describe a measured process, never guarantee an outcome.** No assure, guarantee
-  or underwrite claims in names, docs or messages; decisiond's banned-word list applies here.
-- **`spec/decision-certificate.v1.*` is frozen.** Any change to a field or its meaning is v2. Typo
-  fixes go through a dated note, not an edit of the frozen text.
-- **Fixtures are shared byte for byte** with the issuer (decisiond's
-  `py/tests/test_cert_conformance.py` until the issuer moves here after Q14). Never hand-edit a
-  fixture; regenerate and update both copies in one change.
-- **No data here.** No customer or tenant data, no closed-model outputs, no vendor scores, no
-  private keys. Fixtures carry public keys and deterministic test signatures only.
-- **Public-facing.** Treat every commit message as public.
-- Not published to crates.io (`publish = false`) until the founder decides.
+- **Certificates describe a measured process, never guarantee an outcome.** No names, docs or
+  messages that promise an outcome; the CI `wording` job enforces this on the public docs.
+- **`spec/decision-certificate.v1.*` is frozen.** Any change to a field or its meaning is v2.
+  Corrections and clarifications go in `spec/ERRATA.md` as dated entries, never edits of the
+  frozen text.
+- **Fixtures are never hand-edited.** The positive fixtures and `mutations/` come from the
+  reference issuer and are copied unchanged; the negatives come from
+  `python/tools/gen_negative_fixtures.py`. Any change updates `fixtures/FIXTURES.sha256` and every
+  vendored copy in the same change.
+- **The Rust crate is the oracle.** Never argue a verdict; run the crate. The Python verifier must
+  agree with it on every fixture and in the differential test.
+- **No data here.** No customer data, no model outputs beyond test material, no private keys.
+  Fixtures carry public keys and deterministic test signatures only.
+- **Public-facing.** Every file, commit message and PR is public; no internal project names.
+- **Merge commits, never squash.** Not published (`publish = false`) until the owner decides.
 
 ## Commands
 
