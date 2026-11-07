@@ -88,6 +88,12 @@ The Python issuer (`issue` extra, so the base verifier stays two-dependency) and
 generator move here. Spec v1.1 is drafted as a separate document; v1 fixtures are kept and verifiers
 accept both.
 
+## Naming (decided 2026-11-07)
+
+The crate, the Python distribution and the repository keep the name `decision-cert` for good. It
+names the open format, not a product, so it does not change with any product brand. Later releases
+(0.2.0 with the `issue` extra onward) ship under this name.
+
 ## Risks
 
 - Verifier divergence: the Rust crate as oracle, shared fixtures, a property test re-signing

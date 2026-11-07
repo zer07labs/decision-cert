@@ -10,7 +10,7 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 - README: a one-line verify quickstart, run in CI.
 - `docs/drafts/method.md`: a draft write-up of the method.
 
-## 0.1.0 — released on tag `v0.1.0`
+## 0.1.0 — 2026-11-07 (tag `v0.1.0`)
 
 First release: the crate on crates.io and the Python verifier on PyPI, both as `decision-cert`.
 
