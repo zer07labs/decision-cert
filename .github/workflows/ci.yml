@@ -59,8 +59,9 @@ jobs:
           arguments: --all-features
 
   publish-readiness:
-    # crates.io readiness without publishing: `cargo publish --dry-run` refuses while
-    # `publish = false`, so run it on a throwaway copy with that line removed. main keeps it.
+    # Release readiness without publishing: the crate packages and dry-runs, the docs build as
+    # docs.rs builds them, the Python sdist and wheel build and pass metadata checks, and both
+    # packages carry the repository LICENSE.
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
@@ -75,19 +76,24 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
         run: cargo doc --no-deps --all-features --locked
-      - name: cargo package --list and cargo publish --dry-run on a copy
+      - name: the packaged LICENSE files match the repository's
+        run: cmp LICENSE rust/LICENSE && cmp LICENSE python/LICENSE
+      - name: cargo package --list and cargo publish --dry-run
+        working-directory: rust
         run: |
-          tmp="$(mktemp -d)"
-          cp -R rust README.md "$tmp/"
-          rm -rf "$tmp/rust/target"
-          cd "$tmp/rust"
-          sed -i '/^publish = false/d' Cargo.toml
-          if grep -q '^publish' Cargo.toml; then exit 1; fi
-          cargo package --list --allow-dirty | tee files.txt
-          grep -qx 'README.md' files.txt
-          grep -qx 'src/lib.rs' files.txt
-          if grep -E '^(tests/|fixtures/|\.\./)' files.txt; then echo "package carries tests or fixtures"; exit 1; fi
-          cargo publish --dry-run --allow-dirty --locked
+          if grep -q '^publish' Cargo.toml; then echo "Cargo.toml must not set publish"; exit 1; fi
+          cargo package --list --locked | tee "$RUNNER_TEMP/files.txt"
+          for f in README.md LICENSE src/lib.rs src/bin/decision-cert.rs; do grep -qx "$f" "$RUNNER_TEMP/files.txt"; done
+          if grep -E '^(tests/|fixtures/|examples/)' "$RUNNER_TEMP/files.txt"; then echo "package carries tests or fixtures"; exit 1; fi
+          cargo publish --dry-run --locked
+      - uses: astral-sh/setup-uv@v6
+      - name: Python sdist and wheel build and pass metadata checks
+        working-directory: python
+        run: |
+          uv build --out-dir "$RUNNER_TEMP/dist"
+          uvx twine check --strict "$RUNNER_TEMP"/dist/*
+          unzip -l "$RUNNER_TEMP"/dist/*.whl | grep -q 'decision_cert/py.typed'
+          unzip -l "$RUNNER_TEMP"/dist/*.whl | grep -q 'licenses/LICENSE'
 
   fixtures:
     # The manifest covers exactly the fixture files, and every hash matches.
