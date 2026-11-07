@@ -57,11 +57,14 @@ From the command line, in Rust or Python (exit 0 verified and unexpired, 1 rejec
 2 usage or file error):
 
 ```bash
-cd rust && cargo run --features cli -- verify cert.json --keys trusted-keys.json [--now 2026-11-07T00:00:00Z]
-cd python && uv run python -m decision_cert verify cert.json --keys trusted-keys.json
+cargo install decision-cert --features cli
+decision-cert verify cert.json --keys trusted-keys.json [--now 2026-11-07T00:00:00Z]
+
+pip install decision-cert
+python -m decision_cert verify cert.json --keys trusted-keys.json
 ```
 
-Or in Python (`python/`, not on PyPI yet):
+Or in Python:
 
 ```python
 from decision_cert import loads, verify
@@ -69,16 +72,30 @@ v = verify(loads(open("cert.json").read()), loads(open("trusted-keys.json").read
 v.id, v.threshold_for("north"), v.is_expired(datetime.now(UTC))
 ```
 
-## Using the crate
-
-Not on crates.io yet. Pin a git revision:
+## Install
 
 ```toml
-decision-cert = { git = "https://github.com/zer07labs/decision-cert", rev = "<sha>", version = "0.1.0" }
+# Cargo.toml
+decision-cert = "0.1"
 ```
 
 ```bash
-cd rust && cargo test     # unit tests + the conformance suite over ../fixtures
+pip install decision-cert      # Python 3.12+, depends on rfc8785 and cryptography only
+```
+
+Releases are tagged `vX.Y.Z` on `main` and published from CI
+([`.github/workflows/release.yml`](.github/workflows/release.yml)). A git pin still works for
+unreleased commits:
+
+```toml
+decision-cert = { git = "https://github.com/zer07labs/decision-cert", rev = "<sha>" }
+```
+
+Working on this repository:
+
+```bash
+cd rust && cargo test --all-features     # unit tests + the conformance suite over ../fixtures
+cd python && uv sync && uv run pytest     # the Python verifier, incl. agreement with the crate
 ```
 
 ## Writing another verifier

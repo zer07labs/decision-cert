@@ -31,4 +31,4 @@ never promises an outcome (see `spec/decision-certificate.v1.md` §5).
 
 ## Supported versions
 
-Until 0.1.0 is published, only `main` is supported.
+The latest `0.1.x` release and `main` are supported.
