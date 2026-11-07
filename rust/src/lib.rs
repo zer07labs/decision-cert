@@ -99,7 +99,7 @@ pub struct Issuer {
     pub version: String,
 }
 
-/// Every field is required; `Option` fields must be present (as null) — see [`nullable`].
+/// Every field is required; `Option` fields must be present (as null): a missing field is an error.
 #[derive(Deserialize, Clone, Debug, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Certificate {
