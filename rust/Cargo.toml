@@ -10,8 +10,9 @@ homepage = "https://github.com/zer07labs/decision-cert"
 documentation = "https://docs.rs/decision-cert"
 keywords = ["certificate", "calibration", "ed25519", "jcs", "verification"]
 categories = ["cryptography", "science"]
-# The conformance tests read ../fixtures, which is outside the package; they run in this repo's CI.
-exclude = ["tests/**", "deny.toml"]
+# The conformance tests and the verdict example read ../fixtures, which is outside the package;
+# they run in this repo's CI.
+exclude = ["tests/**", "examples/**", "deny.toml"]
 publish = false  # not on crates.io yet; consumers pin a git rev
 
 [package.metadata.docs.rs]

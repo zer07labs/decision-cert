@@ -31,3 +31,5 @@ Seam state.
 |---|---|
 | `cd rust && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test` | what CI runs |
 | `cd rust && cargo deny check` | licence/advisory/source policy (`rust/deny.toml`) |
+| `cd python && uv run ruff check && uv run mypy && uv run pytest` | the Python verifier (its oracle test needs cargo) |
+| `cd python && uv run python tools/gen_negative_fixtures.py` | regenerate the negative fixtures and `fixtures/FIXTURES.sha256` |

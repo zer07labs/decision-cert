@@ -206,6 +206,7 @@ The "Reference implementations" and "Conformance fixtures" lines at the top of t
 the paths these files had in the repository where the spec was written. In this repository:
 
 - Rust crate (verify, apply): [`rust/`](../rust/), `rust/src/lib.rs`.
+- Python verifier (verify): [`python/`](../python/), module `decision_cert`.
 - Conformance fixtures: [`fixtures/`](../fixtures/).
 - The reference issuer is not in this repository yet.
 
