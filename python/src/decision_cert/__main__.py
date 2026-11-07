@@ -60,7 +60,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"{args.cert}: {e}", file=sys.stderr)
         return 1
     if cert.is_expired(now):
-        print(f"{args.cert}: certificate {cert.id} expired at {cert.cert['expires_at']}", file=sys.stderr)
+        print(
+            f"{args.cert}: certificate {cert.id} has expired (its expires_at is not after the check time)",
+            file=sys.stderr,
+        )
         return 1
     print(cert.id)
     return 0

@@ -92,8 +92,8 @@ fn run(
     let v = decision_cert::verify(&value, &keys).map_err(|e| Failure::Rejected(e.to_string()))?;
     if v.is_expired(now) {
         return Err(Failure::Rejected(format!(
-            "certificate {} expired at {}",
-            v.id, v.cert.expires_at
+            "certificate {} has expired (its expires_at is not after the check time)",
+            v.id
         )));
     }
     Ok(v.id)
