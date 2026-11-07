@@ -34,3 +34,4 @@ PyPI, both `decision-cert`) or a git revision. It holds no data and never calls 
 | `cd rust && cargo deny check` | licence/advisory/source policy (`rust/deny.toml`) |
 | `cd python && uv run ruff check && uv run mypy && uv run pytest` | the Python verifier (its oracle test needs cargo) |
 | `cd python && uv run python tools/gen_negative_fixtures.py` | regenerate the negative fixtures and `fixtures/FIXTURES.sha256` |
+| `cd python && uv run python tools/gen_demos.py` | rewrite `demo/example/` and `demo/DEMOS.sha256` |
