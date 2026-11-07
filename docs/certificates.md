@@ -32,36 +32,46 @@ It does **not** claim:
 
 ## Issuing one
 
-The operator runs this in their own environment, with their own key. decisiond never holds a
-customer's signing key.
+Whoever runs the measurement issues the certificate, in their own environment, with their own
+Ed25519 key. The issuer of a certificate never needs anyone else's signing key, and nobody else
+holds theirs. The reference issuer is not in this repository yet; this section describes what any
+issuer does, following [spec §1](../spec/decision-certificate.v1.md#1-what-is-measured).
+
+1. **Generate a signing key once** and publish its trusted-keys entry: the key id (`ed25519:` + the
+   first 16 hex chars of SHA-256 of the raw public key) and the base64url raw public key. The
+   private key never leaves the issuer's environment.
+2. **Score a labelled calibration set** with the model: one row per case with the case id, the
+   label, the raw score per option, and optionally `decided_at`, a segment value and the audit
+   propensity.
+3. **Run the procedure** of spec §1.1: split, fit the calibration map on the temperature split,
+   build the grid, test each certified segment and the remainder, compute the descriptive `ucb`
+   and `realized_band` (§1.2).
+4. **Sign** the canonical (RFC 8785) bytes of the certificate without `signature`, and attach the
+   signature.
+5. **Verify what was written** with the trusted-keys file, as a consumer will:
 
 ```bash
-dk certify keygen --out operator.pem            # once; prints the `certificate.keys` entry to trust
-dk eval --domain <id> --data calib.jsonl --backends <name>          # predictions on a calibration split
-dk certify --predictions reports/predictions/<name>.jsonl --data calib.jsonl \
-    --domain-dir domains/<id> --backend <name> --key operator.pem \
-    --audit sample --in-environment             # or --audit full-label on a fully labelled public set
-dk certify verify --calibration domains/<id>/calibration/<name>.json --domain-dir domains/<id>
-dk certify verify --calibration <name>.json --keys trusted-keys.json   # or trust an explicit keys file
+cd rust && cargo run --features cli -- verify cert.json --keys trusted-keys.json
+cd python && uv run python -m decision_cert verify cert.json --keys trusted-keys.json
 ```
 
-- **Output.** `domains/<id>/calibration/<backend>.json` gets, per decision, the temperature, the
-  certified `abstain_below` and the signed `certificate`. The server loads that file at startup.
-  `<backend>.certify.json` holds aggregate diagnostics.
-- **`--in-environment`** writes nothing else. Without it, `<backend>.certify-cases.jsonl` lists each
-  case id with its split, confidence and error, for debugging. That file stays out of a customer's
-  outputs. No mode ever writes case payloads.
-- **Audit basis.**
-  - `--audit sample` (default, for live data): the rows must be an audit sample, every row
-    logging the same propensity > 0.
-  - `--audit full-label` (public sets): every row must be labelled.
-- **Refusals.** `dk certify` exits 3 when the threshold split has fewer than 1/`alpha` − 1 cases,
-  and 1 for any other refusal: a missing label or prediction, mismatched options, or an unknown
-  model version.
+What an issuer writes, and what it refuses:
+
+- **Output.** Per decision, the calibration parameters, the certified `abstain_below` and the
+  signed certificate. Aggregate diagnostics may be written beside it. Case payloads are never
+  written, and per-case debugging output stays in the issuer's environment.
+- **Audit basis** (spec §1.4).
+  - `sample` (live data): the labelled rows must be an audit sample, every row logging the same
+    propensity > 0.
+  - `full-label` (public sets): every row in the window must be labelled.
+- **Refusals.** An issuer refuses when the threshold split has fewer than 1/`alpha` − 1 cases, and
+  on a missing label or prediction, mismatched options, or an unknown model version.
 - **Threshold.** When no threshold passes, the certificate says so: `abstain_below: 1.01`, which
   abstains on every case.
 
 ## Domain config
+
+A consumer declares, per domain, how certificates are trusted and applied:
 
 ```yaml
 certificate:
@@ -78,42 +88,50 @@ certificate:
 Segment values are only ever the declared ones, and must be quoted strings in YAML (`'1.50'`,
 `'yes'`). A case whose field holds anything else, or a non-string, is decided by the top-level
 threshold. Timestamps are normalised to UTC whole seconds (no offset means UTC) before the split.
-`dk certify` warns when `expires_at` is already past, as it is for old timestamped data with a
+An issuer should warn when `expires_at` is already past, as it is for old timestamped data with a
 short `ttl_days`; with `on_expired: refer` such a certificate abstains on everything.
 
-## In the server
+## In a consumer
 
-- **Loading.** decisiond verifies every certificate when the domain loads, and refuses the domain
-  (startup fails) when a certificate:
+Spec §4 is normative; in short:
+
+- **Loading.** A consumer verifies every certificate when the domain loads, and refuses the domain
+  when a certificate:
   - doesn't match the schema;
   - isn't signed by a trusted key;
   - names another domain, decision, option order or backend;
-  - uses a calibration map other than `temperature`, or disagrees with the calibration entry's
-    temperature or threshold;
+  - uses a calibration map the consumer does not apply (v1: `temperature`), or disagrees with the
+    calibration entry's temperature or threshold;
   - was measured with another `cannot_tell_above`;
   - certifies segments by another field, or a segment value the domain no longer declares.
-
-  Calibration files without a certificate load as before.
 - **Deciding.** Each decision made under a certificate carries `certificate_id` (`sha256:` of the
   signed certificate's canonical bytes). A case in a certified segment uses that segment's
   threshold.
 - **Expiry.** After `expires_at`, `on_expired: refer` abstains with
   `abstain_reason: "certificate_expired"`; `warn` decides and logs a warning.
 
-## Worked example (T2, B1, 2026-10-25)
+## Example: reading a certificate
 
-`dk certify --audit full-label` on B1's predictions for the T2 (HMDA approval) calibration split,
-alpha 0.05 and delta 0.1:
+[`fixtures/valid_basic.json`](../fixtures/valid_basic.json) is shaped like a certificate for a
+yes/no approval decision on a fully labelled public lending dataset (`audit.mode: full-label`),
+with `method: ltt`, `alpha` 0.05 and `delta` 0.1. Its numbers are test material, but read as a
+real certificate they say:
 
-- **Result:** certified, `abstain_below` 0.9389, answering 40.9% of the 3,079 threshold-split cases,
-  with `ucb` 0.0494.
-- **Expiry:** without `decided_at` on the rows, it expires 90 days after it was fitted.
-- **Verification:** the server loaded it and returned the same `certificate_id` as
-  `dk certify verify`.
+- **Measured:** 5,000 labelled cases, split by a seeded permutation into 2,500 for the
+  calibration map and 2,500 for the threshold test.
+- **Result:** `abstain_below` 0.8829, answering 41.2% of the 2,500 threshold-split cases.
+- **Claim:** with probability at least 0.9 over the draw of those cases, the error rate among
+  answered cases is at most 0.05, while future cases are exchangeable with them.
+- **Descriptive only:** `ucb` 0.033 and `realized_band` [0.001, 0.043] show how wide the
+  measurement is; they are not confidence intervals (§1.2).
+- **Expiry:** without `decided_at` on the rows, it expires `ttl_days` (here 90) after it was fitted.
+- **Not claimed:** anything about one decision, about another population or period, about label
+  quality or fairness.
 
-P7 reissued it for the evidence pack: the signed calibration, its aggregate record and the trusted public key are committed under `runs/p7/certificate/`; the signing key stays outside the repo.
+## Signing keys
 
-**Losing or leaking the signing key: replace it, never recover it.** Run `dk certify keygen` for a new
-key, replace `trusted-keys.json`, and log the swap with the retired key id in `DECISIONS.md`.
-Certificates signed by the retired id then verify only against the key map in git history. A live
-domain gets its own key; it never trusts the evidence key.
+**Losing or leaking a signing key: replace it, never recover it.** Generate a new key, replace the
+trusted-keys entry, and record the retired key id with the date. Certificates signed by the retired
+id then verify only against a key map that still lists it. A key used for published examples or
+test material is never trusted by a live domain, and a live domain gets its own key. See
+[`SECURITY.md`](../SECURITY.md).

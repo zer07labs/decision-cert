@@ -1,5 +1,5 @@
 # cargo-deny configuration. Run from rust/: cargo deny check
-# Same policy as decisiond and the seam-* repos: permissive licences only, crates.io only.
+# Permissive licences only, crates.io only.
 
 [advisories]
 version = 2
