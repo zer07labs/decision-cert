@@ -443,6 +443,37 @@ mod tests {
         }
     }
 
+    /// The same table as python/tests/test_ed25519.py: every small-order encoding is a key
+    /// `verify_strict` refuses (the Python verifier must refuse the same ones).
+    #[test]
+    fn small_order_keys_are_weak() {
+        let table = [
+            "0100000000000000000000000000000000000000000000000000000000000000",
+            "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+            "0000000000000000000000000000000000000000000000000000000000000000",
+            "0000000000000000000000000000000000000000000000000000000000000080",
+            "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05",
+            "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc85",
+            "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a",
+            "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac03fa",
+            "0100000000000000000000000000000000000000000000000000000000000080",
+            "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+            "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+            "eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        ];
+        for h in table {
+            let b: [u8; 32] = (0..32)
+                .map(|i| u8::from_str_radix(&h[2 * i..2 * i + 2], 16).unwrap())
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap();
+            let k = VerifyingKey::from_bytes(&b).unwrap_or_else(|e| panic!("{h}: {e}"));
+            assert!(k.is_weak(), "{h}");
+        }
+    }
+
     #[test]
     fn certified_segments_set_the_threshold_and_inherited_ones_do_not() {
         let cert: Certificate = serde_json::from_value(valid()).unwrap();

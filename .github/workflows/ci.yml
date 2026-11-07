@@ -49,7 +49,7 @@ jobs:
       # The conformance suite reads ../fixtures; run it by name so a skipped or empty run fails loudly.
       - name: conformance fixtures (fixtures/)
         run: |
-          test "$(ls ../fixtures/*.json | wc -l)" -ge 8
+          test "$(find ../fixtures -maxdepth 1 -name '*.json' | wc -l)" -ge 14
           cargo test --locked --test conformance -- --exact rust_and_python_agree_on_every_fixture every_schema_invalid_mutation_is_rejected
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
@@ -86,3 +86,42 @@ jobs:
           grep -qx 'src/lib.rs' files.txt
           if grep -E '^(tests/|fixtures/|\.\./)' files.txt; then echo "package carries tests or fixtures"; exit 1; fi
           cargo publish --dry-run --allow-dirty --locked
+
+  fixtures:
+    # The manifest covers exactly the fixture files, and every hash matches.
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: fixtures
+    steps:
+      - uses: actions/checkout@v4
+      - run: sha256sum --strict -c FIXTURES.sha256
+      - name: the manifest lists every fixture file and nothing else
+        run: diff <(find . -name '*.json' | sed 's|^\./||' | LC_ALL=C sort) <(awk '{print $2}' FIXTURES.sha256 | LC_ALL=C sort)
+
+  python:
+    # The Python verifier: lint, types, the shared fixture loop, the differential test against the
+    # Rust crate (needs cargo), and the generator check that the negative fixtures are current.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked --python 3.12
+      - run: uv run ruff check
+      - run: uv run ruff format --check
+      - run: uv run mypy
+      - run: uv run pytest -v
+      - name: negative fixtures and manifest are current
+        run: uv run python tools/gen_negative_fixtures.py --check

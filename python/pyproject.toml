@@ -1,0 +1,46 @@
+[project]
+name = "decision-cert"
+version = "0.1.0"
+description = "Verify and apply decision-certificate.v1: signed records of how a model's decisions were measured"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.12"
+authors = [{ name = "zer07 Labs" }]
+keywords = ["certificate", "calibration", "ed25519", "jcs", "verification"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security :: Cryptography",
+    "Typing :: Typed",
+]
+# The verifier stays two-dependency and pure Python on our side.
+dependencies = ["rfc8785>=0.1.4", "cryptography>=43"]
+
+[project.urls]
+Repository = "https://github.com/zer07labs/decision-cert"
+Specification = "https://github.com/zer07labs/decision-cert/blob/main/spec/decision-certificate.v1.md"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11"]
+
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/decision_cert"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "BLE", "RUF"]
+
+[tool.mypy]
+strict = true
+files = ["src", "tests", "tools"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
