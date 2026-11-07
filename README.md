@@ -53,6 +53,14 @@ certificate and its expiry.
 v1 is frozen: any change to a field or its meaning is `decision-certificate.v2`, and v1 verifiers
 reject unknown fields. Corrections to the frozen text are dated notes below it, never edits.
 
+From the command line, in Rust or Python (exit 0 verified and unexpired, 1 rejected or expired,
+2 usage or file error):
+
+```bash
+cd rust && cargo run --features cli -- verify cert.json --keys trusted-keys.json [--now 2026-11-07T00:00:00Z]
+cd python && uv run python -m decision_cert verify cert.json --keys trusted-keys.json
+```
+
 Or in Python (`python/`, not on PyPI yet):
 
 ```python
@@ -79,6 +87,8 @@ A verifier in any language must agree with the Rust crate on every file in `fixt
 canonical bytes, the certificate id and the verdict ([`fixtures/README.md`](fixtures/README.md)).
 The Rust crate is the reference; where a
 verifier disagrees with it, the verifier is wrong or the spec needs an erratum.
+[`docs/conformance.md`](docs/conformance.md) is the procedure; [`spec/ERRATA.md`](spec/ERRATA.md)
+holds dated clarifications of the frozen text.
 
 ## The issuer
 

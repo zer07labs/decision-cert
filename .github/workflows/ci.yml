@@ -45,7 +45,8 @@ jobs:
           workspaces: rust
       - run: cargo fmt --all --check
       - run: cargo clippy --all-targets --locked -- -D warnings
-      - run: cargo test --locked
+      - run: cargo clippy --all-targets --all-features --locked -- -D warnings
+      - run: cargo test --locked --all-features
       # The conformance suite reads ../fixtures; run it by name so a skipped or empty run fails loudly.
       - name: conformance fixtures (fixtures/)
         run: |
@@ -55,6 +56,7 @@ jobs:
         with:
           manifest-path: rust/Cargo.toml
           command: check
+          arguments: --all-features
 
   publish-readiness:
     # crates.io readiness without publishing: `cargo publish --dry-run` refuses while

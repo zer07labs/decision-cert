@@ -17,6 +17,9 @@ classifiers = [
 # The verifier stays two-dependency and pure Python on our side.
 dependencies = ["rfc8785>=0.1.4", "cryptography>=43"]
 
+[project.scripts]
+decision-cert = "decision_cert.__main__:main"
+
 [project.urls]
 Repository = "https://github.com/zer07labs/decision-cert"
 Specification = "https://github.com/zer07labs/decision-cert/blob/main/spec/decision-certificate.v1.md"

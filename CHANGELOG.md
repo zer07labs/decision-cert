@@ -17,6 +17,11 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
   edited, re-signed certificates in CI.
 - Six negative fixtures (small-order key, small-order `R`, non-canonical `S`, timestamp with an
   offset, boolean as number, float as integer), their generator, and `fixtures/FIXTURES.sha256`.
+- `decision-cert verify <cert.json> --keys <keys.json> [--now <ts>]`: a command-line verifier in
+  Rust (feature `cli`) and Python (`python -m decision_cert verify`), same exit codes and output;
+  `timestamp` is now public in the crate.
+- `docs/conformance.md` (how another verifier proves agreement) and `spec/ERRATA.md` (dated
+  clarifications; the frozen text is never edited).
 - crates.io readiness: package metadata and a `cargo publish --dry-run` check in CI (not published).
 - Repository docs: README for outside readers, `CONTRIBUTING.md`, `SECURITY.md`, this changelog, and
   a dated implementations note under the frozen spec.
