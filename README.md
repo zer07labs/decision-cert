@@ -45,12 +45,21 @@ certificate and its expiry.
 |---|---|
 | [`spec/`](spec/) | [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (normative, **frozen** 2026-10-25) and its JSON Schema |
 | [`rust/`](rust/) | the `decision-cert` crate: `verify`, `canonical`, `certificate_id`, `key_id`, segment thresholds, expiry |
+| [`python/`](python/) | a pure-Python verifier (`decision_cert`), a port of the crate that passes the same fixtures |
 | [`fixtures/`](fixtures/) | conformance fixtures: signed certificates with their canonical bytes, ids and expected verdicts, plus `mutations/schema_invalid.json`, schema-invalid certificates a verifier must reject |
 | [`docs/certificates.md`](docs/certificates.md) | how a certificate is issued, verified and applied |
 | [`plans/`](plans/) | the public roadmap |
 
 v1 is frozen: any change to a field or its meaning is `decision-certificate.v2`, and v1 verifiers
 reject unknown fields. Corrections to the frozen text are dated notes below it, never edits.
+
+Or in Python (`python/`, not on PyPI yet):
+
+```python
+from decision_cert import loads, verify
+v = verify(loads(open("cert.json").read()), loads(open("trusted-keys.json").read()))
+v.id, v.threshold_for("north"), v.is_expired(datetime.now(UTC))
+```
 
 ## Using the crate
 
@@ -67,7 +76,8 @@ cd rust && cargo test     # unit tests + the conformance suite over ../fixtures
 ## Writing another verifier
 
 A verifier in any language must agree with the Rust crate on every file in `fixtures/`: the
-canonical bytes, the certificate id and the verdict. The Rust crate is the reference; where a
+canonical bytes, the certificate id and the verdict ([`fixtures/README.md`](fixtures/README.md)).
+The Rust crate is the reference; where a
 verifier disagrees with it, the verifier is wrong or the spec needs an erratum.
 
 ## The issuer

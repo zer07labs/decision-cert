@@ -20,7 +20,7 @@ fn fixtures() -> Vec<(String, serde_json::Value)> {
         .collect();
     out.sort_by(|a, b| a.0.cmp(&b.0));
     assert!(
-        out.len() >= 8,
+        out.len() >= 14,
         "expected the conformance fixtures, found {}",
         out.len()
     );
