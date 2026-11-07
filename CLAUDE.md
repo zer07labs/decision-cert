@@ -3,8 +3,8 @@
 The open `decision-certificate.v1` spec, the Rust verifier crate (`rust/`), the Python verifier
 (`python/`), and the conformance fixtures. See [`README.md`](README.md).
 
-decision-cert depends on nothing else of ours. Consumers pin it by git revision until 0.1.0 is
-published. It holds no data and never calls a network service.
+decision-cert depends on nothing else of ours. Consumers pin a released version (crates.io and
+PyPI, both `decision-cert`) or a git revision. It holds no data and never calls a network service.
 
 ## Repo rules
 
@@ -22,7 +22,8 @@ published. It holds no data and never calls a network service.
 - **No data here.** No customer data, no model outputs beyond test material, no private keys.
   Fixtures carry public keys and deterministic test signatures only.
 - **Public-facing.** Every file, commit message and PR is public; no internal project names.
-- **Merge commits, never squash.** Not published (`publish = false`) until the owner decides.
+- **Merge commits, never squash.** Releases: the owner pushes tag `vX.Y.Z` on `main`;
+  `.github/workflows/release.yml` publishes. Never tag or publish from a session unasked.
 
 ## Commands
 

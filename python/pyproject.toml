@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Verify and apply decision-certificate.v1: signed records of how a model's decisions were measured"
 readme = "README.md"
 license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 authors = [{ name = "zer07 Labs" }]
 keywords = ["certificate", "calibration", "ed25519", "jcs", "verification"]
