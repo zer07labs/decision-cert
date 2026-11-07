@@ -1,0 +1,70 @@
+name: release
+
+# Publishes decision-cert to crates.io and PyPI when the owner pushes a tag vX.Y.Z on main.
+# crates.io: the CRATES_IO_TOKEN repository secret. PyPI: trusted publishing (OIDC), no token;
+# the PyPI project trusts this repository, workflow `release.yml` and environment `pypi`.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: the tag is on main and matches both package versions
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          grep -qx "version = \"$v\"" rust/Cargo.toml
+          grep -qx "version = \"$v\"" python/pyproject.toml
+          grep -qx "__version__ = \"$v\"" python/src/decision_cert/__init__.py
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@v6
+      - name: the full test suite passes at the tag
+        run: |
+          (cd rust && cargo test --locked --all-features)
+          (cd python && uv sync --locked --python 3.12 && uv run pytest -q)
+
+  crates-io:
+    needs: check
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
+    environment: crates-io
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo publish
+        working-directory: rust
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: cargo publish --locked
+
+  pypi:
+    needs: check
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write  # trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: build sdist and wheel
+        working-directory: python
+        run: uv build --out-dir dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python/dist

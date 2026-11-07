@@ -13,7 +13,6 @@ categories = ["cryptography", "science"]
 # The conformance tests and the verdict example read ../fixtures, which is outside the package;
 # they run in this repo's CI.
 exclude = ["tests/**", "examples/**", "deny.toml"]
-publish = false  # not on crates.io yet; consumers pin a git rev
 
 [package.metadata.docs.rs]
 all-features = true

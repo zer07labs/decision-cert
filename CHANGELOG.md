@@ -3,7 +3,10 @@
 All notable changes to this repository. The spec (`decision-certificate.v1`) is versioned
 separately and is frozen; this log covers the crate, the verifiers, the fixtures and the docs.
 
-## 0.1.0 — unreleased
+## 0.1.0 — released on tag `v0.1.0`
+
+First release: the crate on crates.io and the Python verifier on PyPI, both as `decision-cert`.
+
 
 - `decision-certificate.v1` spec and JSON Schema (frozen 2026-10-25).
 - `decision-cert` Rust crate: `verify` (schema, trusted key, strict Ed25519 signature), `canonical`
