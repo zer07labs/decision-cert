@@ -353,7 +353,8 @@ fn band_ok(b: &Band) -> bool {
     b.level > 0.0 && b.level < 1.0 && (0.0..=1.0).contains(&b.low) && (0.0..=1.0).contains(&b.high)
 }
 
-fn timestamp(s: &str) -> Result<DateTime<Utc>, CertError> {
+/// Parse the spec's timestamp form, `YYYY-MM-DDTHH:MM:SSZ`, and nothing else.
+pub fn timestamp(s: &str) -> Result<DateTime<Utc>, CertError> {
     // The schema's `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$` exactly: chrono also takes `t` or a space.
     let b = s.as_bytes();
     let ok = b.len() == 20
