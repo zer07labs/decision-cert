@@ -52,6 +52,36 @@ describes a measured process; it never guarantees an outcome.
 Tag `v0.1.0`, publish the crate to crates.io and the verifier to PyPI. Consumers then switch from git
 revs to version pins.
 
+## Phase 3b — distribution (after 0.1.0)
+
+Make it easy for an outside reader to see a real certificate, check it in one line, and read how
+the measurement works. Everything here is public material: no customer data, and a certificate
+describes a measured process, never an outcome.
+
+1. **Demo certificates on public datasets** under `demo/<name>/`: the signed certificate, its
+   trusted-keys file, and a README that states the dataset (source, version, licence), the model
+   that was measured, the split, `alpha` and `delta`, the result, and the "what this does not
+   claim" list from spec §5.
+   - Datasets are openly licensed and allow sharing derived aggregates. A certificate carries only
+     hashes and aggregate numbers, never rows.
+   - The certificates are issued by the reference issuer with a **demo signing key**. Its public
+     key is published here, its private key stays outside the repository, and no live domain ever
+     trusts it.
+   - The demos are signed files and are treated like fixtures: never hand-edited, listed in a
+     `demo/DEMOS.sha256` manifest, and checked in CI by both verifiers (the Rust and Python CLIs),
+     with `--now` set inside each certificate's validity window.
+2. **A one-line verify quickstart** in the README, using the published packages against a demo
+   certificate (for example `uvx decision-cert verify …` or `cargo install decision-cert --features
+   cli`). CI runs exactly the documented line.
+3. **A draft method write-up** under `docs/drafts/`: what is measured, Learn-then-Test and
+   conformal risk control as the spec uses them, why `ucb` and `realized_band` are descriptive, how
+   expiry and the audit basis work, and the limits.
+   - The draft stays in this repository and is never posted elsewhere until the owner says so.
+   - It is held to the same wording rules as the spec (the CI `wording` job covers `docs/`).
+
+**Acceptance.** Every demo verifies with both CLIs in CI. The quickstart line runs green in CI.
+The draft is marked DRAFT at the top and passes the wording check.
+
 ## Phase 4 — the reference issuer and spec v1.1
 
 The Python issuer (`issue` extra, so the base verifier stays two-dependency) and the fixture
