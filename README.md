@@ -3,6 +3,18 @@
 The open specification for **decision certificates** (`decision-certificate.v1`), a Rust crate that
 verifies and applies them, and the conformance fixtures every implementation must agree on.
 
+## Try it in one line
+
+Verify a signed example certificate with the published Python package
+([`demo/`](demo/README.md) says what the example is):
+
+<!-- quickstart -->
+```bash
+uvx decision-cert verify <(curl -sL https://raw.githubusercontent.com/zer07labs/decision-cert/main/demo/example/certificate.json) --keys <(curl -sL https://raw.githubusercontent.com/zer07labs/decision-cert/main/demo/example/trusted-keys.json)
+```
+
+It prints the certificate id (`sha256:d0547d97…`) and exits 0. CI runs this line.
+
 ## What a decision certificate is
 
 A model answers a decision (approve or decline, route A or B) and gives each answer a confidence.

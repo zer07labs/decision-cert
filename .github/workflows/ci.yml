@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: no outcome promises in spec, docs or top-level docs
         run: |
-          hits="$(grep -rniE 'warrant|guarantee|assur|underwrit' spec docs plans README.md CONTRIBUTING.md SECURITY.md CHANGELOG.md \
+          hits="$(grep -rniE 'warrant|guarantee|assur|underwrit' spec docs plans demo README.md CONTRIBUTING.md SECURITY.md CHANGELOG.md \
             | grep -viE 'never guarantees? (an|one) outcome' || true)"
           if [ -n "$hits" ]; then echo "$hits"; exit 1; fi
 
@@ -133,3 +133,52 @@ jobs:
       - run: uv run pytest -v
       - name: negative fixtures and manifest are current
         run: uv run python tools/gen_negative_fixtures.py --check
+      - name: demo files and manifest are current
+        run: uv run python tools/gen_demos.py --check
+
+  demos:
+    # Every demo file is hash-listed, and both verifiers accept every demo certificate.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: the manifest lists every demo file, and every hash matches
+        working-directory: demo
+        run: |
+          sha256sum --strict -c DEMOS.sha256
+          diff <(find . -name '*.json' | sed 's|^\./||' | LC_ALL=C sort) <(awk '{print $2}' DEMOS.sha256 | LC_ALL=C sort)
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - uses: astral-sh/setup-uv@v6
+      - name: the Rust and Python CLIs verify every demo certificate
+        run: |
+          (cd rust && cargo build -q --locked --features cli)
+          (cd python && uv sync -q --locked --python 3.12)
+          n=0
+          while IFS= read -r c; do
+            k="$(dirname "$c")/trusted-keys.json"
+            r="$(rust/target/debug/decision-cert verify "$c" --keys "$k")"
+            p="$(cd python && uv run -q python -m decision_cert verify "../$c" --keys "../$k")"
+            test "$r" = "$p"; echo "$c $r"; n=$((n + 1))
+          done < <(find demo -name certificate.json | LC_ALL=C sort)
+          test "$n" -ge 1
+
+  quickstart:
+    # Runs the README's quickstart line with the published package. On a pull request the URLs point
+    # at the PR's head commit instead of main, since the files may not be on main yet.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: the documented line exits 0
+        env:
+          REF: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          line="$(sed -n '/<!-- quickstart -->/,/^```$/p' README.md | sed -n '3p')"
+          case "$line" in "uvx decision-cert verify "*) ;; *) echo "quickstart line not found: $line"; exit 1 ;; esac
+          bash -c "${line//\/main\//\/$REF\/}"
