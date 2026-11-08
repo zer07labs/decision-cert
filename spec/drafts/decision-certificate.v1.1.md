@@ -1,8 +1,6 @@
-> **DRAFT. Not frozen.** O1 is decided for this draft; O2–O5 are open (each carries a
-> recommendation awaiting a decision). No issuer writes
-> `decision-certificate.v1.1` and no verifier accepts it until the owner freezes this text, which
-> waits until every open item is settled or deferred to v1.2. Where this draft and
-> [v1](../decision-certificate.v1.md) differ, v1 is the specification.
+> **Superseded: v1.1 is frozen** (2026-11-08) as
+> [`spec/decision-certificate.v1.1.md`](../decision-certificate.v1.1.md), which is the specification.
+> This draft is kept as the record of each item, its evidence and its decision.
 
 # Decision certificate, v1.1 (draft)
 
@@ -89,6 +87,9 @@ not decided:** no shift-score field in v1.1. Issuers and consumers get guidance 
 answered share against `coverage`, and §5 says what label-free monitoring cannot see. A stored
 confidence distribution is revisited in v1.2 only if evidence for it appears.
 
+**Decided (2026-11-08): settled as recommended.** No field; v1.1 §4 has the monitoring guidance and
+§5 its limits.
+
 **Changes for verifiers.** A new field, so a schema change.
 
 ### O3. Segment-conditional thresholds
@@ -111,6 +112,9 @@ mechanism or field. v1.1 says in §1.3 that a certified segment's bound holds at
 that the remainder's and inherited segments' bounds hold only for the calibration mix. Issuer
 guidance: declare as a segment any field whose share may change and whose error may differ.
 
+**Decided (2026-11-08): settled as recommended.** No new mechanism; v1.1 §1.3 and §5 state the mix
+(in)dependence, and `docs/certificates.md` has the issuer guidance.
+
 **Changes for verifiers.** Possibly new fields in `segments[]`.
 
 ### O4. `n_cal` and the label budget
@@ -131,6 +135,9 @@ and 3,000 for a weak one, about half that at `alpha` 0.10. Validity held at ever
 `label_budget`) is the label budget, and the table becomes non-normative guidance in
 `docs/certificates.md`.
 
+**Decided (2026-11-08): settled as recommended.** No field; v1.1 §2 defines the label budget, and the
+guidance table is in `docs/certificates.md`.
+
 **Changes for verifiers.** Possibly none (guidance), or one field.
 
 ### O5. A `dr` calibration map kind
@@ -146,7 +153,7 @@ issue certificates with this map.
 **What decides it.** Whether certificates with this map are issued at all, and the exact `params`
 shape.
 
-**Recommended, not decided (2026-11-08):** defer to v1.2. No issuer plans to write certificates with
+**Decided (2026-11-08): deferred to v1.2.** No issuer plans to write certificates with
 this map in the v1.1 timeframe; the fitting functions stay in the issuer for when one does.
 
 **Changes for verifiers.** A new allowed `kind` and its `params` shape in the schema, and the map in
@@ -163,3 +170,8 @@ does not claim).
 | Date | Item | Decision | Evidence |
 |---|---|---|---|
 | 2026-11-08 | O1 | Per-test start, v1's cuts, no coarse grid. Adopted in this draft; v1.1 is not frozen, and the freeze waits until O2–O5 are settled or deferred to v1.2. | [`o1-grid-study.md`](o1-grid-study.md) |
+| 2026-11-08 | O2 | Settled: no shift-score field; monitoring guidance and §5 limits. | [`o2-shift-study.md`](o2-shift-study.md) |
+| 2026-11-08 | O3 | Settled: no new mechanism; mix (in)dependence in §1.3 and §5; issuer guidance. | [`o3-mix-study.md`](o3-mix-study.md) |
+| 2026-11-08 | O4 | Settled: no field; label budget defined in §2; non-normative guidance table. | [`o4-budget-study.md`](o4-budget-study.md) |
+| 2026-11-08 | O5 | Deferred to v1.2. | — |
+| 2026-11-08 | v1.1 | Frozen as [`decision-certificate.v1.1.md`](../decision-certificate.v1.1.md). 0.3.0 waits on the owner. | — |
