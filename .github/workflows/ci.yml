@@ -76,8 +76,10 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
         run: cargo doc --no-deps --all-features --locked
-      - name: the packaged LICENSE files match the repository's
-        run: cmp LICENSE rust/LICENSE && cmp LICENSE python/LICENSE
+      - name: the packaged LICENSE files and the issuer's schema match the repository's
+        run: |
+          cmp LICENSE rust/LICENSE && cmp LICENSE python/LICENSE
+          cmp spec/decision-certificate.v1.schema.json python/src/decision_cert/issue/decision-certificate.v1.schema.json
       - name: cargo package --list and cargo publish --dry-run
         working-directory: rust
         run: |
@@ -94,6 +96,13 @@ jobs:
           uvx twine check --strict "$RUNNER_TEMP"/dist/*
           unzip -l "$RUNNER_TEMP"/dist/*.whl | grep -q 'decision_cert/py.typed'
           unzip -l "$RUNNER_TEMP"/dist/*.whl | grep -q 'licenses/LICENSE'
+          unzip -l "$RUNNER_TEMP"/dist/*.whl | grep -q 'decision_cert/issue/decision-certificate.v1.schema.json'
+      - name: the base install verifies without the issuer's dependencies
+        run: |
+          uv venv -q "$RUNNER_TEMP/base" --python 3.12
+          uv pip install -q --python "$RUNNER_TEMP/base" "$RUNNER_TEMP"/dist/*.whl
+          "$RUNNER_TEMP/base/bin/python" -c "import importlib.util as u, decision_cert; assert u.find_spec('numpy') is None"
+          "$RUNNER_TEMP/base/bin/python" -m decision_cert verify demo/example/certificate.json --keys demo/example/trusted-keys.json --now 2026-11-07T00:00:00Z
 
   fixtures:
     # The manifest covers exactly the fixture files, and every hash matches.
@@ -131,6 +140,8 @@ jobs:
       - run: uv run ruff format --check
       - run: uv run mypy
       - run: uv run pytest -v
+      - name: the reference issuer regenerates its fixtures byte-identical
+        run: uv run python tools/gen_positive_fixtures.py --check
       - name: negative fixtures and manifest are current
         run: uv run python tools/gen_negative_fixtures.py --check
       - name: demo files and manifest are current

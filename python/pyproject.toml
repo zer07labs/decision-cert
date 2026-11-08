@@ -18,6 +18,10 @@ classifiers = [
 # The verifier stays two-dependency and pure Python on our side.
 dependencies = ["rfc8785>=0.1.4", "cryptography>=43"]
 
+[project.optional-dependencies]
+# The reference issuer (`decision_cert.issue`): calibration statistics, schema check, domain files.
+issue = ["numpy>=1.26", "scipy>=1.11", "jsonschema>=4.21", "pyyaml>=6"]
+
 [project.scripts]
 decision-cert = "decision_cert.__main__:main"
 
@@ -26,7 +30,7 @@ Repository = "https://github.com/zer07labs/decision-cert"
 Specification = "https://github.com/zer07labs/decision-cert/blob/main/spec/decision-certificate.v1.md"
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11"]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11", "decision-cert[issue]", "types-PyYAML", "types-jsonschema"]
 
 [build-system]
 requires = ["hatchling>=1.26"]
@@ -45,6 +49,10 @@ select = ["E", "F", "W", "I", "B", "UP", "BLE", "RUF"]
 [tool.mypy]
 strict = true
 files = ["src", "tests", "tools"]
+
+[[tool.mypy.overrides]]
+module = ["scipy", "scipy.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

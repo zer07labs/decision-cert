@@ -34,8 +34,9 @@ It does **not** claim:
 
 Whoever runs the measurement issues the certificate, in their own environment, with their own
 Ed25519 key. The issuer of a certificate never needs anyone else's signing key, and nobody else
-holds theirs. The reference issuer is not in this repository yet; this section describes what any
-issuer does, following [spec §1](../spec/decision-certificate.v1.md#1-what-is-measured).
+holds theirs. This section describes what any issuer does, following
+[spec §1](../spec/decision-certificate.v1.md#1-what-is-measured). The reference issuer is
+`decision_cert.issue` (`pip install 'decision-cert[issue]'`); its commands are shown with each step.
 
 1. **Generate a signing key once** and publish its trusted-keys entry: the key id (`ed25519:` + the
    first 16 hex chars of SHA-256 of the raw public key) and the base64url raw public key. The
@@ -48,6 +49,18 @@ issuer does, following [spec §1](../spec/decision-certificate.v1.md#1-what-is-m
    and `realized_band` (§1.2).
 4. **Sign** the canonical (RFC 8785) bytes of the certificate without `signature`, and attach the
    signature.
+   With the reference issuer, steps 1 and 3–4:
+
+   ```bash
+   python -m decision_cert.issue keygen --out operator.pem    # prints the trusted-keys entry
+   python -m decision_cert.issue certify --predictions preds.jsonl --data labelled.jsonl \
+       --domain-dir my-domain --backend my-model --key operator.pem [--audit full-label] [--in-environment]
+   ```
+
+   `--predictions` holds one row per case and decision (`case_id`, `decision`, `model`, `version`,
+   `raw_scores`, or `status: "no_answer"`); `--data` holds the labelled rows (`case_id`, `case`,
+   `labels`, and optionally `decided_at` and `propensity`). The output is
+   `<domain>/calibration/<backend>.json`. Exit code 3 means too few cases.
 5. **Verify what was written** with the trusted-keys file, as a consumer will:
 
 ```bash
