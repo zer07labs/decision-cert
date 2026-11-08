@@ -3,7 +3,8 @@
 A decision certificate records how one model's answers to one decision were measured: the labelled
 cases, the threshold chosen, how many cases it answers, and a bound on the error of those answers
 at a stated confidence. It is signed by whoever ran the measurement. The normative definition is
-[`spec/decision-certificate.v1.md`](../spec/decision-certificate.v1.md); this page is how to use it.
+[`spec/decision-certificate.v1.1.md`](../spec/decision-certificate.v1.1.md) (certificates issued
+under [v1](../spec/decision-certificate.v1.md) stay valid); this page is how to use it.
 
 ## What a certificate claims, and what it does not
 
@@ -24,6 +25,8 @@ It does **not** claim:
   a wide band.
 - **Bounds for inherited segments.** A segment below the floor (`inherited: true`) carries no bound
   of its own.
+- **Any mix of groups.** The remainder's bound, and so every inherited segment's threshold, holds for
+  the mix of cases the calibration set had. A certified segment's bound holds at any mix.
 - **Unsampled populations.** The bound covers only the population the labelled cases were sampled
   from. If only the cases an incumbent process approved got labels, it says nothing about the rest.
 - **For `method: crc`, a high-probability bound.** That method bounds the *average* share of cases
@@ -35,7 +38,7 @@ It does **not** claim:
 Whoever runs the measurement issues the certificate, in their own environment, with their own
 Ed25519 key. The issuer of a certificate never needs anyone else's signing key, and nobody else
 holds theirs. This section describes what any issuer does, following
-[spec §1](../spec/decision-certificate.v1.md#1-what-is-measured). The reference issuer is
+[spec §1](../spec/decision-certificate.v1.1.md#1-what-is-measured). The reference issuer is
 `decision_cert.issue` (`pip install 'decision-cert[issue]'`); its commands are shown with each step.
 
 1. **Generate a signing key once** and publish its trusted-keys entry: the key id (`ed25519:` + the
@@ -81,6 +84,35 @@ What an issuer writes, and what it refuses:
   on a missing label or prediction, mismatched options, or an unknown model version.
 - **Threshold.** When no threshold passes, the certificate says so: `abstain_below: 1.01`, which
   abstains on every case.
+- **Spec.** The reference issuer writes `decision-certificate.v1.1`. `--spec decision-certificate.v1`
+  issues by the v1 procedure, to reproduce an earlier certificate.
+
+### How many labelled cases
+
+A certificate's label budget is `n_temperature` + `n_cal`, plus `calibration_map.label_budget` when
+that is not null (spec §2). The refusal floor, 1/`alpha` − 1 threshold-split cases, is not a
+recommendation: near it, an `ltt` certificate usually abstains on everything. How many cases a useful
+certificate needs depends on the model. A simulation study
+([`spec/drafts/o4-budget-study.md`](../spec/drafts/o4-budget-study.md), `delta` 0.1) gives these
+threshold-split sizes for certifying in about 90% of draws. The temperature split is the same size,
+so the label budget is twice `n_cal`. They are guidance only:
+
+| Model (the share of cases it can answer at `alpha`) | `alpha` 0.05 | `alpha` 0.10 |
+|---|---|---|
+| strong (75%) | `n_cal` ≈ 1,000 | ≈ 500 |
+| medium (50%) | ≈ 2,000 | ≈ 1,000 |
+| weak (25%) | ≈ 3,000 | ≈ 2,000 |
+
+With fewer cases, `crc` gives a weaker claim (an average, §1), or a larger `alpha` may be the honest
+choice.
+
+### Segments and a changing mix
+
+Declare as a segment any case field whose shares may change in use and whose groups may differ in
+error, with a floor its groups can meet. A certified segment is tested on its own cases, so its bound
+holds whatever share it has later. The remainder's bound holds only at the mix it was measured on: in
+the [O3 study](../spec/drafts/o3-mix-study.md), raising a harder group's share from 20% to 50% broke
+a pooled threshold in most draws, but not the same group certified as a segment.
 
 ## Domain config
 
@@ -113,7 +145,7 @@ Spec §4 is normative; in short:
   - doesn't match the schema;
   - isn't signed by a trusted key;
   - names another domain, decision, option order or backend;
-  - uses a calibration map the consumer does not apply (v1: `temperature`), or disagrees with the
+  - uses a calibration map the consumer does not apply (v1 and v1.1: `temperature`), or disagrees with the
     calibration entry's temperature or threshold;
   - was measured with another `cannot_tell_above`;
   - certifies segments by another field, or a segment value the domain no longer declares.
@@ -122,6 +154,12 @@ Spec §4 is normative; in short:
   threshold.
 - **Expiry.** After `expires_at`, `on_expired: refer` abstains with
   `abstain_reason: "certificate_expired"`; `warn` decides and logs a warning.
+- **Monitoring without labels.** Compare the share of cases answered with the certificate's
+  `coverage`, for example with a two-sample test of proportions against `n` threshold-split cases.
+  A significant change is a prompt to measure again. It shows shifts that move the model's
+  confidences. It cannot show a change in error at the same confidence, or a change in the mix of
+  groups the model cannot tell apart; only labelled cases can
+  ([O2 study](../spec/drafts/o2-shift-study.md)).
 
 ## Example: reading a certificate
 

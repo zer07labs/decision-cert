@@ -1,5 +1,5 @@
 """Calibrate one model on labelled cases and issue a signed decision certificate per decision
-(spec/decision-certificate.v1.md).
+(spec/decision-certificate.v1.1.md; `spec="decision-certificate.v1"` issues by the v1 procedure).
 
     python -m decision_cert.issue keygen --out operator.pem
     python -m decision_cert.issue certify --predictions calib.jsonl --data calib_split.jsonl \\
@@ -44,7 +44,9 @@ from .. import verify as verify_strict
 from . import _support as sp
 from . import stats as cs
 
-SPEC = "decision-certificate.v1"
+SPEC_V1 = "decision-certificate.v1"
+SPEC = "decision-certificate.v1.1"  # what this issuer writes by default
+SPECS = (SPEC_V1, SPEC)
 ISSUER = {"tool": "decision-cert", "version": __version__}
 BAND_LEVEL = 0.95
 UNSCORED = -1.0  # below every cut, so an unscored or cannot-tell case never counts as answered
@@ -59,8 +61,10 @@ class TooFewCases(CertError):
     pass
 
 
-def schema() -> dict[str, Any]:
-    text = resources.files("decision_cert.issue").joinpath(f"{SPEC}.schema.json").read_text(encoding="utf-8")
+def schema(spec: str = SPEC) -> dict[str, Any]:
+    if spec not in SPECS:
+        raise CertError(f"unknown spec {spec!r}; this issuer writes {' or '.join(SPECS)}")
+    text = resources.files("decision_cert.issue").joinpath(f"{spec}.schema.json").read_text(encoding="utf-8")
     return cast(dict[str, Any], json.loads(text))
 
 
@@ -275,8 +279,13 @@ def certify_decision(
     cannot_tell_above: float | None,
     manifest_hash: str | None,
     now: dt.datetime,
+    spec: str = SPEC,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """(unsigned certificate, aggregate diagnostics) for one decision. Spec §1.1."""
+    """(unsigned certificate, aggregate diagnostics) for one decision. Spec §1.1. Under v1.1 each
+    test starts at the best cut on its own temperature-split cases; under v1, every test starts at
+    the best cut on the whole temperature split."""
+    if spec not in SPECS:
+        raise CertError(f"unknown spec {spec!r}; this issuer writes {' or '.join(SPECS)}")
     audit_block = _audit(cases, audit, decision)
     timed = all(c.decided_at for c in cases)
     if timed:
@@ -299,7 +308,8 @@ def certify_decision(
         return np.array([c for c, _ in pairs], float).reshape(-1), np.array([e for _, e in pairs], bool).reshape(-1)
 
     conf_t, err_t = conf_err(t_idx)
-    cuts = cs.grid(conf_t, err_t, alpha)
+    all_cuts = cs.cuts_of(conf_t)
+    pooled_start = cs.start(all_cuts, conf_t, err_t, alpha)
     conf_a, err_a = conf_err(a_idx)
     per_case = [
         {"case_id": cases[i].case_id, "split": "temperature", "confidence": float(c), "error": bool(e)}
@@ -311,13 +321,24 @@ def certify_decision(
     ]
     seg_a = np.array([cases[i].segment or "" for i in a_idx], object)
     has_seg = np.array([cases[i].segment is not None for i in a_idx], bool)
+    seg_t = np.array([cases[i].segment or "" for i in t_idx], object)
+    has_seg_t = np.array([cases[i].segment is not None for i in t_idx], bool)
 
     present = sorted({s for i in a_idx if (s := cases[i].segment) is not None}, key=lambda v: v.encode())
     floor = cfg.segments.floor if cfg.segments else 0
     certified = [v for v in present if int((has_seg & (seg_a == v)).sum()) >= floor]
     d = delta / (1 + len(certified)) if method == "ltt" else None
 
+    def cuts_for(mask_t: np.ndarray) -> np.ndarray:
+        """The grid for one test: v1 starts every test at the pooled start; v1.1 starts each on its
+        own temperature-split cases, falling back to the pooled start when it has none."""
+        if spec == SPEC_V1 or not mask_t.any():
+            return all_cuts[pooled_start:]
+        return all_cuts[cs.start(all_cuts, conf_t[mask_t], err_t[mask_t], alpha) :]
+
     rest = ~np.isin(seg_a, certified) | ~has_seg
+    rest_t = ~np.isin(seg_t, certified) | ~has_seg_t
+    cuts = cuts_for(rest_t)
     top = _test(conf_a[rest], err_a[rest], cuts, alpha, d)
     segments: list[dict[str, Any]] = []
     seg_diag: dict[str, dict[str, int]] = {}
@@ -325,7 +346,7 @@ def certify_decision(
         m = has_seg & (seg_a == v)
         field = cfg.segments.field if cfg.segments else ""
         if v in certified:
-            r = _test(conf_a[m], err_a[m], cuts, alpha, d)
+            r = _test(conf_a[m], err_a[m], cuts_for(has_seg_t & (seg_t == v)), alpha, d)
         else:  # inherited: decided by the top-level threshold, no bound of its own
             hit = m & (conf_a >= top["abstain_below"])
             r = {
@@ -352,7 +373,7 @@ def certify_decision(
         window = {"start": stamp(ts[0]), "end": stamp(ts[-1])}
     base = utc(window["end"]) if window else now
     cert = {
-        "spec": SPEC,
+        "spec": spec,
         "domain": domain,
         "decision": decision,
         "options": options,
@@ -461,8 +482,10 @@ def issue(
     seed: int = 0,
     manifest: Path | None = None,
     now: dt.datetime | None = None,
+    spec: str = SPEC,
 ) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
-    """(calibration file contents, aggregate diagnostics per decision)."""
+    """(calibration file contents, aggregate diagnostics per decision). `spec` picks the procedure:
+    v1.1 by default, or v1 (`decision-certificate.v1`) to reproduce a v1 certificate."""
     if not 0 < alpha < 1 or not 0 < delta < 1:
         raise CertError("alpha and delta must be in (0, 1)")
     if any(p.get("calibrated") for p in preds):
@@ -494,9 +517,10 @@ def issue(
             cannot_tell_above=dom.cannot_tell_above,
             manifest_hash=manifest_hash,
             now=now,
+            spec=spec,
         )
         signed = sign(cert, key)
-        jsonschema.validate(signed, schema())
+        jsonschema.validate(signed, schema(spec))
         cal[dec_id] = {
             "temperature": cert["calibration_map"]["params"]["temperature"],
             "abstain_below": cert["abstain_below"],
@@ -631,6 +655,9 @@ def main(argv: list[str] | None = None) -> None:
         "--in-environment", action="store_true", help="write only the calibration file and aggregate metrics"
     )
     ap.add_argument("--out", type=Path, help="calibration file (default <domain-dir>/calibration/<backend>.json)")
+    ap.add_argument(
+        "--spec", choices=SPECS, default=SPEC, help="the procedure and spec id to issue under (default %(default)s)"
+    )
     a = ap.parse_args(argv)
 
     try:
@@ -646,6 +673,7 @@ def main(argv: list[str] | None = None) -> None:
             audit=a.audit,
             seed=a.seed,
             manifest=a.manifest,
+            spec=a.spec,
         )
     except TooFewCases as e:
         print(f"{PROG} certify: {e}", file=sys.stderr)

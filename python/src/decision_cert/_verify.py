@@ -25,7 +25,12 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from . import _ed25519
 
+#: The `spec` of a certificate produced by the v1 procedure.
 SPEC = "decision-certificate.v1"
+#: The `spec` of a certificate produced by the v1.1 procedure (the per-test grid start).
+SPEC_V1_1 = "decision-certificate.v1.1"
+#: Every `spec` this verifier accepts. The fields, and so the checks, are the same for each.
+SPECS = (SPEC, SPEC_V1_1)
 #: `abstain_below` that abstains on every case.
 ABSTAIN_ALL = 1.01
 
@@ -40,7 +45,7 @@ class CertError(Exception):
 
 class Invalid(CertError):
     def __init__(self, reason: str) -> None:
-        super().__init__(f"certificate is not a valid {SPEC}: {reason}")
+        super().__init__(f"certificate is not a valid decision certificate: {reason}")
 
 
 class UntrustedKey(CertError):
@@ -270,8 +275,8 @@ def _check(c: Mapping[str, Any]) -> None:
     def bad(m: str) -> Invalid:
         return Invalid(m)
 
-    if c["spec"] != SPEC:
-        raise bad("spec is not decision-certificate.v1")
+    if c["spec"] not in SPECS:
+        raise bad("spec is not decision-certificate.v1 or decision-certificate.v1.1")
     opts = c["options"]
     if len(opts) < 2 or not all(o for o in opts) or len(set(opts)) != len(opts):
         raise bad("options needs at least 2 distinct non-empty ids")

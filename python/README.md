@@ -1,6 +1,6 @@
 # decision-cert (Python verifier)
 
-A pure-Python verifier for `decision-certificate.v1`, a port of the Rust crate in
+A pure-Python verifier for decision certificates (`decision-certificate.v1.1` and `v1`), a port of the Rust crate in
 [`rust/`](https://github.com/zer07labs/decision-cert/tree/main/rust). Dependencies: `rfc8785` and `cryptography`, nothing else. The reference issuer is
 an optional extra, `pip install 'decision-cert[issue]'` (module `decision_cert.issue`); the verifier
 never imports it.
@@ -17,7 +17,7 @@ v.id, v.threshold_for("north"), v.is_expired(datetime.now(UTC))
 The Rust crate is the reference. This package passes the same conformance fixtures
 ([`fixtures/`](https://github.com/zer07labs/decision-cert/tree/main/fixtures)); where the two disagree, this package is wrong. A certificate
 describes a measured process and never promises an outcome; see the
-[spec](https://github.com/zer07labs/decision-cert/blob/main/spec/decision-certificate.v1.md).
+[spec](https://github.com/zer07labs/decision-cert/blob/main/spec/decision-certificate.v1.1.md).
 
 ```bash
 pip install decision-cert

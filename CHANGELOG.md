@@ -1,9 +1,26 @@
 # Changelog
 
-All notable changes to this repository. The spec (`decision-certificate.v1`) is versioned
+All notable changes to this repository. The spec (`decision-certificate.v1`, `v1.1`) is versioned
 separately and is frozen; this log covers the crate, the verifiers, the fixtures and the docs.
 
 ## Unreleased
+
+- **Spec v1.1 frozen** (2026-11-08): `spec/decision-certificate.v1.1.md` and its schema. The fields
+  are v1's. One procedure change: each test starts the threshold grid at the best cut on its own
+  temperature-split cases. Clarifications: the refusal floor, mix dependence, the label budget,
+  monitoring without labels and its limits, and the v1 errata folded in. A `dr` map kind is left for
+  v1.2.
+- **Verifiers accept both specs.** The Rust crate and the Python verifier accept
+  `decision-certificate.v1` and `decision-certificate.v1.1`; new constants `SPEC_V1_1` and `SPECS`
+  (`SPEC` is still v1's id). The "not a valid" error now reads "certificate is not a valid decision
+  certificate: …".
+- **The issuer writes v1.1** with the per-test start; `spec="decision-certificate.v1"` (CLI
+  `--spec`) issues by the v1 procedure. `stats.grid` is now `cuts_of` and `start`, and `grid` keeps
+  its v1 meaning. The package carries both schemas.
+- **`fixtures/v1.1/`**: the v1.1 conformance set and its own manifest, from
+  `gen_positive_fixtures.py`. The v1 fixtures and `fixtures/FIXTURES.sha256` are byte-unchanged.
+- `docs/certificates.md`: how many labelled cases (guidance table), segments and a changing mix,
+  and monitoring without labels.
 
 - `python/tools/study_shift.py` and `spec/drafts/o2-shift-study.md`: which shifts a label-free score
   can see; recommendation for O2 (no shift-score field; monitor the answered share against

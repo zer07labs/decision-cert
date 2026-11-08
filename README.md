@@ -1,6 +1,6 @@
 # decision-cert
 
-The open specification for **decision certificates** (`decision-certificate.v1`), a Rust crate that
+The open specification for **decision certificates** (`decision-certificate.v1.1`, and v1 before it), a Rust crate that
 verifies and applies them, and the conformance fixtures every implementation must agree on.
 
 ## Try it in one line
@@ -55,15 +55,17 @@ certificate and its expiry.
 
 | Path | What |
 |---|---|
-| [`spec/`](spec/) | [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (normative, **frozen** 2026-10-25) and its JSON Schema |
+| [`spec/`](spec/) | [`decision-certificate.v1.1.md`](spec/decision-certificate.v1.1.md) (normative, **frozen** 2026-11-08), [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (**frozen** 2026-10-25), and a JSON Schema for each |
 | [`rust/`](rust/) | the `decision-cert` crate: `verify`, `canonical`, `certificate_id`, `key_id`, segment thresholds, expiry |
 | [`python/`](python/) | a pure-Python verifier (`decision_cert`), a port of the crate that passes the same fixtures |
-| [`fixtures/`](fixtures/) | conformance fixtures: signed certificates with their canonical bytes, ids and expected verdicts, plus `mutations/schema_invalid.json`, schema-invalid certificates a verifier must reject |
+| [`fixtures/`](fixtures/) | conformance fixtures: signed certificates with their canonical bytes, ids and expected verdicts, plus `mutations/schema_invalid.json`, schema-invalid certificates a verifier must reject; v1 at the top level, v1.1 in `fixtures/v1.1/` |
 | [`docs/certificates.md`](docs/certificates.md) | how a certificate is issued, verified and applied |
 | [`plans/`](plans/) | the public roadmap |
 
-v1 is frozen: any change to a field or its meaning is `decision-certificate.v2`, and v1 verifiers
-reject unknown fields. Corrections to the frozen text are dated notes below it, never edits.
+v1 and v1.1 are frozen, and verifiers accept both. They have the same fields; v1.1 changes one step
+of the issuing procedure (each test starts the threshold grid on its own cases) and clarifies the
+text. Any change to a field or its meaning is `decision-certificate.v2`, and verifiers reject unknown
+fields. Corrections to frozen text go in [`spec/ERRATA.md`](spec/ERRATA.md), never in the text.
 
 From the command line, in Rust or Python (exit 0 verified and unexpired, 1 rejected or expired,
 2 usage or file error):

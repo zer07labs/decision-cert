@@ -44,17 +44,28 @@ def _between(lo: float, hi: float) -> float:
     return mid if mid > lo else float(np.nextafter(lo, np.inf))
 
 
-def grid(conf_temperature: np.ndarray, err_temperature: np.ndarray, alpha: float) -> np.ndarray:
-    """Descending cuts learned from the temperature split only (spec §1.1 step 3): the midpoints
-    between adjacent distinct confidences, then 0.0 (answer everything), starting at the cut with
-    the smallest p-value on the temperature split's own labels. Starting at the very top would stop
-    the fixed sequence on cuts that answer too few cases to reject anything."""
+def cuts_of(conf_temperature: np.ndarray) -> np.ndarray:
+    """Every cut (spec §1.1 step 3), learned from the temperature split only: the midpoints between
+    adjacent distinct confidences, descending, then 0.0 (answer everything)."""
     conf_temperature = np.asarray(conf_temperature, float)
     u = np.unique(conf_temperature[conf_temperature >= 0])[::-1]  # distinct, descending; unscored (< 0) never a cut
-    cuts = np.array([_between(float(u[i + 1]), float(u[i])) for i in range(len(u) - 1)] + [0.0])
-    n, e = counts(conf_temperature, err_temperature, cuts)
+    return np.array([_between(float(u[i + 1]), float(u[i])) for i in range(len(u) - 1)] + [0.0])
+
+
+def start(cuts: np.ndarray, conf: np.ndarray, err: np.ndarray, alpha: float) -> int:
+    """Where a fixed sequence down `cuts` starts: the cut with the smallest `ltt` p-value on these
+    temperature-split cases, the strictest on ties. Starting at the very top would stop the sequence
+    on cuts that answer too few cases to reject anything."""
+    n, e = counts(conf, err, cuts)
     p = np.where(n > 0, stats.binom.cdf(e, np.maximum(n, 1), alpha), 1.0)
-    return cuts[int(np.argmin(p)) :]  # argmin takes the first (strictest) cut on ties
+    return int(np.argmin(p))  # argmin takes the first (strictest) cut on ties
+
+
+def grid(conf_temperature: np.ndarray, err_temperature: np.ndarray, alpha: float) -> np.ndarray:
+    """The cuts from `cuts_of`, starting where the whole temperature split's labels put the start:
+    v1's grid for every test, and v1.1's for a single test."""
+    cuts = cuts_of(conf_temperature)
+    return cuts[start(cuts, np.asarray(conf_temperature, float), err_temperature, alpha) :]
 
 
 @dataclass(frozen=True)
