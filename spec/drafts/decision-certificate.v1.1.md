@@ -1,4 +1,5 @@
-> **DRAFT. Not frozen.** O1 is decided for this draft; O2–O5 are open. No issuer writes
+> **DRAFT. Not frozen.** O1 is decided for this draft; O2–O5 are open (O4 and O5 carry
+> recommendations awaiting a decision). No issuer writes
 > `decision-certificate.v1.1` and no verifier accepts it until the owner freezes this text, which
 > waits until every open item is settled or deferred to v1.2. Where this draft and
 > [v1](../decision-certificate.v1.md) differ, v1 is the specification.
@@ -107,6 +108,13 @@ Small `n_cal` gives a valid but loose certificate.
 
 **What decides it.** The same simulation as O1: coverage against `n_cal`.
 
+**Study (2026-11-08).** [`o4-budget-study.md`](o4-budget-study.md). The labels needed depend on the
+model: at `alpha` 0.05, certifying in about 90% of draws took `n_cal` near 1,000 for a strong model
+and 3,000 for a weak one, about half that at `alpha` 0.10. Validity held at every size.
+**Recommended, not decided:** no new field. §2 states that `n_temperature` + `n_cal` (+
+`label_budget`) is the label budget, and the table becomes non-normative guidance in
+`docs/certificates.md`.
+
 **Changes for verifiers.** Possibly none (guidance), or one field.
 
 ### O5. A `dr` calibration map kind
@@ -121,6 +129,9 @@ issue certificates with this map.
 
 **What decides it.** Whether certificates with this map are issued at all, and the exact `params`
 shape.
+
+**Recommended, not decided (2026-11-08):** defer to v1.2. No issuer plans to write certificates with
+this map in the v1.1 timeframe; the fitting functions stay in the issuer for when one does.
 
 **Changes for verifiers.** A new allowed `kind` and its `params` shape in the schema, and the map in
 `threshold_for` consumers.

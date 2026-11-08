@@ -5,6 +5,9 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 
 ## Unreleased
 
+- `python/tools/study_budget.py` and `spec/drafts/o4-budget-study.md`: how many labelled cases an
+  `ltt` certificate needs, by model quality and alpha. Recommendations for O4 (no new field,
+  guidance only) and O5 (defer to v1.2) in the v1.1 draft; not decided.
 - v1.1 draft: O1 decided (per-test grid start, v1's cuts), with a decision log. v1.1 stays
   unfrozen until O2–O5 are settled or deferred to v1.2.
 - `python/tools/study_grid.py` and `spec/drafts/o1-grid-study.md`: a deterministic simulation
