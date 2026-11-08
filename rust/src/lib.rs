@@ -1,9 +1,19 @@
 //! Load, verify and apply decision certificates: `decision-certificate.v1`
-//! (spec/decision-certificate.v1.md) and `decision-certificate.v1.1` (spec/decision-certificate.v1.1.md).
+//! (spec/decision-certificate.v1.md), `decision-certificate.v1.1` (spec/decision-certificate.v1.1.md)
+//! and `decision-certificate.v1.2` (spec/decision-certificate.v1.2.md).
 //!
 //! Verification canonicalises the JSON value exactly as received (RFC 8785, JCS), never a
 //! re-serialised struct, so number formatting can't drift from the issuer's. The typed
 //! [`Certificate`] is read from the same value afterwards, rejecting unknown fields.
+//!
+//! A v1.2 certificate also stores the confidence histogram of its threshold split, so a consumer can
+//! monitor without labels: [`Histogram::of`] bins a window of use-time confidences and
+//! [`shift_score`] compares it with the stored one. The score is descriptive, a prompt to measure
+//! again; it never shows that the bound holds or has failed.
+
+mod monitor;
+
+pub use monitor::{bin_of, chi2_sf, shift_score, ShiftScore};
 
 use std::collections::BTreeMap;
 
@@ -17,8 +27,12 @@ use sha2::{Digest, Sha256};
 pub const SPEC: &str = "decision-certificate.v1";
 /// The `spec` of a certificate produced by the v1.1 procedure (the per-test grid start).
 pub const SPEC_V1_1: &str = "decision-certificate.v1.1";
-/// Every `spec` this verifier accepts. The fields, and so the checks, are the same for each.
-pub const SPECS: [&str; 2] = [SPEC, SPEC_V1_1];
+/// The `spec` of a v1.2 certificate: v1.1's procedure, plus the stored confidence histogram.
+pub const SPEC_V1_2: &str = "decision-certificate.v1.2";
+/// Every `spec` this verifier accepts. v1 and v1.1 have the same fields; v1.2 adds some.
+pub const SPECS: [&str; 3] = [SPEC, SPEC_V1_1, SPEC_V1_2];
+/// Most bins a `confidence_bins` may define.
+pub const MAX_BINS: usize = 100;
 /// `abstain_below` that abstains on every case (as `dk calibrate` writes it).
 pub const ABSTAIN_ALL: f64 = 1.01;
 
@@ -42,6 +56,15 @@ pub struct Band {
     pub high: f64,
 }
 
+/// A test's threshold-split cases per bin of `confidence_bins`, and the cases the rule abstains on
+/// whatever the threshold (unscored, or above the `cannot_tell` cut). v1.2.
+#[derive(Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Histogram {
+    pub counts: Vec<u64>,
+    pub unscored: u64,
+}
+
 #[derive(Deserialize, Clone, Debug, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Segment {
@@ -55,6 +78,9 @@ pub struct Segment {
     #[serde(deserialize_with = "nullable")]
     pub realized_band: Option<Band>,
     pub inherited: bool,
+    /// v1.2 only: absent (None) before v1.2; present and null (Some(None)) when withheld.
+    #[serde(default, deserialize_with = "present")]
+    pub confidence_histogram: Option<Option<Histogram>>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq)]
@@ -142,6 +168,20 @@ pub struct Certificate {
     pub issuer: Issuer,
     pub signer_key_id: String,
     pub signature: String,
+    /// v1.2 only (absent, so None, before v1.2): the histogram bin edges, rising from 0 to 1.
+    #[serde(default, deserialize_with = "present")]
+    pub confidence_bins: Option<Vec<f64>>,
+    /// v1.2 only: the remainder's histogram; present and null (Some(None)) when withheld.
+    #[serde(default, deserialize_with = "present")]
+    pub confidence_histogram: Option<Option<Histogram>>,
+}
+
+/// A field that may be absent (with `default`, as None) but, when present, is read as `T`: so a
+/// present null reads as `Some(None)` for `T = Option<_>`, and is an error for any other `T`.
+fn present<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
+    d: D,
+) -> Result<Option<T>, D::Error> {
+    T::deserialize(d).map(Some)
 }
 
 /// A present field that may be null. serde reads a missing `Option` as null, the spec does not:
@@ -176,6 +216,27 @@ impl Verified {
 
     pub fn is_expired(&self, now: DateTime<Utc>) -> bool {
         now >= self.expires_at
+    }
+
+    /// The bin edges of a v1.2 certificate's confidence histograms; None before v1.2.
+    pub fn confidence_bins(&self) -> Option<&[f64]> {
+        self.cert.confidence_bins.as_deref()
+    }
+
+    /// The stored confidence histogram of the cases decided by the same threshold as a case in
+    /// `segment`: a certified segment's own, else the top level's. None before v1.2, or when the
+    /// issuer withheld it.
+    pub fn histogram_for(&self, segment: Option<&str>) -> Option<&Histogram> {
+        let own = segment.and_then(|v| {
+            self.cert
+                .segments
+                .iter()
+                .find(|s| !s.inherited && s.value == v)
+        });
+        match own {
+            Some(s) => s.confidence_histogram.as_ref()?.as_ref(),
+            None => self.cert.confidence_histogram.as_ref()?.as_ref(),
+        }
     }
 
     /// The temperature of a `kind: temperature` calibration map; None for other kinds.
@@ -239,17 +300,19 @@ pub fn verify(
     })
 }
 
-/// The schema's constraints (spec/decision-certificate.v1.schema.json, and the v1.1 schema, which
-/// differs only in `spec`) that a typed read doesn't already enforce, so this verifier accepts
-/// exactly what the schemas accept.
+/// The schema's constraints (spec/decision-certificate.v1.schema.json, the v1.1 schema, which
+/// differs only in `spec`, and the v1.2 schema) that a typed read doesn't already enforce, so this
+/// verifier accepts exactly what the schemas accept; and for v1.2, the histogram checks the schema
+/// cannot express (spec v1.2 §2).
 fn check(c: &Certificate) -> Result<(), CertError> {
     let bad = |m: &str| Err(CertError::Invalid(m.to_string()));
     let unit = |x: f64| (0.0..=1.0).contains(&x);
     let open = |x: f64| x > 0.0 && x < 1.0;
     let threshold = |x: f64| (0.0..=ABSTAIN_ALL).contains(&x);
     if !SPECS.contains(&c.spec.as_str()) {
-        return bad("spec is not decision-certificate.v1 or decision-certificate.v1.1");
+        return bad("spec is not decision-certificate.v1, decision-certificate.v1.1 or decision-certificate.v1.2");
     }
+    fields_for_spec(c)?;
     let mut seen = std::collections::BTreeSet::new();
     if c.options.len() < 2 || !c.options.iter().all(|o| !o.is_empty() && seen.insert(o)) {
         return bad("options needs at least 2 distinct non-empty ids");
@@ -324,6 +387,70 @@ fn check(c: &Certificate) -> Result<(), CertError> {
     if let Some(w) = &c.window {
         timestamp(&w.start)?;
         timestamp(&w.end)?;
+    }
+    if c.spec == SPEC_V1_2 {
+        histograms(c)?;
+    }
+    Ok(())
+}
+
+/// A v1.2 certificate has every v1.2 field, and a v1 or v1.1 certificate none of them, at the top
+/// level and in every segment. A certificate whose fields belong to another spec is refused as a
+/// spec it is not, so a v1.1-shaped certificate naming v1.2 is still refused as an unknown spec.
+fn fields_for_spec(c: &Certificate) -> Result<(), CertError> {
+    let v12 = c.spec == SPEC_V1_2;
+    let mut present = vec![
+        ("confidence_bins", c.confidence_bins.is_some()),
+        ("confidence_histogram", c.confidence_histogram.is_some()),
+    ];
+    present.extend(c.segments.iter().map(|s| {
+        (
+            "segments[].confidence_histogram",
+            s.confidence_histogram.is_some(),
+        )
+    }));
+    for (name, here) in present {
+        if v12 && !here {
+            return Err(CertError::Invalid(format!(
+                "spec is not consistent with the fields: {SPEC_V1_2} requires `{name}`"
+            )));
+        }
+        if !v12 && here {
+            return Err(CertError::Invalid(format!(
+                "unknown field `{name}` in a {} certificate",
+                c.spec
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// v1.2's checks beyond the schema: the bins rise strictly from 0 to 1, and each histogram has one
+/// count per bin and counts exactly its test's `n` cases.
+fn histograms(c: &Certificate) -> Result<(), CertError> {
+    let bins = c.confidence_bins.as_deref().unwrap_or_default();
+    let rising = bins.windows(2).all(|w| w[0] < w[1]);
+    if !(2..=MAX_BINS + 1).contains(&bins.len())
+        || bins[0] != 0.0
+        || bins[bins.len() - 1] != 1.0
+        || !rising
+    {
+        return Err(CertError::Invalid(format!(
+            "confidence_bins must rise strictly from 0 to 1, with 1 to {MAX_BINS} bins"
+        )));
+    }
+    let tests = std::iter::once((&c.confidence_histogram, c.n))
+        .chain(c.segments.iter().map(|s| (&s.confidence_histogram, s.n)));
+    for (h, n) in tests {
+        if let Some(Some(h)) = h {
+            let total: u128 =
+                h.counts.iter().map(|&x| u128::from(x)).sum::<u128>() + u128::from(h.unscored);
+            if h.counts.len() != bins.len() - 1 || total != u128::from(n) {
+                return Err(CertError::Invalid(
+                    "a confidence_histogram needs one count per bin, and its counts and unscored must sum to n".into(),
+                ));
+            }
+        }
     }
     Ok(())
 }

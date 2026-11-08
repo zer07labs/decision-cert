@@ -99,6 +99,18 @@ start; O2–O4 settled as text and guidance, with no new fields; O5 (a `dr` map 
 writes v1.1, and `fixtures/v1.1/` holds its fixture set. 0.3.0, which carries v1.1, was released
 on 2026-11-08 (tag `v0.3.0`, on crates.io and PyPI).
 
+## Phase 5 — spec v1.2
+
+v1.2 adds, under its own `spec` value, the two items v1.1 left out: a stored confidence histogram
+for monitoring without labels (#25), then a `dr` calibration map kind (#24). v1 and v1.1 and their
+fixtures stay unchanged; verifiers accept all three. 0.4.0 carries v1.2; its tag waits on the
+owner.
+
+Status: the owner approved building v1.2 (relayed 2026-11-08). The histogram is in
+[`spec/decision-certificate.v1.2.md`](../spec/decision-certificate.v1.2.md) (§1.5, §4–§6), with its
+evidence in [`spec/drafts/h1-histogram-study.md`](../spec/drafts/h1-histogram-study.md), both
+verifiers, the issuer and `fixtures/v1.2/`. The `dr` kind is next.
+
 ## Naming (decided 2026-11-07)
 
 The crate, the Python distribution and the repository keep the name `decision-cert` for good. It

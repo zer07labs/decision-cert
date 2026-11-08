@@ -69,6 +69,27 @@ band, and one built on 30,000 a narrow one.
 - **Expiry.** A certificate has an `expires_at`. It is a prompt to measure again, not a statement
   that the bound held until that date.
 
+## Watching for change without labels
+
+Labels arrive late or not at all once a model is in use, so a certificate also carries what a
+consumer needs to notice that the cases have changed. Every certificate has its `coverage`: if the
+share of cases the model answers drifts away from it, the cases are no longer like the calibration
+cases. Since v1.2, a certificate also stores how the calibration cases' confidences were spread, as
+a histogram per threshold, on bins chosen without the threshold split. A consumer bins its own
+recent cases the same way and compares the two with a chi-square test. That sees more than the
+answered share: cases can drift toward the threshold, and so become more often wrong, while the
+answered share stays the same.
+
+Both comparisons look only at the model's confidences. A significant change is a reason to measure
+again. Neither one shows that the error stayed within its bound, and the histogram also flags
+changes that do no harm, such as among cases the decision abstains on. A change in how often the
+model is wrong at the same confidence is invisible to both, and only new labelled cases can show
+it.
+
+The histogram's counts are exact, so for a group with few cases they say something about those
+cases' confidences. The reference issuer leaves out the histogram of any group with fewer than 30
+cases.
+
 ## What anyone can check
 
 The certificate is canonical JSON (RFC 8785) signed with Ed25519, and its id is the hash of the

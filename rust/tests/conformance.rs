@@ -1,6 +1,7 @@
 //! The Rust verifier agrees with the issuer on the JCS bytes, the certificate id and the
-//! verdict of every fixture in fixtures/ (v1) and fixtures/v1.1/ (see fixtures/README.md for which
-//! program wrote each).
+//! verdict of every fixture in fixtures/ (v1), fixtures/v1.1/ and fixtures/v1.2/ (see
+//! fixtures/README.md for which program wrote each). The v1 and v1.1 sets are frozen: a newer
+//! verifier gives every one of their files the same verdict, id and bytes.
 
 use std::{collections::BTreeMap, path::PathBuf};
 
@@ -41,6 +42,44 @@ fn rust_and_python_agree_on_every_v1_1_fixture() {
     assert!(set.iter().any(|(_, f)| f["valid"].as_bool().unwrap()
         && f["certificate"]["spec"] == "decision-certificate.v1.1"));
     agree_on(set);
+}
+
+#[test]
+fn rust_and_python_agree_on_every_v1_2_fixture() {
+    let set = fixtures("v1.2", 18);
+    assert!(set.iter().any(|(_, f)| f["valid"].as_bool().unwrap()
+        && f["certificate"]["spec"] == "decision-certificate.v1.2"
+        && f["certificate"]["confidence_histogram"].is_object()));
+    agree_on(set);
+}
+
+/// A v1.2 verifier reads a v1.2 certificate's histograms, and finds none in a v1 or v1.1 one.
+#[test]
+fn histograms_are_read_from_v1_2_certificates_only() {
+    let read = |set: &str, name: &str| {
+        let (_, f) = fixtures(set, 1)
+            .into_iter()
+            .find(|(n, _)| n == name)
+            .unwrap();
+        let keys: BTreeMap<String, String> = serde_json::from_value(f["keys"].clone()).unwrap();
+        verify(&f["certificate"], &keys).unwrap()
+    };
+    for set in ["", "v1.1"] {
+        let v = read(set, "valid_segments_unicode");
+        assert!(v.confidence_bins().is_none() && v.histogram_for(None).is_none());
+    }
+    let v = read("v1.2", "valid_segments_unicode");
+    assert_eq!(v.confidence_bins().unwrap().len(), 10);
+    assert_eq!(v.histogram_for(None).unwrap().total(), v.cert.n);
+    assert_eq!(v.histogram_for(Some("east")).unwrap().total(), 600);
+    // The inherited segment is decided, and so monitored, with the remainder.
+    assert_eq!(
+        v.histogram_for(Some("z\u{fc}rich \u{2603}")),
+        v.histogram_for(None)
+    );
+    assert!(read("v1.2", "valid_histogram_withheld")
+        .histogram_for(None)
+        .is_none());
 }
 
 fn agree_on(set: Vec<(String, serde_json::Value)>) {
@@ -86,6 +125,11 @@ fn every_schema_invalid_mutation_is_rejected() {
 #[test]
 fn every_v1_1_schema_invalid_mutation_is_rejected() {
     rejects_every_mutation("v1.1/mutations/schema_invalid.json");
+}
+
+#[test]
+fn every_v1_2_schema_invalid_mutation_is_rejected() {
+    rejects_every_mutation("v1.2/mutations/schema_invalid.json");
 }
 
 fn rejects_every_mutation(rel: &str) {

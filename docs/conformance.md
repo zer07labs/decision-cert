@@ -1,18 +1,22 @@
 # Conformance: proving a verifier agrees
 
-A verifier of `decision-certificate.v1` in any language conforms when it agrees with the reference
-verifier, the Rust crate in [`rust/`](../rust/), on every file in [`fixtures/`](../fixtures/). The
+A verifier of decision certificates (`decision-certificate.v1`, `v1.1` and `v1.2`) in any language
+conforms when it agrees with the reference verifier, the Rust crate in [`rust/`](../rust/), on every
+file in [`fixtures/`](../fixtures/), [`fixtures/v1.1/`](../fixtures/v1.1/) and
+[`fixtures/v1.2/`](../fixtures/v1.2/). A verifier may support fewer specs: it then rejects the
+others as unknown, and runs only their sets' files that name its specs. The
 Python verifier in [`python/`](../python/) is held to the same test. Where a verifier and the crate
 disagree, the verifier is wrong, unless an entry in [`spec/ERRATA.md`](../spec/ERRATA.md) says
 otherwise.
 
 ## 1. Pin the fixtures
 
-Copy `fixtures/` with `fixtures/FIXTURES.sha256` and record the commit you copied from. Check the
-copy before every run:
+Copy `fixtures/` with `fixtures/FIXTURES.sha256` (and `v1.1/`, `v1.2/` with theirs) and record the
+commit you copied from. Check the copy before every run:
 
 ```bash
 cd fixtures && sha256sum --strict -c FIXTURES.sha256
+(cd v1.1 && sha256sum --strict -c FIXTURES.sha256) && (cd v1.2 && sha256sum --strict -c FIXTURES.sha256)
 ```
 
 The manifest is the anchor: two verifiers that pass the same manifest were tested on the same bytes.
@@ -60,13 +64,20 @@ value, never a re-serialised typed struct.
 | `invalid_bool_as_number` | a boolean is never a number |
 | `invalid_float_as_integer` | an integer field rejects `2500.0` |
 | `mutations/schema_invalid` | every schema constraint, one edit at a time |
+| `v1.1/invalid_unknown_spec` | a `spec` the verifier does not know is refused (it names v1.2 with v1.1's fields; a v1.2 verifier refuses it as a spec it is not) |
+| `v1.2/valid_*` | the v1.2 fields: `confidence_bins` and the histograms, one withheld (null) |
+| `v1.2/invalid_missing_v1_2_field`, `v1.2/invalid_segment_missing_histogram`, `v1.2/invalid_v1_2_field_in_v1_1` | fields that belong to another `spec`, at the top level or in a segment |
+| `v1.2/invalid_histogram_sum`, `v1.2/invalid_segment_histogram_sum`, `v1.2/invalid_histogram_bins`, `v1.2/invalid_bins_*` | the checks beyond the schema (spec v1.2 §2) |
+| `v1.2/invalid_unknown_spec` | a later `spec` (v1.3) is refused |
 
 ## 4. Beyond the fixtures
 
 The fixtures are the minimum. This repository also runs a differential test
 ([`python/tests/test_rust_oracle.py`](../python/tests/test_rust_oracle.py)): a few hundred edited,
 re-signed certificates, where the Python verifier must give the crate's verdict and id on every
-one. A verifier in another language can do the same against the crate's command-line verifier:
+one, and the two must bin windows of confidences and compute the v1.2 shift score alike (to 1e-9
+relative). A verifier in another language can do the same against the crate's command-line
+verifier:
 
 ```bash
 cd rust && cargo run --features cli -- verify cert.json --keys keys.json --now 2026-11-07T00:00:00Z

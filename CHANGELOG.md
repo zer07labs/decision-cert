@@ -5,6 +5,31 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 
 ## Unreleased
 
+- **Spec v1.2, the confidence histogram** (#25; v1.2 is in progress until the `dr` kind lands):
+  `spec/decision-certificate.v1.2.md` and its schema. New fields `confidence_bins` and
+  `confidence_histogram` (top level and per segment, nullable when withheld): each test's
+  threshold-split cases per confidence bin, on bins chosen without the threshold split. The
+  procedure is v1.1's. §4 defines a label-free shift score (Pearson's chi-square test of
+  homogeneity against the stored histogram), §5 what it does not show, §6 its size, binning and
+  privacy limits. Evidence: `spec/drafts/h1-histogram-study.md` (`python/tools/study_histogram.py`).
+- **Verifiers accept v1, v1.1 and v1.2.** New constant `SPEC_V1_2`; `SPECS` has three entries. A
+  v1.2 certificate must carry the v1.2 fields and a v1 or v1.1 one must not; v1.2 histograms must
+  match the bins and sum to their test's `n`. The unknown-spec message now names all three specs, and
+  a certificate whose fields belong to another spec is refused as "spec is not consistent with the
+  fields", so `fixtures/v1.1/invalid_unknown_spec.json` keeps its verdict and message.
+- **Monitoring functions** in both verifiers, kept in lockstep by the differential test:
+  `Histogram::of` / `Histogram.of`, `bin_of`, `shift_score`, `chi2_sf`, and
+  `Verified::confidence_bins` and `histogram_for`.
+- **The issuer writes v1.2** with 20 quantile bins from the temperature split, and withholds the
+  histogram of a test with fewer than `certificate.histogram_min_n` cases (default 30), and the
+  remainder's when subtracting the published inherited segments' would reveal fewer cases than that.
+  `--spec decision-certificate.v1.1` writes the same test without it. The package carries the v1.2
+  schema.
+- **`fixtures/v1.2/`**: the v1.2 conformance set and its manifest, from `gen_positive_fixtures.py`.
+  The v1 and v1.1 sets are byte-unchanged.
+- `docs/certificates.md`, `docs/conformance.md` and `docs/drafts/method.md`: monitoring with the
+  histogram, its limits, and the v1.2 fixtures.
+
 ## 0.3.0 — 2026-11-08 (tag `v0.3.0`)
 
 Spec v1.1: frozen, verified, issued. Verifiers accept v1 and v1.1; v1 certificates and fixtures are

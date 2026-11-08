@@ -1,6 +1,6 @@
 # decision-cert
 
-The open `decision-certificate.v1` and `v1.1` specs, the Rust verifier crate (`rust/`), the Python verifier
+The open `decision-certificate.v1`, `v1.1` and `v1.2` specs, the Rust verifier crate (`rust/`), the Python verifier
 (`python/`), and the conformance fixtures. See [`README.md`](README.md).
 
 decision-cert depends on nothing else of ours. Consumers pin a released version (crates.io and
@@ -10,13 +10,14 @@ PyPI, both `decision-cert`) or a git revision. It holds no data and never calls 
 
 - **Certificates describe a measured process, never guarantee an outcome.** No names, docs or
   messages that promise an outcome; the CI `wording` job enforces this on the public docs.
-- **`spec/decision-certificate.v1.*` (v1 and v1.1) is frozen.** Any change to a field or its meaning is v2.
+- **`spec/decision-certificate.v1.md` and `v1.1.md` are frozen**, and so is v1.2 once it is marked frozen.
+  A frozen spec's fields and their meaning never change; additions go in a new `spec` value.
   Corrections and clarifications go in `spec/ERRATA.md` as dated entries, never edits of the
   frozen text.
 - **Fixtures are never hand-edited.** The positive fixtures and `mutations/` come from the
   reference issuer via `python/tools/gen_positive_fixtures.py` (byte-identical, `--check` in CI); the negatives come from
   `python/tools/gen_negative_fixtures.py`. Any change updates `fixtures/FIXTURES.sha256` and every
-  vendored copy in the same change. `fixtures/v1.1/` has its own manifest, written by the positive
+  vendored copy in the same change. `fixtures/v1.1/` and `fixtures/v1.2/` have their own manifests, written by the positive
   generator.
 - **The Rust crate is the oracle.** Never argue a verdict; run the crate. The Python verifier must
   agree with it on every fixture and in the differential test.

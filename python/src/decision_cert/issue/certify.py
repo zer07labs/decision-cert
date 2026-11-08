@@ -1,5 +1,6 @@
 """Calibrate one model on labelled cases and issue a signed decision certificate per decision
-(spec/decision-certificate.v1.1.md; `spec="decision-certificate.v1"` issues by the v1 procedure).
+(spec/decision-certificate.v1.2.md; `spec="decision-certificate.v1.1"` writes a v1.1 certificate,
+without the confidence histogram, and `spec="decision-certificate.v1"` issues by the v1 procedure).
 
     python -m decision_cert.issue keygen --out operator.pem
     python -m decision_cert.issue certify --predictions calib.jsonl --data calib_split.jsonl \\
@@ -39,14 +40,17 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 from .. import CertError as VerifyError
-from .. import __version__
+from .. import Histogram, __version__
 from .. import verify as verify_strict
 from . import _support as sp
 from . import stats as cs
 
 SPEC_V1 = "decision-certificate.v1"
-SPEC = "decision-certificate.v1.1"  # what this issuer writes by default
-SPECS = (SPEC_V1, SPEC)
+SPEC_V1_1 = "decision-certificate.v1.1"
+SPEC_V1_2 = "decision-certificate.v1.2"
+SPEC = SPEC_V1_2  # what this issuer writes by default
+SPECS = (SPEC_V1, SPEC_V1_1, SPEC_V1_2)
+HISTOGRAM_BINS = 20  # v1.2: bins at the 20-quantiles of the temperature split's confidences
 ISSUER = {"tool": "decision-cert", "version": __version__}
 BAND_LEVEL = 0.95
 UNSCORED = -1.0  # below every cut, so an unscored or cannot-tell case never counts as answered
@@ -130,9 +134,10 @@ class CertConfig:
     on_expired: str = "refer"
     segments: Segments | None = None
     keys: dict[str, str] | None = None
+    histogram_min_n: int = 30
 
 
-CONFIG_KEYS = {"ttl_days", "on_expired", "segments", "keys"}
+CONFIG_KEYS = {"ttl_days", "on_expired", "segments", "keys", "histogram_min_n"}
 
 
 def load_config(domain_dir: Path) -> tuple[dict[str, Any], CertConfig]:
@@ -170,7 +175,10 @@ def load_config(domain_dir: Path) -> tuple[dict[str, Any], CertConfig]:
         if isinstance(floor, bool) or not isinstance(floor, int) or floor < 1:
             raise CertError(f"{where}.segments.floor must be a positive integer")
         segs = Segments(s["field"], values, floor)
-    return raw, CertConfig(ttl, on, segs, block.get("keys"))
+    hmin = block.get("histogram_min_n", 30)
+    if isinstance(hmin, bool) or not isinstance(hmin, int) or hmin < 0:
+        raise CertError(f"{where}.histogram_min_n must be a non-negative integer")
+    return raw, CertConfig(ttl, on, segs, block.get("keys"), hmin)
 
 
 def segment_of(case: Any, segs: Segments | None) -> str | None:
@@ -248,6 +256,16 @@ def _audit(cases: list[Case], mode: str, decision: str) -> dict[str, Any]:
     return {"mode": mode, "rate": props[0], "n": len(cases), "propensity_logged": True}
 
 
+def _histogram(bins: list[float], conf: np.ndarray, min_n: int) -> dict[str, Any] | None:
+    """v1.2: one test's threshold-split cases per bin, and those the rule abstains on whatever the
+    threshold (UNSCORED); None (withheld) when the test has fewer than `min_n` cases, so that a few
+    cases' confidences are not published one by one."""
+    if len(conf) < min_n:
+        return None
+    h = Histogram.of(bins, [None if c < 0 else float(c) for c in conf])
+    return {"counts": list(h.counts), "unscored": h.unscored}
+
+
 def _test(conf: np.ndarray, err: np.ndarray, cuts: np.ndarray, alpha: float, d: float | None) -> dict[str, Any]:
     """One test (spec §1.1): ltt at level d, or crc when d is None."""
     pt = cs.ltt(conf, err, cuts, alpha, d) if d is not None else cs.crc(conf, err, cuts, alpha)
@@ -281,9 +299,10 @@ def certify_decision(
     now: dt.datetime,
     spec: str = SPEC,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """(unsigned certificate, aggregate diagnostics) for one decision. Spec §1.1. Under v1.1 each
-    test starts at the best cut on its own temperature-split cases; under v1, every test starts at
-    the best cut on the whole temperature split."""
+    """(unsigned certificate, aggregate diagnostics) for one decision. Spec §1.1. Under v1.1 and
+    v1.2 each test starts at the best cut on its own temperature-split cases; under v1, every test
+    starts at the best cut on the whole temperature split. v1.2 adds each test's confidence
+    histogram, on bins learned from the temperature split."""
     if spec not in SPECS:
         raise CertError(f"unknown spec {spec!r}; this issuer writes {' or '.join(SPECS)}")
     audit_block = _audit(cases, audit, decision)
@@ -336,12 +355,15 @@ def certify_decision(
             return all_cuts[pooled_start:]
         return all_cuts[cs.start(all_cuts, conf_t[mask_t], err_t[mask_t], alpha) :]
 
+    v12 = spec == SPEC_V1_2
+    bins = cs.bins_of(conf_t, HISTOGRAM_BINS) if v12 else []
     rest = ~np.isin(seg_a, certified) | ~has_seg
     rest_t = ~np.isin(seg_t, certified) | ~has_seg_t
     cuts = cuts_for(rest_t)
     top = _test(conf_a[rest], err_a[rest], cuts, alpha, d)
     segments: list[dict[str, Any]] = []
     seg_diag: dict[str, dict[str, int]] = {}
+    hidden = rest.copy()  # remainder cases no published inherited histogram counts (spec §6)
     for v in present:
         m = has_seg & (seg_a == v)
         field = cfg.segments.field if cfg.segments else ""
@@ -358,9 +380,13 @@ def certify_decision(
                 "_answered": int(hit.sum()),
                 "_errors": int(err_a[hit].sum()),
             }
-        segments.append(
-            {"field": field, "value": v, "inherited": v not in certified, **{k: x for k, x in r.items() if k[0] != "_"}}
-        )
+        public = {k: x for k, x in r.items() if k[0] != "_"}
+        entry = {"field": field, "value": v, "inherited": v not in certified, **public}
+        if v12:
+            entry["confidence_histogram"] = _histogram(bins, conf_a[m], cfg.histogram_min_n)
+            if v not in certified and entry["confidence_histogram"] is not None:
+                hidden &= ~m
+        segments.append(entry)
         seg_diag[v] = {"answered": r["_answered"], "errors": r["_errors"]}
 
     hashed = [
@@ -397,6 +423,12 @@ def certify_decision(
         "audit": audit_block,
         "issuer": ISSUER,
     }
+    if v12:
+        cert["confidence_bins"] = bins
+        # The remainder's histogram minus the published inherited ones is the histogram of the other
+        # remainder cases (withheld segments, cases without a segment): withhold it when they are few.
+        few = 0 < int(hidden.sum()) < cfg.histogram_min_n
+        cert["confidence_histogram"] = None if few else _histogram(bins, conf_a[rest], cfg.histogram_min_n)
     diag = {
         "n": len(cases),
         "n_unscored": sum(c.raw is None for c in cases),
@@ -484,8 +516,9 @@ def issue(
     now: dt.datetime | None = None,
     spec: str = SPEC,
 ) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
-    """(calibration file contents, aggregate diagnostics per decision). `spec` picks the procedure:
-    v1.1 by default, or v1 (`decision-certificate.v1`) to reproduce a v1 certificate."""
+    """(calibration file contents, aggregate diagnostics per decision). `spec` picks what is written:
+    v1.2 by default, v1.1 (the same procedure, no confidence histogram), or v1
+    (`decision-certificate.v1`) to reproduce a v1 certificate."""
     if not 0 < alpha < 1 or not 0 < delta < 1:
         raise CertError("alpha and delta must be in (0, 1)")
     if any(p.get("calibrated") for p in preds):

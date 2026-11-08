@@ -1,5 +1,5 @@
-"""Verify and apply decision certificates: `decision-certificate.v1` and `decision-certificate.v1.1`
-(spec/decision-certificate.v1.md, spec/decision-certificate.v1.1.md).
+"""Verify and apply decision certificates: `decision-certificate.v1`, `v1.1` and `v1.2`
+(spec/decision-certificate.v1.md, spec/decision-certificate.v1.1.md, spec/decision-certificate.v1.2.md).
 
 A port of the Rust crate in this repository's `rust/`, which is the reference: both must agree on
 every conformance fixture. A certificate describes a measured process; it never promises an outcome.
@@ -7,13 +7,21 @@ every conformance fixture. A certificate describes a measured process; it never 
     from decision_cert import loads, verify
     v = verify(loads(open("cert.json").read()), keys)   # keys: key id -> base64url public key
     v.id, v.threshold_for("north"), v.is_expired(now)
+
+    # v1.2: monitor a window of use-time confidences without labels;
+    # None for a case unscored or above `rule.cannot_tell_above`
+    window = Histogram.of(v.confidence_bins(), confidences)
+    shift_score(v.histogram_for("north"), window).p_value
 """
 
+from ._monitor import Histogram, ShiftScore, bin_of, chi2_sf, shift_score
 from ._verify import (
     ABSTAIN_ALL,
     SPEC,
     SPEC_V1_1,
+    SPEC_V1_2,
     SPECS,
+    V1_2_FIELDS,
     BadKey,
     BadSignature,
     CertError,
@@ -37,18 +45,25 @@ __all__ = [
     "SPEC",
     "SPECS",
     "SPEC_V1_1",
+    "SPEC_V1_2",
+    "V1_2_FIELDS",
     "BadKey",
     "BadSignature",
     "CertError",
+    "Histogram",
     "Invalid",
+    "ShiftScore",
     "UntrustedKey",
     "Verified",
     "__version__",
+    "bin_of",
     "canonical",
     "certificate_id",
+    "chi2_sf",
     "is_expired",
     "key_id",
     "loads",
+    "shift_score",
     "threshold_for",
     "timestamp",
     "verify",

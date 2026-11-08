@@ -3,8 +3,9 @@
 A decision certificate records how one model's answers to one decision were measured: the labelled
 cases, the threshold chosen, how many cases it answers, and a bound on the error of those answers
 at a stated confidence. It is signed by whoever ran the measurement. The normative definition is
-[`spec/decision-certificate.v1.1.md`](../spec/decision-certificate.v1.1.md) (certificates issued
-under [v1](../spec/decision-certificate.v1.md) stay valid); this page is how to use it.
+[`spec/decision-certificate.v1.2.md`](../spec/decision-certificate.v1.2.md) (certificates issued
+under [v1](../spec/decision-certificate.v1.md) and [v1.1](../spec/decision-certificate.v1.1.md) stay
+valid); this page is how to use it.
 
 ## What a certificate claims, and what it does not
 
@@ -32,13 +33,16 @@ It does **not** claim:
 - **For `method: crc`, a high-probability bound.** That method bounds the *average* share of cases
   that are answered and wrong, which is a weaker claim, and the certificate names it
   (`risk: joint_error`).
+- **That a quiet shift score means the bound holds.** The v1.2 confidence histogram describes the
+  calibration cases. Comparing use-time cases with it shows where confidences moved, never that the
+  error stayed within `alpha`, and a flagged shift can be a harmless one.
 
 ## Issuing one
 
 Whoever runs the measurement issues the certificate, in their own environment, with their own
 Ed25519 key. The issuer of a certificate never needs anyone else's signing key, and nobody else
 holds theirs. This section describes what any issuer does, following
-[spec §1](../spec/decision-certificate.v1.1.md#1-what-is-measured). The reference issuer is
+[spec §1](../spec/decision-certificate.v1.2.md#1-what-is-measured). The reference issuer is
 `decision_cert.issue` (`pip install 'decision-cert[issue]'`); its commands are shown with each step.
 
 1. **Generate a signing key once** and publish its trusted-keys entry: the key id (`ed25519:` + the
@@ -49,7 +53,7 @@ holds theirs. This section describes what any issuer does, following
    propensity.
 3. **Run the procedure** of spec §1.1: split, fit the calibration map on the temperature split,
    build the grid, test each certified segment and the remainder, compute the descriptive `ucb`
-   and `realized_band` (§1.2).
+   and `realized_band` (§1.2), and (v1.2) each test's confidence histogram (§1.5).
 4. **Sign** the canonical (RFC 8785) bytes of the certificate without `signature`, and attach the
    signature.
    With the reference issuer, steps 1 and 3–4:
@@ -84,8 +88,12 @@ What an issuer writes, and what it refuses:
   on a missing label or prediction, mismatched options, or an unknown model version.
 - **Threshold.** When no threshold passes, the certificate says so: `abstain_below: 1.01`, which
   abstains on every case.
-- **Spec.** The reference issuer writes `decision-certificate.v1.1`. `--spec decision-certificate.v1`
-  issues by the v1 procedure, to reproduce an earlier certificate.
+- **Spec.** The reference issuer writes `decision-certificate.v1.2`. `--spec decision-certificate.v1.1`
+  writes the same test without the confidence histogram, for consumers that do not read v1.2 yet;
+  `--spec decision-certificate.v1` issues by the v1 procedure, to reproduce an earlier certificate.
+- **Histograms** (v1.2). Bins at the 20-quantiles of the temperature split's confidences, and per
+  test the threshold-split cases per bin. A test with fewer than `histogram_min_n` cases (default
+  30) gets `null` instead, so that a few cases' confidences are not published one by one (spec §6).
 
 ### How many labelled cases
 
@@ -128,6 +136,7 @@ certificate:
     floor: 200
   keys:                     # trusted signing keys: key id → base64url raw Ed25519 public key
     "ed25519:1f217282bf49a241": TA1U9XSMsXFbAw3EnYGLKL6vxjYJo8xvWh2eTirq6Yo
+  histogram_min_n: 30       # issuer, v1.2: withhold (null) the histogram of a test with fewer cases
 ```
 
 Segment values are only ever the declared ones, and must be quoted strings in YAML (`'1.50'`,
@@ -145,8 +154,8 @@ Spec §4 is normative; in short:
   - doesn't match the schema;
   - isn't signed by a trusted key;
   - names another domain, decision, option order or backend;
-  - uses a calibration map the consumer does not apply (v1 and v1.1: `temperature`), or disagrees with the
-    calibration entry's temperature or threshold;
+  - uses a calibration map the consumer does not apply (v1, v1.1 and v1.2: `temperature`), or
+    disagrees with the calibration entry's temperature or threshold;
   - was measured with another `cannot_tell_above`;
   - certifies segments by another field, or a segment value the domain no longer declares.
 - **Deciding.** Each decision made under a certificate carries `certificate_id` (`sha256:` of the
@@ -154,11 +163,27 @@ Spec §4 is normative; in short:
   threshold.
 - **Expiry.** After `expires_at`, `on_expired: refer` abstains with
   `abstain_reason: "certificate_expired"`; `warn` decides and logs a warning.
-- **Monitoring without labels.** Compare the share of cases answered with the certificate's
-  `coverage`, for example with a two-sample test of proportions against `n` threshold-split cases.
-  A significant change is a prompt to measure again. It shows shifts that move the model's
-  confidences. It cannot show a change in error at the same confidence, or a change in the mix of
-  groups the model cannot tell apart; only labelled cases can
+- **Monitoring without labels.** Two scores, both prompts to measure again and neither a finding
+  about the bound:
+  - **Answered share** (any spec): compare the share of cases answered with the certificate's
+    `coverage`, for example with a two-sample test of proportions against `n` threshold-split cases.
+    It shows shifts that move confidences across the threshold.
+  - **Shift score** (v1.2, spec §4): bin a window of confidences on `confidence_bins` and compare it
+    with the stored histogram of the same test. It also shows shifts inside the answered range,
+    which can raise the error while the answered share stays put
+    ([H1 study](../spec/drafts/h1-histogram-study.md)), and shifts among abstained cases, which are
+    harmless.
+
+  ```python
+  from decision_cert import Histogram, shift_score, verify
+  v = verify(cert, keys)
+  window = Histogram.of(v.confidence_bins(), confidences)    # None: unscored or above cannot_tell_above
+  shift_score(v.histogram_for(segment), window).p_value       # small: measure again
+  ```
+
+  The Rust crate has the same functions (`Histogram::of`, `shift_score`, `Verified::histogram_for`).
+  Neither score can show a change in error at the same confidence, or a change in the mix of groups
+  the model cannot tell apart; only labelled cases can
   ([O2 study](../spec/drafts/o2-shift-study.md)).
 
 ## Example: reading a certificate
