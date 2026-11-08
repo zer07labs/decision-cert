@@ -5,6 +5,10 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 
 ## Unreleased
 
+- `python/tools/study_grid.py` and `spec/drafts/o1-grid-study.md`: a deterministic simulation
+  study of the threshold grid on small tests (v1.1 draft O1), reporting validity (violation rate,
+  90th and 95th percentile error) alongside power. It suggests a per-test start and no coarse grid;
+  nothing is decided.
 - `spec/drafts/decision-certificate.v1.1.md`: a draft of v1.1 with every item open (threshold grid
   for small tests, shift score, segment-conditional thresholds, label budget, a `dr` map kind).
   Nothing is frozen; verifiers and the issuer are unchanged.

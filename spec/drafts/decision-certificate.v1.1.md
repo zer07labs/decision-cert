@@ -50,6 +50,13 @@ test-set sizes from the floor to tens of thousands, and checks that the realised
 stays at or below `alpha` at the stated rate. The issuer's regression tests pin v1's behaviour on
 both cases (no passing cut, and a failing start cut) for comparison.
 
+**Study (2026-11-08).** [`o1-grid-study.md`](o1-grid-study.md). Every rule stayed valid: true
+error above `alpha` in at most 7.8% of replicates at `delta` 0.1, and the 90th percentile at or below
+`alpha`. A coarse quantile grid bought no power and lost coverage on large tests. A per-test start
+certified more often for a segment that differs from the pool, with unchanged validity. Small
+tests are limited by their number of cases, which is O4's question. Suggested, not decided: adopt
+the per-test start, keep v1's cuts.
+
 **Changes for verifiers.** None beyond the new `spec` value: the procedure is the issuer's. It
 changes what a v1.1 certificate's `abstain_below` means, which is why it needs a new `spec` value.
 
