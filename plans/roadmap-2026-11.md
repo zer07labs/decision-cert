@@ -96,8 +96,8 @@ Status: the issuer and the fixture generator moved in #12 and shipped in 0.2.0. 
 item listed with its evidence. Every item was decided from evidence (2026-11-08): O1, a per-test grid
 start; O2–O4 settled as text and guidance, with no new fields; O5 (a `dr` map kind) deferred to v1.2.
 [v1.1 is frozen](../spec/decision-certificate.v1.1.md); both verifiers accept both specs, the issuer
-writes v1.1, and `fixtures/v1.1/` holds its fixture set. 0.3.0, which carries v1.1, was approved
-for release on 2026-11-08.
+writes v1.1, and `fixtures/v1.1/` holds its fixture set. 0.3.0, which carries v1.1, was released
+on 2026-11-08 (tag `v0.3.0`, on crates.io and PyPI).
 
 ## Naming (decided 2026-11-07)
 
