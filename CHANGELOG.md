@@ -5,6 +5,11 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 
 ## Unreleased
 
+## 0.3.0 — unreleased (the owner tags `v0.3.0`)
+
+Spec v1.1: frozen, verified, issued. Verifiers accept v1 and v1.1; v1 certificates and fixtures are
+unchanged.
+
 - **Spec v1.1 frozen** (2026-11-08): `spec/decision-certificate.v1.1.md` and its schema. The fields
   are v1's. One procedure change: each test starts the threshold grid at the best cut on its own
   temperature-split cases. Clarifications: the refusal floor, mix dependence, the label budget,
@@ -50,7 +55,7 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
   verifies every demo with `--now` inside its validity window and checks `manifest_hash` against
   `model.json`.
 
-## 0.2.0 — unreleased (the owner tags `v0.2.0`)
+## 0.2.0 — 2026-11-07 (tag `v0.2.0`)
 
 The reference issuer moves here. The verifiers, the spec and the fixtures are unchanged; the Rust
 crate is republished at the same version for lockstep.
