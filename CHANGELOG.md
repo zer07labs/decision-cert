@@ -5,6 +5,9 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 
 ## Unreleased
 
+- `python/tools/study_mix.py` and `spec/drafts/o3-mix-study.md`: thresholds under a shift in the
+  segment mix; recommendation for O3 (no new mechanism; v1 segments are conditional tests; state
+  the remainder's mix dependence). Not decided.
 - `python/tools/study_budget.py` and `spec/drafts/o4-budget-study.md`: how many labelled cases an
   `ltt` certificate needs, by model quality and alpha. Recommendations for O4 (no new field,
   guidance only) and O5 (defer to v1.2) in the v1.1 draft; not decided.
