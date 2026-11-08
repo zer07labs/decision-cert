@@ -88,6 +88,9 @@ The Python issuer (`issue` extra, so the base verifier stays two-dependency) and
 generator move here. Spec v1.1 is drafted as a separate document; v1 fixtures are kept and verifiers
 accept both.
 
+Status: the issuer and the fixture generator moved in #12 and ship in 0.2.0; spec v1.1 follows
+in 0.3.0.
+
 ## Naming (decided 2026-11-07)
 
 The crate, the Python distribution and the repository keep the name `decision-cert` for good. It
