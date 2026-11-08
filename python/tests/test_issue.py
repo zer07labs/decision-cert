@@ -15,6 +15,7 @@ from typing import Any
 import numpy as np
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from scipy.stats import binom
 
 import decision_cert as dc
 from decision_cert.issue import certify as ct
@@ -321,3 +322,39 @@ def test_isotonic_fit_is_monotone() -> None:
     model = recal.isotonic_fit(x, y)
     out = recal.isotonic_apply(model, np.linspace(0, 1, 50))
     assert np.all(np.diff(out) >= 0)
+
+
+# ---------- v1 behaviour pinned for the v1.1 study (spec/drafts/decision-certificate.v1.1.md, O1) ----------
+
+
+def _hindsight_passes(conf: np.ndarray, err: np.ndarray, cuts: np.ndarray, alpha: float, d: float) -> int:
+    """How many cuts would pass if one were picked after seeing the threshold split (for scale only;
+    picking that way is not a valid test)."""
+    n, e = cs.counts(conf, err, cuts)
+    return int(np.sum((n > 0) & (binom.cdf(e, np.maximum(n, 1), alpha) <= d)))
+
+
+def test_a_set_with_no_passing_cut_abstains_on_everything() -> None:
+    """Errors at about 6% at every confidence: no cut passes at alpha 0.05, even with hindsight, so
+    abstaining on everything is the correct result, not a defect."""
+    rng = np.random.default_rng(11)
+    conf_t, conf_a = rng.uniform(0.5, 1.0, 4000), rng.uniform(0.5, 1.0, 4000)
+    err_t, err_a = rng.random(4000) < 0.06, rng.random(4000) < 0.06
+    cuts = cs.grid(conf_t, err_t, 0.05)
+    assert _hindsight_passes(conf_a, err_a, cuts, 0.05, 0.1) == 0
+    assert cs.ltt(conf_a, err_a, cuts, 0.05, 0.1).abstain_below == cs.ABSTAIN_ALL
+
+
+def test_v1_stops_at_a_failing_start_cut_even_when_a_looser_cut_would_pass() -> None:
+    """A small set: the start cut is learned on the temperature split (200 correct cases above it),
+    but on the threshold split 3 of the 20 cases above it are wrong, so the fixed sequence stops at
+    once although the next cut (220 cases, 3 errors) would pass. v1 keeps this behaviour; any v1.1
+    grid rule is measured against it."""
+    conf_t = np.array([0.95] * 200 + [0.85] * 50)
+    err_t = np.array([False] * 200 + [True] * 10 + [False] * 40)
+    cuts = cs.grid(conf_t, err_t, 0.05)
+    assert len(cuts) == 2 and 0.85 < cuts[0] < 0.95 and cuts[1] == 0.0
+    conf_a = np.array([0.95] * 20 + [0.85] * 200)
+    err_a = np.array([True] * 3 + [False] * 17 + [False] * 200)
+    assert _hindsight_passes(conf_a, err_a, cuts, 0.05, 0.1) == 1
+    assert cs.ltt(conf_a, err_a, cuts, 0.05, 0.1).abstain_below == cs.ABSTAIN_ALL
