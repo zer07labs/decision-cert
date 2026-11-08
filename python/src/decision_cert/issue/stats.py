@@ -52,6 +52,17 @@ def cuts_of(conf_temperature: np.ndarray) -> np.ndarray:
     return np.array([_between(float(u[i + 1]), float(u[i])) for i in range(len(u) - 1)] + [0.0])
 
 
+def bins_of(conf_temperature: np.ndarray, k: int) -> list[float]:
+    """v1.2 histogram bins, learned from the temperature split only (like the grid): 0, the
+    k-quantiles of its scored confidences (not above the `cannot_tell` cut) rounded to 4 decimals
+    (strictly inside (0, 1), repeats dropped), then 1. Rounding keeps the edges short and reveals
+    no more than the quantiles do."""
+    c = np.asarray(conf_temperature, float)
+    c = c[c >= 0]
+    inner = sorted({round(float(x), 4) for x in np.quantile(c, np.arange(1, k) / k)} if len(c) else set())
+    return [0.0, *[x for x in inner if 0.0 < x < 1.0], 1.0]
+
+
 def start(cuts: np.ndarray, conf: np.ndarray, err: np.ndarray, alpha: float) -> int:
     """Where a fixed sequence down `cuts` starts: the cut with the smallest `ltt` p-value on these
     temperature-split cases, the strictest on ties. Starting at the very top would stop the sequence

@@ -1,6 +1,7 @@
 """Generate the reference issuer's conformance fixtures: the positive (and first negative) fixtures
 and `mutations/schema_invalid.json`, signed with the reference issuer's `sign`, for v1 (`fixtures/`)
-and for v1.1 (`fixtures/v1.1/`, with its own `FIXTURES.sha256`).
+for v1.1 (`fixtures/v1.1/`) and for v1.2 (`fixtures/v1.2/`), each later set with its own
+`FIXTURES.sha256`.
 
     cd python && uv run python tools/gen_positive_fixtures.py          # write
     cd python && uv run python tools/gen_positive_fixtures.py --check  # fail if any byte would change
@@ -10,7 +11,9 @@ must stay byte-identical: a change to any of them is a change to the conformance
 vendored copy must follow. After writing, run `tools/gen_negative_fixtures.py` to refresh
 `fixtures/FIXTURES.sha256`. The v1.1 set is the same certificates with `spec`
 `decision-certificate.v1.1`, plus a certificate naming a spec no verifier knows; its manifest is
-written here.
+written here. The v1.2 set is the same again with `spec` `decision-certificate.v1.2` and the v1.2
+fields (the confidence histograms), plus the v1.2 cases: a withheld histogram, fields that belong to
+another spec, and histograms the schema accepts but a verifier must refuse.
 """
 
 from __future__ import annotations
@@ -33,6 +36,9 @@ from decision_cert.issue import certify as ct
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "fixtures"
 V11 = FIXTURES / "v1.1"
+V12 = FIXTURES / "v1.2"
+BINS = [0, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 0.99, 1]
+HISTOGRAM = {"counts": [0, 310, 320, 330, 280, 300, 340, 420, 150], "unscored": 50}  # n 2500
 KEY = Ed25519PrivateKey.from_private_bytes(bytes(range(32)))
 OTHER = Ed25519PrivateKey.from_private_bytes(bytes(range(32, 64)))
 
@@ -46,6 +52,10 @@ def make_base(spec: str = ct.SPEC_V1) -> dict[str, Any]:
     if spec != ct.SPEC_V1:
         out["spec"] = spec
         out["issuer"] = {"tool": "decision-cert", "version": "0.3.0"}
+    if spec == ct.SPEC_V1_2:
+        out["issuer"] = {"tool": "decision-cert", "version": "0.4.0"}
+        out["confidence_bins"] = list(BINS)
+        out["confidence_histogram"] = copy.deepcopy(HISTOGRAM)
     return out
 
 
@@ -98,6 +108,9 @@ def fixtures(spec: str = ct.SPEC_V1) -> dict[str, dict[str, Any]]:
     tricky.update(abstain_below=1e-7, coverage=0.1234567890123456789, ucb=5e-324, n_cal=9007199254740991)
     tricky["split"] = {"method": "seeded", "seed": -3}
     tricky["realized_band"] = {"level": 0.95, "low": 0.0, "high": 1.0}
+    if spec == ct.SPEC_V1_2:
+        tricky["confidence_bins"] = [0, 1e-7, 0.30000000000000004, 0.5, 0.9999999999999999, 1.0]
+        tricky["confidence_histogram"] = {"counts": [0, 0, 1250, 1249, 1], "unscored": 0}
     out["valid_tricky_numbers"] = (ct.sign(tricky, KEY), keys(KEY), True, None)
 
     crc = base()
@@ -128,6 +141,9 @@ def fixtures(spec: str = ct.SPEC_V1) -> dict[str, dict[str, Any]]:
             "abstain_below": 0.8829170572757721,
         },
     ]
+    if spec == ct.SPEC_V1_2:
+        seg["segments"][0]["confidence_histogram"] = {"counts": [0, 60, 70, 80, 70, 80, 90, 100, 40], "unscored": 10}
+        seg["segments"][1]["confidence_histogram"] = None  # withheld
     out["valid_segments_unicode"] = (ct.sign(seg, KEY), keys(KEY, OTHER), True, None)
 
     tampered = copy.deepcopy(out["valid_basic"][0])
@@ -145,8 +161,63 @@ def fixtures(spec: str = ct.SPEC_V1) -> dict[str, dict[str, Any]]:
 
     if spec != ct.SPEC_V1:
         later = base()
-        later["spec"] = "decision-certificate.v1.2"  # signed, but no verifier knows this spec
+        # signed, but no verifier knows this spec (v1.2 was unknown when the v1.1 set was made; a v1.2
+        # verifier refuses that file because its fields are not v1.2's, with the same message)
+        later["spec"] = "decision-certificate.v1.2" if spec == ct.SPEC_V1_1 else "decision-certificate.v1.3"
         out["invalid_unknown_spec"] = (ct.sign(later, KEY), keys(KEY), False, "spec is not")
+
+    if spec == ct.SPEC_V1_2:
+        withheld = base()
+        withheld["confidence_histogram"] = None
+        out["valid_histogram_withheld"] = (ct.sign(withheld, KEY), keys(KEY), True, None)
+
+        no_bins = base()
+        del no_bins["confidence_bins"]  # a v1.2 certificate without a v1.2 field
+        out["invalid_missing_v1_2_field"] = (ct.sign(no_bins, KEY), keys(KEY), False, "spec is not consistent")
+
+        in_v11 = make_base(ct.SPEC_V1_1)
+        in_v11["confidence_bins"] = list(BINS)  # a v1.1 certificate with a v1.2 field
+        in_v11["confidence_histogram"] = copy.deepcopy(HISTOGRAM)
+        out["invalid_v1_2_field_in_v1_1"] = (ct.sign(in_v11, KEY), keys(KEY), False, "unknown field")
+
+        off = base()
+        off["confidence_histogram"] = {"counts": [0, 310, 320, 330, 280, 300, 340, 420, 151], "unscored": 50}
+        out["invalid_histogram_sum"] = (ct.sign(off, KEY), keys(KEY), False, "confidence_histogram needs")
+
+        short = base()
+        short["confidence_histogram"] = {"counts": [310, 320, 330, 280, 300, 340, 420, 150], "unscored": 50}
+        out["invalid_histogram_bins"] = (ct.sign(short, KEY), keys(KEY), False, "confidence_histogram needs")
+
+        flat = base()
+        flat["confidence_bins"] = [0, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.9, 0.99, 1]
+        out["invalid_bins_not_rising"] = (ct.sign(flat, KEY), keys(KEY), False, "confidence_bins must rise")
+
+        open_end = base()
+        open_end["confidence_bins"] = [0, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 0.99, 0.999]
+        out["invalid_bins_not_ending_at_1"] = (ct.sign(open_end, KEY), keys(KEY), False, "confidence_bins must rise")
+
+        def segmented() -> dict[str, Any]:
+            cert = copy.deepcopy(out["valid_segments_unicode"][0])
+            del cert["signature"]
+            return cert
+
+        seg_off = segmented()
+        seg_off["segments"][0]["confidence_histogram"]["unscored"] = 9  # sums to 599, the segment's n is 600
+        out["invalid_segment_histogram_sum"] = (
+            ct.sign(seg_off, KEY),
+            keys(KEY, OTHER),
+            False,
+            "confidence_histogram needs",
+        )
+
+        seg_none = segmented()
+        del seg_none["segments"][1]["confidence_histogram"]  # a v1.2 segment without its v1.2 field
+        out["invalid_segment_missing_histogram"] = (
+            ct.sign(seg_none, KEY),
+            keys(KEY, OTHER),
+            False,
+            "spec is not consistent",
+        )
 
     result = {}
     for name, (cert, trusted, valid, error) in out.items():
@@ -206,12 +277,16 @@ def _set(spec: str, root: Path) -> dict[Path, str]:
     return files
 
 
+def _with_manifest(files: dict[Path, str], root: Path) -> dict[Path, str]:
+    lines = [f"{hashlib.sha256(t.encode()).hexdigest()}  {p.relative_to(root).as_posix()}" for p, t in files.items()]
+    return {**files, root / "FIXTURES.sha256": "\n".join(sorted(lines, key=lambda x: x.split("  ")[1])) + "\n"}
+
+
 def rendered() -> dict[Path, str]:
     files = _set(ct.SPEC_V1, FIXTURES)
-    v11 = _set(ct.SPEC, V11)
-    lines = sorted(f"{hashlib.sha256(t.encode()).hexdigest()}  {p.relative_to(V11).as_posix()}" for p, t in v11.items())
-    v11[V11 / "FIXTURES.sha256"] = "\n".join(sorted(lines, key=lambda x: x.split("  ")[1])) + "\n"
-    return {**files, **v11}
+    v11 = _with_manifest(_set(ct.SPEC_V1_1, V11), V11)
+    v12 = _with_manifest(_set(ct.SPEC_V1_2, V12), V12)
+    return {**files, **v11, **v12}
 
 
 def main() -> int:

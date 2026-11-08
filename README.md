@@ -23,7 +23,9 @@ A decision certificate records how that model's answers were **measured** on lab
 - which labelled cases were used (by hash, never the cases themselves);
 - the confidence threshold below which the model abstains;
 - the share of cases it answers at that threshold;
-- an upper bound on the error rate of the answered cases, at a stated confidence level.
+- an upper bound on the error rate of the answered cases, at a stated confidence level;
+- since v1.2, how the calibration cases' confidences were spread, so a consumer can notice without
+  labels when the cases it sees have moved away from them.
 
 Whoever ran the measurement signs the certificate (Ed25519 over the RFC 8785 canonical JSON bytes),
 and its id is `sha256:` of those bytes. Anyone holding the signer's public key can check that the
@@ -45,6 +47,14 @@ let keys = serde_json::from_str(&std::fs::read_to_string("trusted-keys.json")?)?
 let v = verify(&cert, &keys)?;                       // schema, trusted key, signature
 let threshold = v.threshold_for(Some("north"));      // segment threshold, else the top-level one
 let expired = v.is_expired(chrono::Utc::now());      // re-measure after expires_at
+
+// v1.2: compare recent cases' confidences with the stored histogram
+// (None for a case unscored or above rule.cannot_tell_above)
+use decision_cert::{shift_score, Histogram};
+if let (Some(bins), Some(stored)) = (v.confidence_bins(), v.histogram_for(Some("north"))) {
+    let window = Histogram::of(bins, recent_confidences).expect("confidences in [0, 1]");
+    let p = shift_score(stored, &window).expect("same bins").p_value; // small: measure again
+}
 ```
 
 `verify` rejects a certificate that does not match the schema (unknown fields included), is signed
@@ -55,17 +65,18 @@ certificate and its expiry.
 
 | Path | What |
 |---|---|
-| [`spec/`](spec/) | [`decision-certificate.v1.1.md`](spec/decision-certificate.v1.1.md) (normative, **frozen** 2026-11-08), [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (**frozen** 2026-10-25), and a JSON Schema for each |
-| [`rust/`](rust/) | the `decision-cert` crate: `verify`, `canonical`, `certificate_id`, `key_id`, segment thresholds, expiry |
+| [`spec/`](spec/) | [`decision-certificate.v1.2.md`](spec/decision-certificate.v1.2.md) (normative, in progress), [`decision-certificate.v1.1.md`](spec/decision-certificate.v1.1.md) (**frozen** 2026-11-08), [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (**frozen** 2026-10-25), and a JSON Schema for each |
+| [`rust/`](rust/) | the `decision-cert` crate: `verify`, `canonical`, `certificate_id`, `key_id`, segment thresholds, expiry, and the v1.2 shift score |
 | [`python/`](python/) | a pure-Python verifier (`decision_cert`), a port of the crate that passes the same fixtures |
-| [`fixtures/`](fixtures/) | conformance fixtures: signed certificates with their canonical bytes, ids and expected verdicts, plus `mutations/schema_invalid.json`, schema-invalid certificates a verifier must reject; v1 at the top level, v1.1 in `fixtures/v1.1/` |
+| [`fixtures/`](fixtures/) | conformance fixtures: signed certificates with their canonical bytes, ids and expected verdicts, plus `mutations/schema_invalid.json`, schema-invalid certificates a verifier must reject; v1 at the top level, v1.1 in `fixtures/v1.1/`, v1.2 in `fixtures/v1.2/` |
 | [`docs/certificates.md`](docs/certificates.md) | how a certificate is issued, verified and applied |
 | [`plans/`](plans/) | the public roadmap |
 
-v1 and v1.1 are frozen, and verifiers accept both. They have the same fields; v1.1 changes one step
-of the issuing procedure (each test starts the threshold grid on its own cases) and clarifies the
-text. Any change to a field or its meaning is `decision-certificate.v2`, and verifiers reject unknown
-fields. Corrections to frozen text go in [`spec/ERRATA.md`](spec/ERRATA.md), never in the text.
+v1 and v1.1 are frozen, and verifiers accept them and v1.2. v1 and v1.1 have the same fields; v1.1
+changes one step of the issuing procedure (each test starts the threshold grid on its own cases) and
+clarifies the text. v1.2 keeps v1.1's procedure and adds fields under its own `spec` value: the
+confidence histogram for monitoring without labels. A frozen spec's fields never change meaning, and
+verifiers reject unknown fields. Corrections to frozen text go in [`spec/ERRATA.md`](spec/ERRATA.md), never in the text.
 
 From the command line, in Rust or Python (exit 0 verified and unexpired, 1 rejected or expired,
 2 usage or file error):

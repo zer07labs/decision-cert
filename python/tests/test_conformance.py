@@ -1,6 +1,6 @@
 """The same fixture loop as rust/tests/conformance.rs: agree with the Rust crate on the canonical
-bytes, the certificate id and the verdict of every fixture (v1 and v1.1), and reject every schema
-mutation."""
+bytes, the certificate id and the verdict of every fixture (v1, v1.1 and v1.2), and reject every
+schema mutation."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import pytest
 import decision_cert as dc
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
-SETS = {"": 14, "v1.1": 9}  # each fixture set, and how many fixtures it has at least
+SETS = {"": 14, "v1.1": 9, "v1.2": 18}  # each fixture set, and how many fixtures it has at least
 
 
 def fixtures() -> list[tuple[str, Any]]:

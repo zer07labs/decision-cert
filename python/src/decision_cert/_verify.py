@@ -13,6 +13,7 @@ import base64
 import binascii
 import datetime as dt
 import hashlib
+import itertools
 import json
 import math
 from collections.abc import Callable, Mapping
@@ -24,13 +25,20 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from . import _ed25519
+from ._monitor import Histogram
 
 #: The `spec` of a certificate produced by the v1 procedure.
 SPEC = "decision-certificate.v1"
 #: The `spec` of a certificate produced by the v1.1 procedure (the per-test grid start).
 SPEC_V1_1 = "decision-certificate.v1.1"
-#: Every `spec` this verifier accepts. The fields, and so the checks, are the same for each.
-SPECS = (SPEC, SPEC_V1_1)
+#: The `spec` of a v1.2 certificate: v1.1's procedure, plus the stored confidence histogram.
+SPEC_V1_2 = "decision-certificate.v1.2"
+#: Every `spec` this verifier accepts. v1 and v1.1 have the same fields; v1.2 adds some (`V1_2_FIELDS`).
+SPECS = (SPEC, SPEC_V1_1, SPEC_V1_2)
+#: The fields a v1.2 certificate has and a v1 or v1.1 certificate must not: top level, and per segment.
+V1_2_FIELDS = (("confidence_bins", "confidence_histogram"), ("confidence_histogram",))
+#: Most bins a `confidence_bins` may define.
+MAX_BINS = 100
 #: `abstain_below` that abstains on every case.
 ABSTAIN_ALL = 1.01
 
@@ -156,9 +164,11 @@ def _map_of(inner: Reader) -> Reader:
     return read
 
 
-def _struct(name: str, fields: dict[str, Reader]) -> Reader:
+def _struct(name: str, fields: dict[str, Reader], optional: tuple[str, ...] = ()) -> Reader:
     """A `#[serde(deny_unknown_fields)]` struct with no defaults. Keys are read in sorted order (as
-    serde_json's map holds them), and missing fields are reported after the present ones."""
+    serde_json's map holds them), and missing fields are reported after the present ones. A field in
+    `optional` may be absent (`#[serde(default)]`); it is then left out of the result, so `check` can
+    tell absent from null."""
 
     def read(v: Any) -> dict[str, Any]:
         if not isinstance(v, Mapping):
@@ -171,7 +181,7 @@ def _struct(name: str, fields: dict[str, Reader]) -> Reader:
                 raise _TypeError(f"unknown field `{k}`, expected one of {', '.join(f'`{f}`' for f in fields)}")
             out[k] = fields[k](v[k])
         for f in fields:
-            if f not in out:
+            if f not in out and f not in optional:
                 raise _TypeError(f"missing field `{f}`")
         return out
 
@@ -179,6 +189,7 @@ def _struct(name: str, fields: dict[str, Reader]) -> Reader:
 
 
 _band = _struct("Band", {"level": _f64, "low": _f64, "high": _f64})
+_histogram = _nullable(_struct("Histogram", {"counts": _seq(_u64), "unscored": _u64}))
 _segment = _struct(
     "Segment",
     {
@@ -190,7 +201,9 @@ _segment = _struct(
         "ucb": _nullable(_f64),
         "realized_band": _nullable(_band),
         "inherited": _boolean,
+        "confidence_histogram": _histogram,
     },
+    optional=V1_2_FIELDS[1],
 )
 _certificate = _struct(
     "Certificate",
@@ -226,7 +239,10 @@ _certificate = _struct(
         "issuer": _struct("Issuer", {"tool": _string, "version": _string}),
         "signer_key_id": _string,
         "signature": _string,
+        "confidence_bins": _seq(_f64),
+        "confidence_histogram": _histogram,
     },
+    optional=V1_2_FIELDS[0],
 )
 
 
@@ -276,7 +292,8 @@ def _check(c: Mapping[str, Any]) -> None:
         return Invalid(m)
 
     if c["spec"] not in SPECS:
-        raise bad("spec is not decision-certificate.v1 or decision-certificate.v1.1")
+        raise bad("spec is not decision-certificate.v1, decision-certificate.v1.1 or decision-certificate.v1.2")
+    _check_fields_for_spec(c)
     opts = c["options"]
     if len(opts) < 2 or not all(o for o in opts) or len(set(opts)) != len(opts):
         raise bad("options needs at least 2 distinct non-empty ids")
@@ -330,6 +347,39 @@ def _check(c: Mapping[str, Any]) -> None:
     if c["window"] is not None:
         timestamp(c["window"]["start"])
         timestamp(c["window"]["end"])
+    if c["spec"] == SPEC_V1_2:
+        _check_histograms(c)
+
+
+def _check_fields_for_spec(c: Mapping[str, Any]) -> None:
+    """A v1.2 certificate has every v1.2 field, and a v1 or v1.1 certificate none of them, at the top
+    level and in every segment. A certificate whose fields belong to another spec is refused as a
+    spec it is not, so a v1.1-shaped certificate naming v1.2 is still refused as an unknown spec."""
+    v12 = c["spec"] == SPEC_V1_2
+    top, per_segment = V1_2_FIELDS
+    for where, obj, names in [("", c, top), *(("segments[]", s, per_segment) for s in c["segments"])]:
+        for f in names:
+            name = f"{where}.{f}" if where else f
+            if v12 and f not in obj:
+                raise Invalid(f"spec is not consistent with the fields: {SPEC_V1_2} requires `{name}`")
+            if not v12 and f in obj:
+                raise Invalid(f"unknown field `{name}` in a {c['spec']} certificate")
+
+
+def _check_histograms(c: Mapping[str, Any]) -> None:
+    """v1.2's checks beyond the schema: the bins rise strictly from 0 to 1, and each histogram has
+    one count per bin and counts exactly its test's `n` cases."""
+    bins = c["confidence_bins"]
+    if not (
+        2 <= len(bins) <= MAX_BINS + 1
+        and bins[0] == 0.0
+        and bins[-1] == 1.0
+        and all(a < b for a, b in itertools.pairwise(bins))
+    ):
+        raise Invalid(f"confidence_bins must rise strictly from 0 to 1, with 1 to {MAX_BINS} bins")
+    for h, n in [(c["confidence_histogram"], c["n"]), *((s["confidence_histogram"], s["n"]) for s in c["segments"])]:
+        if h is not None and (len(h["counts"]) != len(bins) - 1 or sum(h["counts"]) + h["unscored"] != n):
+            raise Invalid("a confidence_histogram needs one count per bin, and its counts and unscored must sum to n")
 
 
 # ---------- timestamps ----------
@@ -465,6 +515,23 @@ class Verified:
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("now must be timezone-aware")
         return now >= self.expires_at
+
+    def confidence_bins(self) -> tuple[float, ...] | None:
+        """The bin edges of a v1.2 certificate's confidence histograms; None before v1.2."""
+        bins = self._typed.get("confidence_bins")
+        return None if bins is None else tuple(float(x) for x in bins)
+
+    def histogram_for(self, segment: str | None) -> Histogram | None:
+        """The stored confidence histogram of the cases decided by the same threshold as a case in
+        `segment`: a certified segment's own, else the top level's. None before v1.2, or when the
+        issuer withheld it."""
+        h = self._typed.get("confidence_histogram")
+        if segment is not None:
+            for s in self._typed["segments"]:
+                if not s["inherited"] and s["value"] == segment:
+                    h = s.get("confidence_histogram")
+                    break
+        return None if h is None else Histogram(tuple(h["counts"]), h["unscored"])
 
     def temperature(self) -> float | None:
         """The temperature of a `kind: temperature` calibration map; None for other kinds."""

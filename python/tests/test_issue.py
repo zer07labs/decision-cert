@@ -5,6 +5,7 @@ Rust crate (the oracle; skipped when cargo is not on PATH, CI always has it)."""
 from __future__ import annotations
 
 import datetime as dt
+import itertools
 import json
 import shutil
 import stat
@@ -104,7 +105,7 @@ def rust_verdicts(tmp: Path, certs: list[dict[str, Any]]) -> list[dict[str, Any]
 def test_issued_certificate_verifies_and_claims_what_it_measured(tmp_path: Path) -> None:
     entry, diag = issue(tmp_path)
     cert = entry["certificate"]
-    assert cert["spec"] == "decision-certificate.v1.1" == ct.SPEC
+    assert cert["spec"] == "decision-certificate.v1.2" == ct.SPEC
     v = dc.verify(cert, trusted())
     assert v.id == diag["certificate_id"] == ct.certificate_id(cert)
     assert cert["issuer"] == {"tool": "decision-cert", "version": dc.__version__}
@@ -137,8 +138,14 @@ def test_same_inputs_give_the_same_certificate_bytes(tmp_path: Path) -> None:
         },
         {"unscored": 150, "alpha": 0.1, "delta": 0.05},
         {"cannot_tell_above": 0.5},
+        {"spec": "decision-certificate.v1.1"},
+        {
+            "regions": ["east", "west", "zürich ☃"],
+            "segments": {"field": "region", "values": ["east", "zürich ☃"], "floor": 300},
+            "spec": "decision-certificate.v1.1",
+        },
     ],
-    ids=["ltt", "crc", "time-split", "segments", "unscored", "cannot-tell"],
+    ids=["ltt", "crc", "time-split", "segments", "unscored", "cannot-tell", "v1.1", "v1.1-segments"],
 )
 def test_rust_crate_accepts_every_issued_certificate(tmp_path: Path, kw: dict[str, Any]) -> None:
     entry, diag = issue(tmp_path, **kw)
@@ -404,7 +411,7 @@ def _issue_start(tmp: Path, spec: str) -> dict[str, Any]:
 
 
 def test_v1_1_starts_each_test_on_its_own_cases_and_v1_does_not(tmp_path: Path) -> None:
-    v1, v11 = _issue_start(tmp_path, ct.SPEC_V1), _issue_start(tmp_path, ct.SPEC)
+    v1, v11 = _issue_start(tmp_path, ct.SPEC_V1), _issue_start(tmp_path, ct.SPEC_V1_1)
     assert v1["spec"] == "decision-certificate.v1" and v11["spec"] == "decision-certificate.v1.1"
     east1, east11 = v1["segments"][0], v11["segments"][0]
     assert east1["value"] == east11["value"] == "east" and not east1["inherited"] and not east11["inherited"]
@@ -419,8 +426,8 @@ def test_v1_1_starts_each_test_on_its_own_cases_and_v1_does_not(tmp_path: Path) 
 
 
 @pytest.mark.skipif(shutil.which("cargo") is None, reason="needs cargo for the Rust oracle")
-def test_both_specs_verify_in_the_rust_oracle(tmp_path: Path) -> None:
-    certs = [_issue_start(tmp_path, ct.SPEC_V1), _issue_start(tmp_path, ct.SPEC)]
+def test_every_spec_verifies_in_the_rust_oracle(tmp_path: Path) -> None:
+    certs = [_issue_start(tmp_path, spec) for spec in ct.SPECS]
     for c, v in zip(certs, rust_verdicts(tmp_path, certs), strict=True):
         assert v["valid"] and v["id"] == ct.certificate_id(c), v
 
@@ -432,8 +439,96 @@ def test_an_unknown_spec_is_refused(tmp_path: Path) -> None:
 
 def test_without_segments_v1_and_v1_1_issue_the_same_test(tmp_path: Path) -> None:
     a, _ = issue(tmp_path, spec=ct.SPEC_V1)
-    b, _ = issue(tmp_path, spec=ct.SPEC)
+    b, _ = issue(tmp_path, spec=ct.SPEC_V1_1)
     ca, cb = a["certificate"], b["certificate"]
     assert {k: v for k, v in ca.items() if k not in ("spec", "signature")} == {
         k: v for k, v in cb.items() if k not in ("spec", "signature")
     }
+
+
+# ---------- v1.2: the stored confidence histogram (spec/decision-certificate.v1.2.md §1.5) ----------
+
+
+def _threshold_split(diag: dict[str, Any]) -> list[float | None]:
+    return [None if c["confidence"] < 0 else c["confidence"] for c in diag["_cases"] if c["split"] == "threshold"]
+
+
+def test_v1_2_stores_the_threshold_splits_histogram_on_bins_from_the_temperature_split(tmp_path: Path) -> None:
+    entry, diag = issue(tmp_path, unscored=150)
+    cert = entry["certificate"]
+    bins = cert["confidence_bins"]
+    assert bins[0] == 0.0 and bins[-1] == 1.0 and all(a < b for a, b in itertools.pairwise(bins))
+    assert 2 < len(bins) <= ct.HISTOGRAM_BINS + 1
+    temperature = [c["confidence"] for c in diag["_cases"] if c["split"] == "temperature"]
+    assert bins == cs.bins_of(np.array(temperature), ct.HISTOGRAM_BINS), "bins come from the temperature split only"
+    want = dc.Histogram.of(bins, _threshold_split(diag))
+    assert cert["confidence_histogram"] == {"counts": list(want.counts), "unscored": want.unscored}
+    assert want.unscored == sum(1 for c in _threshold_split(diag) if c is None) > 0
+    assert want.total == cert["n"]
+    v = dc.verify(cert, trusted())
+    assert v.confidence_bins() == tuple(bins) and v.histogram_for(None) == want
+
+
+def test_v1_2_issues_the_same_test_as_v1_1_and_only_adds_the_histogram(tmp_path: Path) -> None:
+    segs = {"field": "region", "values": ["east", "zürich ☃"], "floor": 300}
+    regions = ["east", "west", "zürich ☃", "zürich ☃"]
+    a, _ = issue(tmp_path, spec=ct.SPEC_V1_1, regions=regions, segments=segs)
+    b, _ = issue(tmp_path, spec=ct.SPEC_V1_2, regions=regions, segments=segs)
+    ca, cb = a["certificate"], b["certificate"]
+    assert "confidence_bins" not in ca and all("confidence_histogram" not in s for s in ca["segments"])
+    strip = ("spec", "signature", "confidence_bins", "confidence_histogram")
+    assert {k: v for k, v in ca.items() if k not in strip and k != "segments"} == {
+        k: v for k, v in cb.items() if k not in strip and k != "segments"
+    }
+    assert [{k: v for k, v in s.items() if k not in strip} for s in cb["segments"]] == ca["segments"]
+    for s in cb["segments"]:
+        assert sum(s["confidence_histogram"]["counts"]) + s["confidence_histogram"]["unscored"] == s["n"]
+    v = dc.verify(cb, trusted())
+    zurich = next(s for s in cb["segments"] if s["value"] == "zürich ☃")
+    assert v.histogram_for("zürich ☃") == dc.Histogram(tuple(zurich["confidence_histogram"]["counts"]), 0)
+    assert v.histogram_for("east") == v.histogram_for(None), "an inherited segment is monitored with the remainder"
+
+
+def test_small_tests_have_their_histogram_withheld(tmp_path: Path) -> None:
+    segs = {"field": "region", "values": ["east", "tiny"], "floor": 300}
+    regions = ["east"] * 49 + ["west"] * 50 + ["tiny"]
+    cert = issue(tmp_path, regions=regions, segments=segs)[0]["certificate"]
+    tiny = next(s for s in cert["segments"] if s["value"] == "tiny")
+    assert tiny["n"] < 30 and tiny["confidence_histogram"] is None
+    assert cert["confidence_histogram"] is not None
+    assert dc.verify(cert, trusted()).histogram_for("tiny") == dc.verify(cert, trusted()).histogram_for(None)
+
+
+def test_a_withheld_histogram_cannot_be_recovered_by_subtraction(tmp_path: Path) -> None:
+    # Every remainder case is east or tiny: the remainder's histogram minus east's would be tiny's.
+    segs = {"field": "region", "values": ["east", "tiny"], "floor": 10**6}
+    cert = issue(tmp_path, regions=["east"] * 99 + ["tiny"], segments=segs)[0]["certificate"]
+    by = {s["value"]: s for s in cert["segments"]}
+    assert by["east"]["confidence_histogram"] is not None
+    assert by["tiny"]["n"] < 30 and by["tiny"]["confidence_histogram"] is None
+    assert cert["confidence_histogram"] is None
+
+
+def test_histogram_min_n_is_configurable(tmp_path: Path) -> None:
+    d = domain(tmp_path)
+    (d / "domain.yaml").write_text((d / "domain.yaml").read_text() + "  histogram_min_n: 5000\n")
+    preds, rows = cases(2000)
+    cal, _ = ct.issue(preds, rows, d, "toy-backend", KEY, now=NOW, audit="full-label")
+    assert cal["approved"]["certificate"]["confidence_histogram"] is None
+    (d / "domain.yaml").write_text((d / "domain.yaml").read_text().replace("5000", "-1"))
+    with pytest.raises(ct.CertError, match="histogram_min_n"):
+        ct.issue(preds, rows, d, "toy-backend", KEY, now=NOW, audit="full-label")
+
+
+def test_the_shift_score_flags_a_window_whose_confidences_moved(tmp_path: Path) -> None:
+    entry, diag = issue(tmp_path)
+    v = dc.verify(entry["certificate"], trusted())
+    bins, base = v.confidence_bins(), v.histogram_for(None)
+    assert bins is not None and base is not None
+    same = [c for c in _threshold_split(diag) if c is not None]
+    assert dc.shift_score(base, dc.Histogram.of(bins, same)).p_value == pytest.approx(1.0)
+    rng = np.random.default_rng(3)
+    fresh = rng.choice(np.array(same), 1500)
+    assert dc.shift_score(base, dc.Histogram.of(bins, fresh.tolist())).p_value > 0.001
+    lower = np.clip(fresh - 0.1, 0.5, 1.0)
+    assert dc.shift_score(base, dc.Histogram.of(bins, lower.tolist())).p_value < 1e-6
