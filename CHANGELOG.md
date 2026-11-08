@@ -5,6 +5,8 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 
 ## Unreleased
 
+- v1.1 draft: O1 decided (per-test grid start, v1's cuts), with a decision log. v1.1 stays
+  unfrozen until O2–O5 are settled or deferred to v1.2.
 - `python/tools/study_grid.py` and `spec/drafts/o1-grid-study.md`: a deterministic simulation
   study of the threshold grid on small tests (v1.1 draft O1), reporting validity (violation rate,
   90th and 95th percentile error) alongside power. It suggests a per-test start and no coarse grid;

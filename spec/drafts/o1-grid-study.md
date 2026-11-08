@@ -1,5 +1,5 @@
-> **DRAFT** study for open item O1 of the [v1.1 draft](decision-certificate.v1.1.md). It informs a
-> decision; it is not one.
+> Study for item O1 of the [v1.1 draft](decision-certificate.v1.1.md). O1 was decided on
+> 2026-11-08 as suggested below; see the draft's decision log.
 
 # O1 study: the threshold grid on small tests (2026-11-08)
 
@@ -51,7 +51,7 @@ threshold against the truth. There are 1,000 replicates per row.
    - At n 100, almost never.
    - This is O4's question (how many labels a certificate needs), not O1's.
 
-## What this suggests for O1 (not decided)
+## What this suggests for O1 (adopted 2026-11-08)
 
 - Adopt the per-test start: each certified segment and the remainder start at the cut with the
   smallest p-value on their own temperature-split cases. The list of cuts stays v1's.
