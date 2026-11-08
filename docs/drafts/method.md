@@ -44,6 +44,15 @@ most `alpha`, for the top level and every certified segment.
 A weaker variant, conformal risk control, bounds the *joint* error (answered and wrong) in
 expectation. It suits small samples, and the certificate names which method was used.
 
+## When nothing passes
+
+Sometimes no threshold passes, and the certificate says so: `abstain_below` is 1.01, and the rule
+abstains on every case. That is a result, not a failure. On the public bank-marketing data, with a
+small logistic-regression model and the clients' contact type declared as a segment, the `cellular`
+segment has no threshold at `alpha` 0.05 that passes, even one picked after looking at the test
+cases. The model is not good enough there to be trusted at that error rate, so abstaining on those
+cases is correct. The same model does certify on the pooled cases (see `demo/bank-marketing/`).
+
 ## The numbers that only describe
 
 Each certificate also reports `ucb` and `realized_band`, Clopper–Pearson intervals at the selected

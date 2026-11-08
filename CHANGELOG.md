@@ -5,6 +5,13 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 
 ## Unreleased
 
+- `spec/drafts/decision-certificate.v1.1.md`: a draft of v1.1 with every item open (threshold grid
+  for small tests, shift score, segment-conditional thresholds, label budget, a `dr` map kind).
+  Nothing is frozen; verifiers and the issuer are unchanged.
+- Issuer regression tests pinning v1's grid behaviour: a set with no passing cut abstains on
+  everything, and a failing start cut stops the sequence.
+- `docs/drafts/method.md`: when nothing passes, abstaining is the result.
+
 - `demo/bank-marketing/` and `demo/bank-marketing-crc/`: the first demo certificates on a public
   dataset (UCI Bank Marketing, CC BY 4.0), issued with the released 0.2.0 issuer and the demo key,
   each with the model's manifest; `python/tools/demo_bank_marketing.py` rebuilds the inputs. CI
