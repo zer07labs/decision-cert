@@ -1,4 +1,5 @@
-"""Verify and apply `decision-certificate.v1` (spec/decision-certificate.v1.md).
+"""Verify and apply decision certificates: `decision-certificate.v1` and `decision-certificate.v1.1`
+(spec/decision-certificate.v1.md, spec/decision-certificate.v1.1.md).
 
 A port of the Rust crate in this repository's `rust/`, which is the reference: both must agree on
 every conformance fixture. A certificate describes a measured process; it never promises an outcome.
@@ -11,6 +12,8 @@ every conformance fixture. A certificate describes a measured process; it never 
 from ._verify import (
     ABSTAIN_ALL,
     SPEC,
+    SPEC_V1_1,
+    SPECS,
     BadKey,
     BadSignature,
     CertError,
@@ -32,6 +35,8 @@ __version__ = "0.2.0"
 __all__ = [
     "ABSTAIN_ALL",
     "SPEC",
+    "SPECS",
+    "SPEC_V1_1",
     "BadKey",
     "BadSignature",
     "CertError",

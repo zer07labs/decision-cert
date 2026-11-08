@@ -51,7 +51,8 @@ jobs:
       - name: conformance fixtures (fixtures/)
         run: |
           test "$(find ../fixtures -maxdepth 1 -name '*.json' | wc -l)" -ge 14
-          cargo test --locked --test conformance -- --exact rust_and_python_agree_on_every_fixture every_schema_invalid_mutation_is_rejected
+          test "$(find ../fixtures/v1.1 -maxdepth 1 -name '*.json' | wc -l)" -ge 9
+          cargo test --locked --test conformance -- --exact rust_and_python_agree_on_every_fixture every_schema_invalid_mutation_is_rejected rust_and_python_agree_on_every_v1_1_fixture every_v1_1_schema_invalid_mutation_is_rejected
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           manifest-path: rust/Cargo.toml
@@ -80,6 +81,7 @@ jobs:
         run: |
           cmp LICENSE rust/LICENSE && cmp LICENSE python/LICENSE
           cmp spec/decision-certificate.v1.schema.json python/src/decision_cert/issue/decision-certificate.v1.schema.json
+          cmp spec/decision-certificate.v1.1.schema.json python/src/decision_cert/issue/decision-certificate.v1.1.schema.json
       - name: cargo package --list and cargo publish --dry-run
         working-directory: rust
         run: |
@@ -97,6 +99,7 @@ jobs:
           unzip -l "$RUNNER_TEMP"/dist/*.whl | grep -q 'decision_cert/py.typed'
           unzip -l "$RUNNER_TEMP"/dist/*.whl | grep -q 'licenses/LICENSE'
           unzip -l "$RUNNER_TEMP"/dist/*.whl | grep -q 'decision_cert/issue/decision-certificate.v1.schema.json'
+          unzip -l "$RUNNER_TEMP"/dist/*.whl | grep -q 'decision_cert/issue/decision-certificate.v1.1.schema.json'
       - name: the base install verifies without the issuer's dependencies
         run: |
           uv venv -q "$RUNNER_TEMP/base" --python 3.12
@@ -114,8 +117,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: sha256sum --strict -c FIXTURES.sha256
-      - name: the manifest lists every fixture file and nothing else
-        run: diff <(find . -name '*.json' | sed 's|^\./||' | LC_ALL=C sort) <(awk '{print $2}' FIXTURES.sha256 | LC_ALL=C sort)
+      - name: the manifest lists every v1 fixture file and nothing else
+        run: diff <(find . -path ./v1.1 -prune -o -name '*.json' -print | sed 's|^\./||' | LC_ALL=C sort) <(awk '{print $2}' FIXTURES.sha256 | LC_ALL=C sort)
+      - name: the v1.1 set's manifest, the same way
+        working-directory: fixtures/v1.1
+        run: |
+          sha256sum --strict -c FIXTURES.sha256
+          diff <(find . -name '*.json' | sed 's|^\./||' | LC_ALL=C sort) <(awk '{print $2}' FIXTURES.sha256 | LC_ALL=C sort)
 
   python:
     # The Python verifier: lint, types, the shared fixture loop, the differential test against the

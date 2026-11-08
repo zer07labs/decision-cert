@@ -1,5 +1,8 @@
 # decision-certificate.v1: errata and clarifications
 
+These entries concern v1. [v1.1](decision-certificate.v1.1.md) (frozen 2026-11-08) folds the
+clarifications below into its text; entries concerning v1.1 will name it.
+
 The v1 text and schema are frozen (2026-10-25). Nothing in them is edited. A correction or
 clarification is a dated entry here, newest last, and never changes the fields or their meaning:
 that would be `decision-certificate.v2`. Each entry names the section it concerns and states what

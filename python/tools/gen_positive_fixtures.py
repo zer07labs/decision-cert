@@ -1,13 +1,16 @@
 """Generate the reference issuer's conformance fixtures: the positive (and first negative) fixtures
-and `mutations/schema_invalid.json`, signed with the reference issuer's `sign`.
+and `mutations/schema_invalid.json`, signed with the reference issuer's `sign`, for v1 (`fixtures/`)
+and for v1.1 (`fixtures/v1.1/`, with its own `FIXTURES.sha256`).
 
     cd python && uv run python tools/gen_positive_fixtures.py          # write
     cd python && uv run python tools/gen_positive_fixtures.py --check  # fail if any byte would change
 
-The keys are public and deterministic (seeds 0..31 and 32..63). These files predate this script and
+The keys are public and deterministic (seeds 0..31 and 32..63). The v1 files predate this script and
 must stay byte-identical: a change to any of them is a change to the conformance suite, and every
 vendored copy must follow. After writing, run `tools/gen_negative_fixtures.py` to refresh
-`fixtures/FIXTURES.sha256`.
+`fixtures/FIXTURES.sha256`. The v1.1 set is the same certificates with `spec`
+`decision-certificate.v1.1`, plus a certificate naming a spec no verifier knows; its manifest is
+written here.
 """
 
 from __future__ import annotations
@@ -15,6 +18,7 @@ from __future__ import annotations
 import argparse
 import base64
 import copy
+import hashlib
 import json
 import sys
 from collections.abc import Iterator
@@ -28,6 +32,7 @@ from decision_cert.issue import certify as ct
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "fixtures"
+V11 = FIXTURES / "v1.1"
 KEY = Ed25519PrivateKey.from_private_bytes(bytes(range(32)))
 OTHER = Ed25519PrivateKey.from_private_bytes(bytes(range(32, 64)))
 
@@ -36,7 +41,15 @@ def keys(*ks: Ed25519PrivateKey) -> dict[str, str]:
     return {ct.key_id(k.public_key()): ct.b64url(ct.raw_public(k.public_key())) for k in ks}
 
 
-def base() -> dict[str, Any]:
+def make_base(spec: str = ct.SPEC_V1) -> dict[str, Any]:
+    out = _base_v1()
+    if spec != ct.SPEC_V1:
+        out["spec"] = spec
+        out["issuer"] = {"tool": "decision-cert", "version": "0.3.0"}
+    return out
+
+
+def _base_v1() -> dict[str, Any]:
     band = {"level": 0.95, "low": 0.0011834410146505043, "high": 0.04314473389094683}
     return {
         "spec": "decision-certificate.v1",
@@ -69,7 +82,10 @@ def base() -> dict[str, Any]:
     }
 
 
-def fixtures() -> dict[str, dict[str, Any]]:
+def fixtures(spec: str = ct.SPEC_V1) -> dict[str, dict[str, Any]]:
+    def base() -> dict[str, Any]:
+        return make_base(spec)
+
     out: dict[str, tuple[dict[str, Any], dict[str, str], bool, str | None]] = {}
     out["valid_basic"] = (ct.sign(base(), KEY), keys(KEY), True, None)
 
@@ -127,6 +143,11 @@ def fixtures() -> dict[str, dict[str, Any]]:
     del missing["window"]
     out["invalid_missing_nullable_field"] = (missing, keys(KEY), False, "window")
 
+    if spec != ct.SPEC_V1:
+        later = base()
+        later["spec"] = "decision-certificate.v1.2"  # signed, but no verifier knows this spec
+        out["invalid_unknown_spec"] = (ct.sign(later, KEY), keys(KEY), False, "spec is not")
+
     result = {}
     for name, (cert, trusted, valid, error) in out.items():
         body = {k: v for k, v in cert.items() if k != "signature"}
@@ -152,12 +173,12 @@ def _paths(v: Any, path: tuple[str | int, ...] = ()) -> Iterator[tuple[str | int
         yield from _paths(v[0], (*path, 0))
 
 
-def mutations() -> list[dict[str, Any]]:
+def mutations(spec: str = ct.SPEC_V1) -> list[dict[str, Any]]:
     """Signed certificates that the schema rejects, one per field and edit: dropped, null, wrong
     type, empty string, a string with a newline. Every verifier must reject every one."""
-    cert0 = fixtures()["valid_segments_unicode"]["certificate"]
+    cert0 = fixtures(spec)["valid_segments_unicode"]["certificate"]
     body0 = {k: v for k, v in cert0.items() if k not in ("signature", "signer_key_id")}
-    schema = ct.schema()
+    schema = ct.schema(spec)
     out = []
     for path in _paths(body0):
         for edit, value in [("drop", None), ("null", None), ("type", [1]), ("empty", ""), ("newline", "a\n")]:
@@ -177,12 +198,20 @@ def mutations() -> list[dict[str, Any]]:
     return out
 
 
-def rendered() -> dict[Path, str]:
-    files = {FIXTURES / f"{n}.json": json.dumps(f, indent=2, ensure_ascii=False) + "\n" for n, f in fixtures().items()}
-    m = {"keys": keys(KEY), "cases": mutations()}
+def _set(spec: str, root: Path) -> dict[Path, str]:
+    files = {root / f"{n}.json": json.dumps(f, indent=2, ensure_ascii=False) + "\n" for n, f in fixtures(spec).items()}
+    m = {"keys": keys(KEY), "cases": mutations(spec)}
     assert len(m["cases"]) > 150
-    files[FIXTURES / "mutations" / "schema_invalid.json"] = json.dumps(m, indent=1, ensure_ascii=False) + "\n"
+    files[root / "mutations" / "schema_invalid.json"] = json.dumps(m, indent=1, ensure_ascii=False) + "\n"
     return files
+
+
+def rendered() -> dict[Path, str]:
+    files = _set(ct.SPEC_V1, FIXTURES)
+    v11 = _set(ct.SPEC, V11)
+    lines = sorted(f"{hashlib.sha256(t.encode()).hexdigest()}  {p.relative_to(V11).as_posix()}" for p, t in v11.items())
+    v11[V11 / "FIXTURES.sha256"] = "\n".join(sorted(lines, key=lambda x: x.split("  ")[1])) + "\n"
+    return {**files, **v11}
 
 
 def main() -> int:

@@ -85,8 +85,7 @@ fn run(
     let text = read(cert)?;
     let value: serde_json::Value = serde_json::from_str(&text).map_err(|e| {
         Failure::Rejected(format!(
-            "certificate is not a valid {}: not JSON: {e}",
-            decision_cert::SPEC
+            "certificate is not a valid decision certificate: not JSON: {e}"
         ))
     })?;
     let v = decision_cert::verify(&value, &keys).map_err(|e| Failure::Rejected(e.to_string()))?;

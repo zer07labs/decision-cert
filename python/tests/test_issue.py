@@ -104,6 +104,7 @@ def rust_verdicts(tmp: Path, certs: list[dict[str, Any]]) -> list[dict[str, Any]
 def test_issued_certificate_verifies_and_claims_what_it_measured(tmp_path: Path) -> None:
     entry, diag = issue(tmp_path)
     cert = entry["certificate"]
+    assert cert["spec"] == "decision-certificate.v1.1" == ct.SPEC
     v = dc.verify(cert, trusted())
     assert v.id == diag["certificate_id"] == ct.certificate_id(cert)
     assert cert["issuer"] == {"tool": "decision-cert", "version": dc.__version__}
@@ -358,3 +359,81 @@ def test_v1_stops_at_a_failing_start_cut_even_when_a_looser_cut_would_pass() -> 
     err_a = np.array([True] * 3 + [False] * 17 + [False] * 200)
     assert _hindsight_passes(conf_a, err_a, cuts, 0.05, 0.1) == 1
     assert cs.ltt(conf_a, err_a, cuts, 0.05, 0.1).abstain_below == cs.ABSTAIN_ALL
+
+
+# ---------- v1.1: the per-test grid start (spec/decision-certificate.v1.1.md §1.1 step 3) ----------
+
+# Two populations at three margins (high, mid, low). `west` is undeclared, so it is the remainder;
+# `east` is a certified segment. Per split: (segment, margin, cases, errors).
+_HIGH, _MID, _LOW = 4.0, 2.0, 0.5
+_TEMPERATURE = [("west", _HIGH, 400, 0), ("west", _MID, 400, 40),
+                ("east", _HIGH, 10, 2), ("east", _MID, 300, 0), ("east", _LOW, 50, 25)]  # fmt: skip
+_THRESHOLD = [("west", _HIGH, 400, 0), ("west", _MID, 400, 40),
+              ("east", _HIGH, 20, 3), ("east", _MID, 300, 0), ("east", _LOW, 40, 20)]  # fmt: skip
+
+
+def _start_cases() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Timed cases: the temperature split is the older half. On the whole temperature split the
+    best cut is the high one (west's 400 correct cases dominate), but east's own best cut is the mid
+    one. On east's threshold split 3 of the 20 cases above the high cut are wrong, so a sequence
+    starting there stops at once; starting at the mid cut, 3 errors in 320 cases pass."""
+    preds: list[dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
+    t0 = dt.datetime(2026, 1, 1, tzinfo=dt.UTC)
+    for block in (_TEMPERATURE, _THRESHOLD):
+        for region, z, n, errors in block:
+            for j in range(n):
+                i = len(rows)
+                cid = f"c{i:05d}"
+                truth = 1 if j < errors else 0  # the model always picks option 0, so truth 1 is an error
+                at = (t0 + dt.timedelta(minutes=i)).isoformat()
+                rows.append({"case_id": cid, "case": {"region": region}, "labels": {"approved": OPTIONS[truth]},
+                             "decided_at": at})  # fmt: skip
+                preds.append({"case_id": cid, "decision": "approved", "model": "toy", "version": "1",
+                              "raw_scores": [z / 2, -z / 2]})  # fmt: skip
+    return preds, rows
+
+
+def _issue_start(tmp: Path, spec: str) -> dict[str, Any]:
+    preds, rows = _start_cases()
+    segs = {"field": "region", "values": ["east"], "floor": 100}
+    cal, _ = ct.issue(preds, rows, domain(tmp, segments=segs), "toy-backend", KEY, now=NOW, audit="full-label",
+                      spec=spec)  # fmt: skip
+    cert: dict[str, Any] = cal["approved"]["certificate"]
+    return cert
+
+
+def test_v1_1_starts_each_test_on_its_own_cases_and_v1_does_not(tmp_path: Path) -> None:
+    v1, v11 = _issue_start(tmp_path, ct.SPEC_V1), _issue_start(tmp_path, ct.SPEC)
+    assert v1["spec"] == "decision-certificate.v1" and v11["spec"] == "decision-certificate.v1.1"
+    east1, east11 = v1["segments"][0], v11["segments"][0]
+    assert east1["value"] == east11["value"] == "east" and not east1["inherited"] and not east11["inherited"]
+    assert east1["abstain_below"] == cs.ABSTAIN_ALL, "v1: east's sequence starts at the pooled cut and stops"
+    assert east11["abstain_below"] < 1.0 and east11["coverage"] == pytest.approx(320 / 360)
+    # The remainder's own best cut is the pooled one, so its test is the same under both.
+    for k in ("abstain_below", "coverage", "ucb", "n"):
+        assert v1[k] == v11[k], k
+    assert v11["coverage"] == pytest.approx(400 / 800)
+    for c in (v1, v11):
+        assert dc.verify(c, trusted()).id == ct.certificate_id(c)
+
+
+@pytest.mark.skipif(shutil.which("cargo") is None, reason="needs cargo for the Rust oracle")
+def test_both_specs_verify_in_the_rust_oracle(tmp_path: Path) -> None:
+    certs = [_issue_start(tmp_path, ct.SPEC_V1), _issue_start(tmp_path, ct.SPEC)]
+    for c, v in zip(certs, rust_verdicts(tmp_path, certs), strict=True):
+        assert v["valid"] and v["id"] == ct.certificate_id(c), v
+
+
+def test_an_unknown_spec_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(ct.CertError, match="unknown spec"):
+        _issue_start(tmp_path, "decision-certificate.v2")
+
+
+def test_without_segments_v1_and_v1_1_issue_the_same_test(tmp_path: Path) -> None:
+    a, _ = issue(tmp_path, spec=ct.SPEC_V1)
+    b, _ = issue(tmp_path, spec=ct.SPEC)
+    ca, cb = a["certificate"], b["certificate"]
+    assert {k: v for k, v in ca.items() if k not in ("spec", "signature")} == {
+        k: v for k, v in cb.items() if k not in ("spec", "signature")
+    }

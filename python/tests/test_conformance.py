@@ -1,5 +1,6 @@
 """The same fixture loop as rust/tests/conformance.rs: agree with the Rust crate on the canonical
-bytes, the certificate id and the verdict of every fixture, and reject every schema mutation."""
+bytes, the certificate id and the verdict of every fixture (v1 and v1.1), and reject every schema
+mutation."""
 
 from __future__ import annotations
 
@@ -12,12 +13,18 @@ import pytest
 import decision_cert as dc
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
-MIN_FIXTURES = 14
+SETS = {"": 14, "v1.1": 9}  # each fixture set, and how many fixtures it has at least
 
 
 def fixtures() -> list[tuple[str, Any]]:
-    out = sorted((p.stem, dc.loads(p.read_text(encoding="utf-8"))) for p in FIXTURES.glob("*.json"))
-    assert len(out) >= MIN_FIXTURES, f"expected the conformance fixtures, found {len(out)}"
+    out = []
+    for name, least in SETS.items():
+        found = sorted(
+            (f"{name}/{p.stem}".lstrip("/"), dc.loads(p.read_text(encoding="utf-8")))
+            for p in (FIXTURES / name).glob("*.json")
+        )
+        assert len(found) >= least, f"expected the conformance fixtures in {name or '.'}, found {len(found)}"
+        out += found
     return out
 
 
@@ -37,8 +44,9 @@ def test_python_agrees_with_rust_on_every_fixture(name: str, f: Any) -> None:
         assert f["error"] in str(e.value), f"{name}: error {e.value!s} does not mention {f['error']!r}"
 
 
-def test_every_schema_invalid_mutation_is_rejected() -> None:
-    f = dc.loads((FIXTURES / "mutations" / "schema_invalid.json").read_text(encoding="utf-8"))
+@pytest.mark.parametrize("name", list(SETS))
+def test_every_schema_invalid_mutation_is_rejected(name: str) -> None:
+    f = dc.loads((FIXTURES / name / "mutations" / "schema_invalid.json").read_text(encoding="utf-8"))
     accepted = []
     for c in f["cases"]:
         try:

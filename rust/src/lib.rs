@@ -1,4 +1,5 @@
-//! Load, verify and apply `decision-certificate.v1` (spec/decision-certificate.v1.md).
+//! Load, verify and apply decision certificates: `decision-certificate.v1`
+//! (spec/decision-certificate.v1.md) and `decision-certificate.v1.1` (spec/decision-certificate.v1.1.md).
 //!
 //! Verification canonicalises the JSON value exactly as received (RFC 8785, JCS), never a
 //! re-serialised struct, so number formatting can't drift from the issuer's. The typed
@@ -12,13 +13,18 @@ use ed25519_dalek::{Signature, VerifyingKey};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
+/// The `spec` of a certificate produced by the v1 procedure.
 pub const SPEC: &str = "decision-certificate.v1";
+/// The `spec` of a certificate produced by the v1.1 procedure (the per-test grid start).
+pub const SPEC_V1_1: &str = "decision-certificate.v1.1";
+/// Every `spec` this verifier accepts. The fields, and so the checks, are the same for each.
+pub const SPECS: [&str; 2] = [SPEC, SPEC_V1_1];
 /// `abstain_below` that abstains on every case (as `dk calibrate` writes it).
 pub const ABSTAIN_ALL: f64 = 1.01;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CertError {
-    #[error("certificate is not a valid {SPEC}: {0}")]
+    #[error("certificate is not a valid decision certificate: {0}")]
     Invalid(String),
     #[error("certificate signed by {0}, which is not a trusted key")]
     UntrustedKey(String),
@@ -233,15 +239,16 @@ pub fn verify(
     })
 }
 
-/// The schema's constraints (spec/decision-certificate.v1.schema.json) that a typed read
-/// doesn't already enforce, so this verifier accepts exactly what the schema accepts.
+/// The schema's constraints (spec/decision-certificate.v1.schema.json, and the v1.1 schema, which
+/// differs only in `spec`) that a typed read doesn't already enforce, so this verifier accepts
+/// exactly what the schemas accept.
 fn check(c: &Certificate) -> Result<(), CertError> {
     let bad = |m: &str| Err(CertError::Invalid(m.to_string()));
     let unit = |x: f64| (0.0..=1.0).contains(&x);
     let open = |x: f64| x > 0.0 && x < 1.0;
     let threshold = |x: f64| (0.0..=ABSTAIN_ALL).contains(&x);
-    if c.spec != SPEC {
-        return bad("spec is not decision-certificate.v1");
+    if !SPECS.contains(&c.spec.as_str()) {
+        return bad("spec is not decision-certificate.v1 or decision-certificate.v1.1");
     }
     let mut seen = std::collections::BTreeSet::new();
     if c.options.len() < 2 || !c.options.iter().all(|o| !o.is_empty() && seen.insert(o)) {

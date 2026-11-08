@@ -1,13 +1,16 @@
 //! The Rust verifier agrees with the issuer on the JCS bytes, the certificate id and the
-//! verdict of every fixture in fixtures/ (see fixtures/README.md for which program wrote each).
+//! verdict of every fixture in fixtures/ (v1) and fixtures/v1.1/ (see fixtures/README.md for which
+//! program wrote each).
 
 use std::{collections::BTreeMap, path::PathBuf};
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use decision_cert::{canonical, certificate_id, verify};
 
-fn fixtures() -> Vec<(String, serde_json::Value)> {
-    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fixtures");
+fn fixtures(set: &str, min: usize) -> Vec<(String, serde_json::Value)> {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../fixtures")
+        .join(set);
     let mut out: Vec<_> = std::fs::read_dir(&dir)
         .unwrap_or_else(|e| panic!("{}: {e}", dir.display()))
         .map(|e| e.unwrap().path())
@@ -19,8 +22,9 @@ fn fixtures() -> Vec<(String, serde_json::Value)> {
         .collect();
     out.sort_by(|a, b| a.0.cmp(&b.0));
     assert!(
-        out.len() >= 14,
-        "expected the conformance fixtures, found {}",
+        out.len() >= min,
+        "expected the conformance fixtures in {}, found {}",
+        dir.display(),
         out.len()
     );
     out
@@ -28,7 +32,19 @@ fn fixtures() -> Vec<(String, serde_json::Value)> {
 
 #[test]
 fn rust_and_python_agree_on_every_fixture() {
-    for (name, f) in fixtures() {
+    agree_on(fixtures("", 14));
+}
+
+#[test]
+fn rust_and_python_agree_on_every_v1_1_fixture() {
+    let set = fixtures("v1.1", 9);
+    assert!(set.iter().any(|(_, f)| f["valid"].as_bool().unwrap()
+        && f["certificate"]["spec"] == "decision-certificate.v1.1"));
+    agree_on(set);
+}
+
+fn agree_on(set: Vec<(String, serde_json::Value)>) {
+    for (name, f) in set {
         let cert = &f["certificate"];
         let mut body = cert.as_object().unwrap().clone();
         body.remove("signature");
@@ -64,8 +80,18 @@ fn rust_and_python_agree_on_every_fixture() {
 /// issuer): this verifier must reject every one too.
 #[test]
 fn every_schema_invalid_mutation_is_rejected() {
-    let path =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fixtures/mutations/schema_invalid.json");
+    rejects_every_mutation("mutations/schema_invalid.json");
+}
+
+#[test]
+fn every_v1_1_schema_invalid_mutation_is_rejected() {
+    rejects_every_mutation("v1.1/mutations/schema_invalid.json");
+}
+
+fn rejects_every_mutation(rel: &str) {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../fixtures")
+        .join(rel);
     let f: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
     let keys: BTreeMap<String, String> = serde_json::from_value(f["keys"].clone()).unwrap();
