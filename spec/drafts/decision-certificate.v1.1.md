@@ -1,4 +1,4 @@
-> **DRAFT. Not frozen.** O1 is decided for this draft; O2–O5 are open (O4 and O5 carry
+> **DRAFT. Not frozen.** O1 is decided for this draft; O2–O5 are open (O3, O4 and O5 carry
 > recommendations awaiting a decision). No issuer writes
 > `decision-certificate.v1.1` and no verifier accepts it until the owner freezes this text, which
 > waits until every open item is settled or deferred to v1.2. Where this draft and
@@ -94,6 +94,14 @@ per segment, and a stated rule for segments below the floor.
 
 **What decides it.** Whether the conditional variant holds `alpha` under a mix shift at acceptable
 coverage, against plain v1 testing. It interacts with O1, because conditional tests are smaller.
+
+**Study (2026-11-08).** [`o3-mix-study.md`](o3-mix-study.md). When the share of a harder group rose
+from 20% to 50%, a pooled threshold's true error exceeded `alpha` in up to 99.5% of draws. With the
+group declared as a certified segment, error exceeded `alpha` in at most 2.2% of draws at every mix.
+v1's certified segments already are segment-conditional tests. **Recommended, not decided:** no new
+mechanism or field. v1.1 says in §1.3 that a certified segment's bound holds at any mix, and in §5
+that the remainder's and inherited segments' bounds hold only for the calibration mix. Issuer
+guidance: declare as a segment any field whose share may change and whose error may differ.
 
 **Changes for verifiers.** Possibly new fields in `segments[]`.
 
