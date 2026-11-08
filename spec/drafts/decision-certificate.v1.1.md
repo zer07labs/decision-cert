@@ -1,5 +1,5 @@
-> **DRAFT. Not frozen.** O1 is decided for this draft; O2–O5 are open (O3, O4 and O5 carry
-> recommendations awaiting a decision). No issuer writes
+> **DRAFT. Not frozen.** O1 is decided for this draft; O2–O5 are open (each carries a
+> recommendation awaiting a decision). No issuer writes
 > `decision-certificate.v1.1` and no verifier accepts it until the owner freezes this text, which
 > waits until every open item is settled or deferred to v1.2. Where this draft and
 > [v1](../decision-certificate.v1.md) differ, v1 is the specification.
@@ -80,6 +80,14 @@ to measure again, never part of the certified claim.
 
 **What decides it.** Whether a single, cheap statistic catches the mix shifts that break the bound
 in simulation, at an acceptable false-alarm rate.
+
+**Study (2026-11-08).** [`o2-shift-study.md`](o2-shift-study.md). Shifts that move the model's
+confidences were flagged by every window using the certificate's own `coverage`, as well as by a
+stored confidence distribution. A change in the mix of groups that look alike to the model, and a
+change in error at the same confidence, were invisible to every label-free score. **Recommended,
+not decided:** no shift-score field in v1.1. Issuers and consumers get guidance on monitoring the
+answered share against `coverage`, and §5 says what label-free monitoring cannot see. A stored
+confidence distribution is revisited in v1.2 only if evidence for it appears.
 
 **Changes for verifiers.** A new field, so a schema change.
 

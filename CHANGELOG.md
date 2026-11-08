@@ -5,6 +5,9 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 
 ## Unreleased
 
+- `python/tools/study_shift.py` and `spec/drafts/o2-shift-study.md`: which shifts a label-free score
+  can see; recommendation for O2 (no shift-score field; monitor the answered share against
+  `coverage`; state what label-free monitoring cannot see). Not decided.
 - `python/tools/study_mix.py` and `spec/drafts/o3-mix-study.md`: thresholds under a shift in the
   segment mix; recommendation for O3 (no new mechanism; v1 segments are conditional tests; state
   the remainder's mix dependence). Not decided.
