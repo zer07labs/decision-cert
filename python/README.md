@@ -1,8 +1,9 @@
 # decision-cert (Python verifier)
 
 A pure-Python verifier for `decision-certificate.v1`, a port of the Rust crate in
-[`rust/`](https://github.com/zer07labs/decision-cert/tree/main/rust). Dependencies: `rfc8785` and `cryptography`, nothing else. It verifies; it
-does not issue.
+[`rust/`](https://github.com/zer07labs/decision-cert/tree/main/rust). Dependencies: `rfc8785` and `cryptography`, nothing else. The reference issuer is
+an optional extra, `pip install 'decision-cert[issue]'` (module `decision_cert.issue`); the verifier
+never imports it.
 
 ```python
 from decision_cert import loads, verify

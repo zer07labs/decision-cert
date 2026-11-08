@@ -25,6 +25,16 @@ The header names the paths these files had where the spec was written. In this r
 the spec text.
 Fixtures: none
 
+## 2026-11-07: the reference issuer
+
+Concerns: §2 (`issuer`); the implementations note below §5
+Kind: clarification
+The reference issuer now lives in this repository as `python/src/decision_cert/issue/` (the
+`decision-cert[issue]` extra). Certificates it issues carry `{"tool": "decision-cert", ...}` in
+`issuer`; the field names the library and is not checked by verifiers. The fixtures keep the
+`issuer` they were first issued with.
+Fixtures: none (all unchanged)
+
 ## 2026-11-07: integers are written without a fraction or exponent
 
 Concerns: §2 (every `integer` field), §3 (numbers); schema `type: integer`

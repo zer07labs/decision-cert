@@ -14,7 +14,7 @@ PyPI, both `decision-cert`) or a git revision. It holds no data and never calls 
   Corrections and clarifications go in `spec/ERRATA.md` as dated entries, never edits of the
   frozen text.
 - **Fixtures are never hand-edited.** The positive fixtures and `mutations/` come from the
-  reference issuer and are copied unchanged; the negatives come from
+  reference issuer via `python/tools/gen_positive_fixtures.py` (byte-identical, `--check` in CI); the negatives come from
   `python/tools/gen_negative_fixtures.py`. Any change updates `fixtures/FIXTURES.sha256` and every
   vendored copy in the same change.
 - **The Rust crate is the oracle.** Never argue a verdict; run the crate. The Python verifier must
@@ -33,5 +33,6 @@ PyPI, both `decision-cert`) or a git revision. It holds no data and never calls 
 | `cd rust && cargo run --features cli -- verify <cert> --keys <keys>` | the command-line verifier (`python -m decision_cert verify` is the same) |
 | `cd rust && cargo deny check` | licence/advisory/source policy (`rust/deny.toml`) |
 | `cd python && uv run ruff check && uv run mypy && uv run pytest` | the Python verifier (its oracle test needs cargo) |
+| `cd python && uv run python tools/gen_positive_fixtures.py` | regenerate the reference issuer's fixtures (then the negatives, for the manifest) |
 | `cd python && uv run python tools/gen_negative_fixtures.py` | regenerate the negative fixtures and `fixtures/FIXTURES.sha256` |
 | `cd python && uv run python tools/gen_demos.py` | rewrite `demo/example/` and `demo/DEMOS.sha256` |

@@ -8,7 +8,7 @@ must be rejected.
 
 | Files | Produced by |
 |---|---|
-| `valid_*.json`, `invalid_missing_nullable_field.json`, `invalid_tampered.json`, `invalid_unknown_field.json`, `invalid_untrusted_key.json`, `mutations/` | the reference issuer, which is not in this repository yet; copied here unchanged |
+| `valid_*.json`, `invalid_missing_nullable_field.json`, `invalid_tampered.json`, `invalid_unknown_field.json`, `invalid_untrusted_key.json`, `mutations/` | [`python/tools/gen_positive_fixtures.py`](../python/tools/gen_positive_fixtures.py), signed by the reference issuer (`decision_cert.issue`); byte-identical to their first issue |
 | `invalid_small_order_key.json`, `invalid_small_order_r.json`, `invalid_noncanonical_s.json`, `invalid_timestamp_offset.json`, `invalid_bool_as_number.json`, `invalid_float_as_integer.json` | [`python/tools/gen_negative_fixtures.py`](../python/tools/gen_negative_fixtures.py), with each verdict recorded by running the Rust crate |
 
 Two of the strict-signature cases (`invalid_small_order_key`, `invalid_small_order_r`) pass plain
