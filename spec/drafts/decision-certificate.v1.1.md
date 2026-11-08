@@ -1,6 +1,7 @@
-> **DRAFT. Nothing here is decided.** Every item below is open. No issuer writes
-> `decision-certificate.v1.1` and no verifier accepts it until the owner freezes this text. Where this
-> draft and [v1](../decision-certificate.v1.md) differ, v1 is the specification.
+> **DRAFT. Not frozen.** O1 is decided for this draft; O2–O5 are open. No issuer writes
+> `decision-certificate.v1.1` and no verifier accepts it until the owner freezes this text, which
+> waits until every open item is settled or deferred to v1.2. Where this draft and
+> [v1](../decision-certificate.v1.md) differ, v1 is the specification.
 
 # Decision certificate, v1.1 (draft)
 
@@ -12,14 +13,20 @@ valid:
 - verifiers accept both values of `spec`, and verify each against its own schema;
 - a v1.1 fixture set is added beside the v1 set.
 
-What changes from v1 is listed as open items. Each item says what problem it addresses, what the
+What changes from v1 is listed as items, decided or open. Each item says what problem it addresses, what the
 candidates are, what decides it, and what it changes for verifiers. An item becomes text in §1–§5 of
 v1.1 only when it is decided. The clarifications already in [`ERRATA.md`](../ERRATA.md) fold into the
 v1.1 text unchanged.
 
 ## Open items
 
-### O1. The threshold grid for small tests
+### O1. The threshold grid for small tests — DECIDED (2026-11-08)
+
+**Decision.** Each test (each certified segment and the remainder) starts at the cut with the
+smallest `ltt` p-value on its own temperature-split cases; with no temperature-split cases of its
+own, it starts where v1 starts. The list of cuts stays v1's (§1.1 step 3). The grid is not
+coarsened. Evidence: [`o1-grid-study.md`](o1-grid-study.md). This replaces v1 §1.1 step 3's second
+bullet when v1.1 is frozen.
 
 **Problem.** v1 §1.1 step 3 builds one list of cuts from the temperature split and starts every test
 at the cut with the smallest p-value on the whole temperature split. Fixed-sequence testing stops at
@@ -54,8 +61,7 @@ both cases (no passing cut, and a failing start cut) for comparison.
 error above `alpha` in at most 7.8% of replicates at `delta` 0.1, and the 90th percentile at or below
 `alpha`. A coarse quantile grid bought no power and lost coverage on large tests. A per-test start
 certified more often for a segment that differs from the pool, with unchanged validity. Small
-tests are limited by their number of cases, which is O4's question. Suggested, not decided: adopt
-the per-test start, keep v1's cuts.
+tests are limited by their number of cases, which is O4's question. Decided as above.
 
 **Changes for verifiers.** None beyond the new `spec` value: the procedure is the issuer's. It
 changes what a v1.1 certificate's `abstain_below` means, which is why it needs a new `spec` value.
@@ -124,3 +130,9 @@ shape.
 Everything else in v1: canonical JSON (RFC 8785), Ed25519 with strict verification, the certificate
 id, the trusted-keys format, unknown fields rejected, §1.4 audit basis, and §5 (what a certificate
 does not claim).
+
+## Decision log
+
+| Date | Item | Decision | Evidence |
+|---|---|---|---|
+| 2026-11-08 | O1 | Per-test start, v1's cuts, no coarse grid. Adopted in this draft; v1.1 is not frozen, and the freeze waits until O2–O5 are settled or deferred to v1.2. | [`o1-grid-study.md`](o1-grid-study.md) |

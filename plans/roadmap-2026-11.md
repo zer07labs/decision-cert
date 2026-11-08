@@ -93,8 +93,8 @@ accept both.
 
 Status: the issuer and the fixture generator moved in #12 and shipped in 0.2.0. The v1.1 draft is
 [`spec/drafts/decision-certificate.v1.1.md`](../spec/drafts/decision-certificate.v1.1.md), with every
-item open. A simulation study on the threshold grid (O1) comes before any v1.1 text is frozen, and
-no release is planned until then.
+item listed with its evidence. O1 (the threshold grid) is decided from a simulation study; v1.1 is
+frozen, and 0.3.0 released, only when O2–O5 are each settled or deferred to v1.2.
 
 ## Naming (decided 2026-11-07)
 
