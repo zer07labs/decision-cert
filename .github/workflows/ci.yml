@@ -170,10 +170,14 @@ jobs:
           (cd python && uv sync -q --locked --python 3.12)
           n=0
           while IFS= read -r c; do
-            k="$(dirname "$c")/trusted-keys.json"
-            r="$(rust/target/debug/decision-cert verify "$c" --keys "$k")"
-            p="$(cd python && uv run -q python -m decision_cert verify "../$c" --keys "../$k")"
+            d="$(dirname "$c")"; k="$d/trusted-keys.json"
+            now="$(jq -r .fitted_at "$c")"  # inside the validity window, so the check never expires
+            r="$(rust/target/debug/decision-cert verify "$c" --keys "$k" --now "$now")"
+            p="$(cd python && uv run -q python -m decision_cert verify "../$c" --keys "../$k" --now "$now")"
             test "$r" = "$p"; echo "$c $r"; n=$((n + 1))
+            if [ -f "$d/model.json" ]; then
+              test "$(jq -r .manifest_hash "$c")" = "sha256:$(sha256sum "$d/model.json" | cut -d' ' -f1)"
+            fi
           done < <(find demo -name certificate.json | LC_ALL=C sort)
           test "$n" -ge 1
 

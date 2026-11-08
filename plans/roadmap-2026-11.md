@@ -79,6 +79,9 @@ describes a measured process, never an outcome.
    - The draft stays in this repository and is never posted elsewhere until the owner says so.
    - It is held to the same wording rules as the spec (the CI `wording` job covers `docs/`).
 
+Status: the README quickstart and the method draft landed in #10; the first demos on a public
+dataset (`demo/bank-marketing*`) were issued from 0.2.0.
+
 **Acceptance.** Every demo verifies with both CLIs in CI. The quickstart line runs green in CI.
 The draft is marked DRAFT at the top and passes the wording check.
 

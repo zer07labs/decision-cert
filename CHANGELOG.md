@@ -5,6 +5,12 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 
 ## Unreleased
 
+- `demo/bank-marketing/` and `demo/bank-marketing-crc/`: the first demo certificates on a public
+  dataset (UCI Bank Marketing, CC BY 4.0), issued with the released 0.2.0 issuer and the demo key,
+  each with the model's manifest; `python/tools/demo_bank_marketing.py` rebuilds the inputs. CI
+  verifies every demo with `--now` inside its validity window and checks `manifest_hash` against
+  `model.json`.
+
 ## 0.2.0 — unreleased (the owner tags `v0.2.0`)
 
 The reference issuer moves here. The verifiers, the spec and the fixtures are unchanged; the Rust
