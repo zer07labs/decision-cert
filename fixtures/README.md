@@ -20,7 +20,9 @@ Fixtures are never edited by hand. Keys and signatures here are public test mate
 
 **v1.1.** [`v1.1/`](v1.1/) holds the reference issuer's set again with `spec`
 `decision-certificate.v1.1` (and the issuer's current name), its own `mutations/`, and
-`invalid_unknown_spec.json`: a signed certificate naming a spec no verifier knows. The whole set comes
+`invalid_unknown_spec.json`: a signed certificate naming a spec no verifier knows. These are the
+v1 certificates with `spec` and `issuer` changed, not new runs of the v1.1 procedure: verifiers
+check fields and signatures, and the fields are the same. The whole set comes
 from `gen_positive_fixtures.py`, which also writes `v1.1/FIXTURES.sha256`. The signature, timestamp
 and number cases above do not depend on `spec`, so they are not repeated.
 

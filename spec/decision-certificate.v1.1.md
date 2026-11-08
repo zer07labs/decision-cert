@@ -3,8 +3,8 @@
 Status: **frozen** (2026-11-08). v1.1 revises [`decision-certificate.v1`](decision-certificate.v1.md)
 (frozen 2026-10-25), which stays frozen and valid. The fields are the same as v1's. What changes is
 one step of the procedure (§1.1 step 3, the grid start) and the text: clarifications that v1 kept in
-[`ERRATA.md`](ERRATA.md) are folded in, and §1.3, §2 and §5 state more precisely what a certificate
-covers. Any change to the fields or their meaning is `decision-certificate.v2`: verifiers reject
+[`ERRATA.md`](ERRATA.md) are folded in, and §1.1 step 8, §1.3, §2, §4 and §5 state more precisely
+what a certificate covers. Any change to the fields or their meaning is `decision-certificate.v2`: verifiers reject
 unknown fields, because a verifier must not silently ignore a field whose meaning it doesn't know.
 
 **Versions.** A certificate's `spec` says which procedure produced it. Verifiers accept both
@@ -65,7 +65,9 @@ p-values. `crc` is conformal risk control (Angelopoulos et al., 2022) with loss 
      temperature-split cases of its own starts at the cut with the smallest p-value on the whole
      temperature split. The p-values here use `alpha`, as in step 5.
 
-   The grid never depends on the threshold split, so fixed-sequence testing on it is valid. (v1 started
+   The grid uses no label or confidence of the threshold split. It depends on the threshold split
+   only through which segments are certified (§1.3: their case counts), so fixed-sequence testing
+   on it stays valid. (v1 started
    every test at the cut that was best on the whole temperature split. On a test whose cases differ
    from the pool, that start can fail at once although a looser cut would pass; starting each test on
    its own cases certifies such tests more often at the same validity.)
@@ -153,7 +155,7 @@ Every field is required; nullable ones are marked.
 | `n_cal` | integer | Threshold-split size. |
 | `n_temperature` | integer | Temperature-split size. |
 | `split` | `{method, seed}` | `method`: `"time"` or `"seeded"`. `seed`: an integer, or null for `"time"`. |
-| `calibration_map` | `{kind, params, label_budget}` | `kind` names the map, and `params` is an object of numbers. `label_budget` (integer \| null) is the number of target labels the map was fitted with, when those are not cases of either split. v1.1 issuers write `{"kind": "temperature", "params": {"temperature": T}, "label_budget": null}`. |
+| `calibration_map` | `{kind, params, label_budget}` | `kind` names the map, and `params` is an object of numbers. `label_budget` (integer \| null) is the number of target labels the map was fitted with, when that is part of its claim. v1.1 issuers write `{"kind": "temperature", "params": {"temperature": T}, "label_budget": null}`. |
 | `rule` | `{cannot_tell_above, unscored}` | `cannot_tell_above`: number in [0, 1] \| null. `unscored`: `"abstain"`. |
 | `alpha` | number | In (0, 1). |
 | `delta` | number \| null | In (0, 1); null for `crc`. |
@@ -220,7 +222,9 @@ Once loaded, the consumer:
 - records `certificate_id` with every decision made under the certificate;
 - applies a certified segment's threshold when the case's segment value matches it, else the
   top-level `abstain_below`;
-- after `expires_at`, either abstains or decides with a warning, as configured.
+- after `expires_at`, follows its configured policy:
+  - `refer` (default) abstains with `abstain_reason: "certificate_expired"`;
+  - `warn` decides as before and logs a warning.
 
 **Monitoring without labels.** A consumer can compare the share of cases it answers with the
 certificate's `coverage` (a two-sample test against `n`). A significant change is a prompt to measure
