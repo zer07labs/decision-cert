@@ -5,6 +5,11 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 
 ## Unreleased
 
+## 0.2.0 — unreleased (the owner tags `v0.2.0`)
+
+The reference issuer moves here. The verifiers, the spec and the fixtures are unchanged; the Rust
+crate is republished at the same version for lockstep.
+
 - **The reference issuer**, `decision_cert.issue`, as the optional extra `decision-cert[issue]`
   (numpy, scipy, jsonschema, PyYAML): `python -m decision_cert.issue keygen | certify | verify`, the
   Learn-then-Test and conformal-risk-control statistics, and the few-label `dr` recalibration
