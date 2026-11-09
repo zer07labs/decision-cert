@@ -17,6 +17,9 @@ v.id, v.threshold_for("north"), v.is_expired(datetime.now(UTC))
 # pass None for a case the rule abstains on whatever the threshold: unscored, or above cannot_tell_above
 window = Histogram.of(v.confidence_bins(), recent_confidences)
 shift_score(v.histogram_for("north"), window).p_value  # small: measure again; never a finding about the bound
+
+# v1.2: apply the certificate's calibration map (temperature or dr) to a case's raw scores
+v.confidence(raw_scores) >= v.threshold_for("north")  # None when the map's kind is not one this package applies
 ```
 
 The Rust crate is the reference. This package passes the same conformance fixtures

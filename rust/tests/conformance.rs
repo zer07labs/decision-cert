@@ -46,7 +46,7 @@ fn rust_and_python_agree_on_every_v1_1_fixture() {
 
 #[test]
 fn rust_and_python_agree_on_every_v1_2_fixture() {
-    let set = fixtures("v1.2", 18);
+    let set = fixtures("v1.2", 25);
     assert!(set.iter().any(|(_, f)| f["valid"].as_bool().unwrap()
         && f["certificate"]["spec"] == "decision-certificate.v1.2"
         && f["certificate"]["confidence_histogram"].is_object()));
@@ -79,6 +79,35 @@ fn histograms_are_read_from_v1_2_certificates_only() {
     );
     assert!(read("v1.2", "valid_histogram_withheld")
         .histogram_for(None)
+        .is_none());
+}
+
+/// A v1.2 verifier applies the map kinds v1.2 defines, and gives no probabilities for another kind.
+#[test]
+fn maps_are_applied_for_the_kinds_v1_2_defines() {
+    let read = |name: &str| {
+        let (_, f) = fixtures("v1.2", 1)
+            .into_iter()
+            .find(|(n, _)| n == name)
+            .unwrap();
+        let keys: BTreeMap<String, String> = serde_json::from_value(f["keys"].clone()).unwrap();
+        verify(&f["certificate"], &keys).unwrap()
+    };
+    // dr: softmax(a · s + b) with a 0.8125, b (0.375, -0.375); scores (1, -1) give logits ±1.1875.
+    let dr = read("valid_dr_map");
+    let p = dr.probabilities(&[1.0, -1.0]).unwrap();
+    let want = 1.0 / (1.0 + (-2.375f64).exp());
+    assert!((p[0] - want).abs() < 1e-15 && (p[0] + p[1] - 1.0).abs() < 1e-15);
+    assert_eq!(dr.confidence(&[1.0, -1.0]), Some(p[0]));
+    assert!(
+        dr.probabilities(&[1.0, -1.0, 0.0]).is_none(),
+        "one score per option"
+    );
+    assert!(dr.temperature().is_none());
+    let t = read("valid_basic");
+    assert!(t.probabilities(&[0.0, 0.0]).unwrap() == vec![0.5, 0.5]);
+    assert!(read("valid_other_map_kind")
+        .probabilities(&[1.0, 0.0])
         .is_none());
 }
 

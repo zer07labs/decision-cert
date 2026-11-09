@@ -13,7 +13,8 @@ vendored copy must follow. After writing, run `tools/gen_negative_fixtures.py` t
 `decision-certificate.v1.1`, plus a certificate naming a spec no verifier knows; its manifest is
 written here. The v1.2 set is the same again with `spec` `decision-certificate.v1.2` and the v1.2
 fields (the confidence histograms), plus the v1.2 cases: a withheld histogram, fields that belong to
-another spec, and histograms the schema accepts but a verifier must refuse.
+another spec, histograms the schema accepts but a verifier must refuse, a `dr` calibration map, a
+map kind v1.2 does not define, and map parameters a v1.2 verifier must refuse.
 """
 
 from __future__ import annotations
@@ -218,6 +219,34 @@ def fixtures(spec: str = ct.SPEC_V1) -> dict[str, dict[str, Any]]:
             False,
             "spec is not consistent",
         )
+
+        def mapped(m: dict[str, Any]) -> dict[str, Any]:
+            cert = base()
+            cert["calibration_map"] = m
+            return cert
+
+        dr: dict[str, Any] = {"kind": "dr", "params": {"a": 0.8125, "b0": 0.375, "b1": -0.375}, "label_budget": 200}
+        out["valid_dr_map"] = (ct.sign(mapped(dr), KEY), keys(KEY), True, None)
+        bad_maps: dict[str, dict[str, Any]] = {
+            "invalid_dr_missing_param": {**dr, "params": {"a": 0.8125, "b0": 0.375}},  # no b1 for option 2
+            "invalid_dr_slope_not_positive": {**dr, "params": {**dr["params"], "a": 0}},
+            "invalid_dr_label_budget_null": {**dr, "label_budget": None},
+            "invalid_temperature_not_positive": {
+                "kind": "temperature",
+                "params": {"temperature": 0},
+                "label_budget": None,
+            },
+            "invalid_temperature_extra_param": {
+                "kind": "temperature",
+                "params": {"temperature": 1.3173913043478262, "shift": 0.5},
+                "label_budget": None,
+            },
+        }
+        for name, m in bad_maps.items():
+            out[name] = (ct.sign(mapped(m), KEY), keys(KEY), False, "calibration_map needs")
+        # a kind v1.2 does not define still verifies; a consumer that does not apply it refuses it
+        other = {"kind": "platt", "params": {"slope": 1.5, "intercept": -0.25}, "label_budget": None}
+        out["valid_other_map_kind"] = (ct.sign(mapped(other), KEY), keys(KEY), True, None)
 
     result = {}
     for name, (cert, trusted, valid, error) in out.items():

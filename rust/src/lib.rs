@@ -10,9 +10,14 @@
 //! monitor without labels: [`Histogram::of`] bins a window of use-time confidences and
 //! [`shift_score`] compares it with the stored one. The score is descriptive, a prompt to measure
 //! again; it never shows that the bound holds or has failed.
+//!
+//! [`probabilities`] applies a certificate's calibration map to a case's raw scores, for the map
+//! kinds v1.2 defines (`temperature` and `dr`, [`MAP_KINDS`]).
 
+mod map;
 mod monitor;
 
+pub use map::{confidence, probabilities, MAP_KINDS};
 pub use monitor::{bin_of, chi2_sf, shift_score, ShiftScore};
 
 use std::collections::BTreeMap;
@@ -239,6 +244,24 @@ impl Verified {
         }
     }
 
+    /// The probabilities the certificate's calibration map gives a case's raw scores, one per
+    /// option (spec v1.2 §1, [`probabilities`]). None when the map's kind is not one this crate
+    /// applies ([`MAP_KINDS`]), its params do not fit that kind, or `scores` does not have one score
+    /// per option. A consumer refuses a certificate whose map it does not apply (spec v1.2 §4).
+    pub fn probabilities(&self, scores: &[f64]) -> Option<Vec<f64>> {
+        (scores.len() == self.cert.options.len())
+            .then(|| probabilities(&self.cert.calibration_map, scores))
+            .flatten()
+    }
+
+    /// A case's confidence: the largest of its [`Verified::probabilities`]. A case is answered when
+    /// this is at least [`Verified::threshold_for`] its segment (and the rule does not abstain on it).
+    pub fn confidence(&self, scores: &[f64]) -> Option<f64> {
+        (scores.len() == self.cert.options.len())
+            .then(|| confidence(&self.cert.calibration_map, scores))
+            .flatten()
+    }
+
     /// The temperature of a `kind: temperature` calibration map; None for other kinds.
     pub fn temperature(&self) -> Option<f64> {
         (self.cert.calibration_map.kind == "temperature")
@@ -302,8 +325,8 @@ pub fn verify(
 
 /// The schema's constraints (spec/decision-certificate.v1.schema.json, the v1.1 schema, which
 /// differs only in `spec`, and the v1.2 schema) that a typed read doesn't already enforce, so this
-/// verifier accepts exactly what the schemas accept; and for v1.2, the histogram checks the schema
-/// cannot express (spec v1.2 §2).
+/// verifier accepts exactly what the schemas accept; and for v1.2, the histogram and calibration map
+/// checks the schema cannot express (spec v1.2 §2).
 fn check(c: &Certificate) -> Result<(), CertError> {
     let bad = |m: &str| Err(CertError::Invalid(m.to_string()));
     let unit = |x: f64| (0.0..=1.0).contains(&x);
@@ -390,6 +413,7 @@ fn check(c: &Certificate) -> Result<(), CertError> {
     }
     if c.spec == SPEC_V1_2 {
         histograms(c)?;
+        map::check(&c.calibration_map, c.options.len())?;
     }
     Ok(())
 }

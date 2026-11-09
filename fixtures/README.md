@@ -37,7 +37,14 @@ withheld as null) and the issuer version 0.4.0, its own `mutations/`, and the v1
 - `invalid_histogram_sum`, `invalid_segment_histogram_sum`, `invalid_histogram_bins`,
   `invalid_bins_not_rising` and `invalid_bins_not_ending_at_1`: histograms the schema accepts and
   the checks of spec v1.2 §2 refuse;
+- `valid_dr_map`: a `dr` calibration map; `valid_other_map_kind`: a kind v1.2 does not define,
+  which verifies (a consumer that does not apply it refuses it);
+- `invalid_dr_missing_param`, `invalid_dr_slope_not_positive`, `invalid_dr_label_budget_null`,
+  `invalid_temperature_not_positive` and `invalid_temperature_extra_param`: map parameters the
+  checks of spec v1.2 §2 refuse;
 - `invalid_unknown_spec`: a certificate naming `decision-certificate.v1.3`.
+
+The v1.2 set is frozen with the spec: later changes add files and never change these.
 
 The v1 and v1.1 sets do not change. `v1.1/invalid_unknown_spec.json` names v1.2 with v1.1's fields;
 a v1.2 verifier still refuses it, because its fields are not v1.2's, and its message still contains

@@ -7,6 +7,11 @@ without the confidence histogram, and `spec="decision-certificate.v1"` issues by
         --domain-dir <domain> --backend <name> --key operator.pem [--audit sample|full-label] [--in-environment]
     python -m decision_cert.issue verify --calibration <domain>/calibration/<backend>.json --keys keys.json
 
+`--map dr --recal-data recal.jsonl --prior prior.json` (v1.2) fits a `dr` calibration map on a
+recalibration set of labelled target cases, disjoint from the calibration cases, instead of the
+temperature (spec v1.2 §1.1 step 2). The predictions file covers those cases too. The prior is
+`{"mu_a", "sigma_a", "sigma_b"}`, learned from earlier shifts (`decision_cert.issue.recal.meta_prior`).
+
 Input: the model's predictions on a calibration split, plus that split's labelled rows (labels,
 `decided_at`, `propensity`). Output: <domain>/calibration/<backend>.json with the temperature, the
 certified thresholds and a `certificate` per decision.
@@ -41,8 +46,10 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey,
 
 from .. import CertError as VerifyError
 from .. import Histogram, __version__
+from .. import probabilities as map_probabilities
 from .. import verify as verify_strict
 from . import _support as sp
+from . import recal as rc
 from . import stats as cs
 
 SPEC_V1 = "decision-certificate.v1"
@@ -214,23 +221,38 @@ class Case:
     propensity: float | None
 
 
-def score(case: Case, temperature: float, cannot_tell_above: float | None) -> tuple[float, bool]:
-    """(confidence, error) of one case under the rule. A case the rule abstains on whatever the
-    threshold (unscored, or cannot-tell above the domain's bound) gets UNSCORED, below every cut."""
+CalMap = dict[str, Any]  # a certificate's calibration_map: {kind, params, label_budget}
+
+
+def temperature_map(temperature: float) -> CalMap:
+    return {"kind": "temperature", "params": {"temperature": temperature}, "label_budget": None}
+
+
+def score(case: Case, cmap: CalMap | float, cannot_tell_above: float | None) -> tuple[float, bool]:
+    """(confidence, error) of one case under the rule and the calibration map (a float is a
+    temperature). A case the rule abstains on whatever the threshold (unscored, or cannot-tell above
+    the domain's bound) gets UNSCORED, below every cut."""
     if case.raw is None or (
         cannot_tell_above is not None and case.cannot_tell is not None and case.cannot_tell > cannot_tell_above
     ):
         return UNSCORED, False
-    p = sp.softmax(np.asarray(case.raw, float), temperature)
+    m = temperature_map(cmap) if isinstance(cmap, (int, float)) else cmap
+    if m["kind"] == "temperature":
+        p = sp.softmax(np.asarray(case.raw, float), m["params"]["temperature"])
+    else:  # as a consumer applies it (decision_cert.probabilities)
+        q = map_probabilities(m, case.raw)
+        if q is None:
+            raise CertError(f"case {case.case_id!r}: the {m['kind']} map gives no probabilities for its scores")
+        p = np.asarray(q, float)
     return float(p.max()), bool(int(np.argmax(p)) != case.label_index)
 
 
 def apply_rule(
-    case: Case, temperature: float, abstain_below: float, cannot_tell_above: float | None
+    case: Case, cmap: CalMap | float, abstain_below: float, cannot_tell_above: float | None
 ) -> tuple[bool, bool]:
     """(answered, error if answered) for one case: answered when confidence >= abstain_below, as a
     consumer reads it (stats.counts)."""
-    conf, err = score(case, temperature, cannot_tell_above)
+    conf, err = score(case, cmap, cannot_tell_above)
     answered = conf >= abstain_below
     return answered, answered and err
 
@@ -298,13 +320,21 @@ def certify_decision(
     manifest_hash: str | None,
     now: dt.datetime,
     spec: str = SPEC,
+    recal: list[Case] | None = None,
+    prior: rc.Prior | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """(unsigned certificate, aggregate diagnostics) for one decision. Spec §1.1. Under v1.1 and
     v1.2 each test starts at the best cut on its own temperature-split cases; under v1, every test
     starts at the best cut on the whole temperature split. v1.2 adds each test's confidence
-    histogram, on bins learned from the temperature split."""
+    histogram, on bins learned from the temperature split.
+
+    With `recal` (v1.2 only), the map is `dr`, fitted by MAP under `prior` on those labelled target
+    cases, which must be disjoint from `cases`; the temperature split then only builds the grid and
+    the bins."""
     if spec not in SPECS:
         raise CertError(f"unknown spec {spec!r}; this issuer writes {' or '.join(SPECS)}")
+    if recal is not None and spec != SPEC_V1_2:
+        raise CertError(f"decision '{decision}': the dr calibration map needs {SPEC_V1_2}")
     audit_block = _audit(cases, audit, decision)
     timed = all(c.decided_at for c in cases)
     if timed:
@@ -320,10 +350,15 @@ def certify_decision(
     scored_t = [cases[i] for i in t_idx if cases[i].raw is not None]
     if not scored_t:
         raise CertError(f"decision '{decision}': the temperature split has no scored cases")
-    temperature = float(sp.fit_temperature([c.raw or [] for c in scored_t], [c.label_index for c in scored_t]))
+    temperature: float | None = None
+    if recal is None:
+        t = float(sp.fit_temperature([c.raw or [] for c in scored_t], [c.label_index for c in scored_t]))
+        temperature, cmap = t, temperature_map(t)
+    else:
+        cmap = fit_dr(decision, recal, cases, prior)
 
     def conf_err(idx: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        pairs = [score(cases[i], temperature, cannot_tell_above) for i in idx]
+        pairs = [score(cases[i], cmap, cannot_tell_above) for i in idx]
         return np.array([c for c, _ in pairs], float).reshape(-1), np.array([e for _, e in pairs], bool).reshape(-1)
 
     conf_t, err_t = conf_err(t_idx)
@@ -389,9 +424,9 @@ def certify_decision(
         segments.append(entry)
         seg_diag[v] = {"answered": r["_answered"], "errors": r["_errors"]}
 
-    hashed = [
+    hashed = [  # every labelled case used: both splits, and a dr map's recalibration cases
         [c.case_id, c.label_index, c.raw, c.decided_at, c.segment, c.propensity]
-        for c in sorted(cases, key=lambda c: c.case_id.encode())
+        for c in sorted([*cases, *(recal or [])], key=lambda c: c.case_id.encode())
     ]
     window = None
     if timed:
@@ -409,7 +444,7 @@ def certify_decision(
         "n_cal": n_cal,
         "n_temperature": len(t_idx),
         "split": {"method": "time" if timed else "seeded", "seed": None if timed else seed},
-        "calibration_map": {"kind": "temperature", "params": {"temperature": temperature}, "label_budget": None},
+        "calibration_map": cmap,
         "rule": {"cannot_tell_above": cannot_tell_above, "unscored": "abstain"},
         "alpha": alpha,
         "delta": delta if method == "ltt" else None,
@@ -437,10 +472,54 @@ def certify_decision(
         "answered": top["_answered"],
         "errors": top["_errors"],
         "segments": seg_diag,
-        "temperature_at_search_bound": temperature <= sp.T_MIN * 1.05 or temperature >= sp.T_MAX * 0.95,
+        "temperature_at_search_bound": temperature is not None
+        and (temperature <= sp.T_MIN * 1.05 or temperature >= sp.T_MAX * 0.95),
         "_cases": per_case,
     }
     return cert, diag
+
+
+def fit_dr(decision: str, recal: list[Case], cases: list[Case], prior: rc.Prior | None) -> CalMap:
+    """A `dr` map (spec v1.2 §1.1 step 2), softmax(a · scores + b), fitted by MAP under `prior` on the
+    scored recalibration cases. Refuses a recalibration set that shares a case with the calibration
+    cases, has no scored case, or gives a slope `a` that is not above 0."""
+    if prior is None:
+        raise CertError(f"decision '{decision}': the dr calibration map needs a prior")
+    if shared := sorted({c.case_id for c in recal} & {c.case_id for c in cases}):
+        raise CertError(
+            f"decision '{decision}': {len(shared)} recalibration cases are also calibration cases "
+            f"(first: {shared[0]!r}); the sets must be disjoint"
+        )
+    scored = [c for c in recal if c.raw is not None]
+    if not scored:
+        raise CertError(f"decision '{decision}': the recalibration set has no scored labelled cases")
+    raw = np.array([c.raw for c in scored], float)
+    logp = raw - raw.max(axis=1, keepdims=True)
+    logp = logp - np.log(np.exp(logp).sum(axis=1, keepdims=True))
+    a, b = rc.fit(logp, np.array([c.label_index for c in scored], int), prior)
+    if not (np.isfinite(a) and a > 0 and np.isfinite(b).all()):
+        raise CertError(f"decision '{decision}': the dr fit gave a = {a:g}; the map needs a > 0")
+    # softmax(a · log softmax(s) + b) = softmax(a · s + b): the log-normaliser is the same for every option
+    params = {"a": float(a), **{f"b{i}": float(x) for i, x in enumerate(b)}}
+    return {"kind": "dr", "params": params, "label_budget": len(recal)}
+
+
+def load_prior(path: Path) -> rc.Prior:
+    """A prior file: `{"mu_a": number, "sigma_a": number > 0, "sigma_b": number > 0}`."""
+    try:
+        raw = json.loads(path.read_text())
+    except (OSError, ValueError) as e:
+        raise CertError(f"{path}: {e}") from None
+    keys = ("mu_a", "sigma_a", "sigma_b")
+    if (
+        not isinstance(raw, dict)
+        or set(raw) != set(keys)
+        or not all(isinstance(raw[k], (int, float)) and not isinstance(raw[k], bool) for k in keys)
+        or not all(np.isfinite(float(raw[k])) for k in keys)
+        or not (raw["sigma_a"] > 0 and raw["sigma_b"] > 0)
+    ):
+        raise CertError(f"{path}: expected {{mu_a, sigma_a > 0, sigma_b > 0}} as finite numbers")
+    return rc.Prior(float(raw["mu_a"]), float(raw["sigma_a"]), float(raw["sigma_b"]))
 
 
 def model_id_of(backend: str, preds: list[dict[str, Any]]) -> str:
@@ -515,10 +594,14 @@ def issue(
     manifest: Path | None = None,
     now: dt.datetime | None = None,
     spec: str = SPEC,
+    recal_rows: list[dict[str, Any]] | None = None,
+    prior: rc.Prior | None = None,
 ) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
     """(calibration file contents, aggregate diagnostics per decision). `spec` picks what is written:
     v1.2 by default, v1.1 (the same procedure, no confidence histogram), or v1
-    (`decision-certificate.v1`) to reproduce a v1 certificate."""
+    (`decision-certificate.v1`) to reproduce a v1 certificate. With `recal_rows` and `prior` (v1.2),
+    each decision's map is `dr`, fitted on those rows' labelled cases (`certify_decision`); `preds`
+    covers them too."""
     if not 0 < alpha < 1 or not 0 < delta < 1:
         raise CertError("alpha and delta must be in (0, 1)")
     if any(p.get("calibrated") for p in preds):
@@ -535,6 +618,7 @@ def issue(
     for dec_id in wanted:
         options = dom.decision(dec_id).option_ids()
         cases = collect(preds, rows, dec_id, options, cfg.segments, audit)
+        recal = None if recal_rows is None else collect(preds, recal_rows, dec_id, options, cfg.segments, "sample")
         cert, diag = certify_decision(
             raw["id"],
             dec_id,
@@ -551,11 +635,13 @@ def issue(
             manifest_hash=manifest_hash,
             now=now,
             spec=spec,
+            recal=recal,
+            prior=prior,
         )
         signed = sign(cert, key)
         jsonschema.validate(signed, schema(spec))
         cal[dec_id] = {
-            "temperature": cert["calibration_map"]["params"]["temperature"],
+            "temperature": cert["calibration_map"]["params"].get("temperature"),  # None for a dr map
             "abstain_below": cert["abstain_below"],
             "_fit": {
                 "n": diag["n"],
@@ -691,7 +777,19 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument(
         "--spec", choices=SPECS, default=SPEC, help="the procedure and spec id to issue under (default %(default)s)"
     )
+    ap.add_argument(
+        "--map",
+        choices=["temperature", "dr"],
+        default="temperature",
+        help="the calibration map: a temperature fitted on the temperature split, or dr (v1.2) fitted on --recal-data",
+    )
+    ap.add_argument("--recal-data", type=Path, help="--map dr: labelled target cases, disjoint from --data")
+    ap.add_argument("--prior", type=Path, help="--map dr: the prior {mu_a, sigma_a, sigma_b}")
     a = ap.parse_args(argv)
+    if a.map == "dr" and (a.recal_data is None or a.prior is None or a.spec != SPEC_V1_2):
+        ap.error(f"--map dr needs --recal-data, --prior and --spec {SPEC_V1_2}")
+    if a.map != "dr" and (a.recal_data is not None or a.prior is not None):
+        ap.error("--recal-data and --prior go with --map dr")
 
     try:
         cal, diags = issue(
@@ -707,6 +805,8 @@ def main(argv: list[str] | None = None) -> None:
             seed=a.seed,
             manifest=a.manifest,
             spec=a.spec,
+            recal_rows=sp.read_cases(a.recal_data) if a.recal_data else None,
+            prior=load_prior(a.prior) if a.prior else None,
         )
     except TooFewCases as e:
         print(f"{PROG} certify: {e}", file=sys.stderr)

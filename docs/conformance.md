@@ -68,6 +68,8 @@ value, never a re-serialised typed struct.
 | `v1.2/valid_*` | the v1.2 fields: `confidence_bins` and the histograms, one withheld (null) |
 | `v1.2/invalid_missing_v1_2_field`, `v1.2/invalid_segment_missing_histogram`, `v1.2/invalid_v1_2_field_in_v1_1` | fields that belong to another `spec`, at the top level or in a segment |
 | `v1.2/invalid_histogram_sum`, `v1.2/invalid_segment_histogram_sum`, `v1.2/invalid_histogram_bins`, `v1.2/invalid_bins_*` | the checks beyond the schema (spec v1.2 §2) |
+| `v1.2/valid_dr_map`, `v1.2/valid_other_map_kind` | a `dr` calibration map, and a kind v1.2 does not define (verifies; a consumer that does not apply it refuses it) |
+| `v1.2/invalid_dr_*`, `v1.2/invalid_temperature_*` | map parameters that do not fit their kind (spec v1.2 §2) |
 | `v1.2/invalid_unknown_spec` | a later `spec` (v1.3) is refused |
 
 ## 4. Beyond the fixtures
@@ -76,7 +78,7 @@ The fixtures are the minimum. This repository also runs a differential test
 ([`python/tests/test_rust_oracle.py`](../python/tests/test_rust_oracle.py)): a few hundred edited,
 re-signed certificates, where the Python verifier must give the crate's verdict and id on every
 one, and the two must bin windows of confidences and compute the v1.2 shift score alike (to 1e-9
-relative). A verifier in another language can do the same against the crate's command-line
+relative) and apply the v1.2 calibration maps alike (to 1e-12 relative). A verifier in another language can do the same against the crate's command-line
 verifier:
 
 ```bash

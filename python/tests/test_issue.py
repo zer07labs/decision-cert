@@ -532,3 +532,95 @@ def test_the_shift_score_flags_a_window_whose_confidences_moved(tmp_path: Path) 
     assert dc.shift_score(base, dc.Histogram.of(bins, fresh.tolist())).p_value > 0.001
     lower = np.clip(fresh - 0.1, 0.5, 1.0)
     assert dc.shift_score(base, dc.Histogram.of(bins, lower.tolist())).p_value < 1e-6
+
+
+# ---------- v1.2: the dr map ----------
+
+PRIOR = recal.Prior(mu_a=0.8, sigma_a=0.3, sigma_b=0.5)
+
+
+def recal_cases(n: int, seed: int = 5, *, prefix: str = "r") -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """(predictions, labelled rows) from a shifted population: the model is overconfident there (the
+    true slope is 0.5) and the base rate of `yes` is higher (a shift of 0.6)."""
+    rng = np.random.default_rng(seed)
+    preds, rows = [], []
+    for i in range(n):
+        margin = float(rng.normal(0, 2.5))
+        truth = 0 if rng.random() < 1 / (1 + np.exp(-(0.5 * margin + 0.6))) else 1
+        cid = f"{prefix}{i:05d}"
+        rows.append({"case_id": cid, "case": {}, "labels": {"approved": OPTIONS[truth]}})
+        preds.append({"case_id": cid, "decision": "approved", "model": "toy", "version": "1",
+                      "raw_scores": [margin / 2, -margin / 2]})  # fmt: skip
+    return preds, rows
+
+
+def issue_dr(tmp: Path, n_recal: int = 300, **kw: Any) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
+    preds, rows = cases(2000)
+    rp, rr = recal_cases(n_recal, prefix=kw.pop("prefix", "r"))
+    cal, diags = ct.issue(
+        preds + rp, rows, domain(tmp), "toy-backend", KEY, now=NOW, audit="full-label",
+        recal_rows=rr, prior=kw.pop("prior", PRIOR), **kw,
+    )  # fmt: skip
+    return cal["approved"], diags["approved"], preds
+
+
+def test_a_dr_map_is_fitted_on_the_recalibration_cases_only(tmp_path: Path) -> None:
+    entry, diag, preds = issue_dr(tmp_path)
+    cert = entry["certificate"]
+    m = cert["calibration_map"]
+    assert m["kind"] == "dr" and m["label_budget"] == 300 and set(m["params"]) == {"a", "b0", "b1"}
+    assert 0 < m["params"]["a"] < 0.8, "the prior's mean is pulled towards the shifted population's slope"
+    assert m["params"]["b0"] - m["params"]["b1"] > 0, "and the shift towards `yes`"
+    assert entry["temperature"] is None
+    # The splits are as before; only data_hash also covers the recalibration cases.
+    assert cert["n_cal"] == 1000 and cert["n_temperature"] == 1000 and cert["audit"]["n"] == 2000
+    plain, _ = issue(tmp_path)
+    assert cert["data_hash"] != plain["certificate"]["data_hash"]
+    v = dc.verify(cert, trusted())
+    assert v.temperature() is None
+    # A consumer applying the map gets the confidences the issuer measured.
+    raw = {p["case_id"]: p["raw_scores"] for p in preds}
+    measured = [c for c in diag["_cases"] if c["split"] == "threshold"]
+    assert all(v.confidence(raw[c["case_id"]]) == c["confidence"] for c in measured)
+    if shutil.which("cargo"):
+        (r,) = rust_verdicts(tmp_path, [cert])
+        assert r["valid"] and r["id"] == v.id, r
+
+
+@pytest.mark.parametrize(
+    ("kw", "error"),
+    [
+        ({"spec": ct.SPEC_V1_1}, "needs decision-certificate.v1.2"),
+        ({"prefix": "c"}, "also calibration cases"),
+        ({"n_recal": 0}, "no scored labelled cases"),
+        ({"prior": None}, "needs a prior"),
+    ],
+)
+def test_dr_refusals(tmp_path: Path, kw: dict[str, Any], error: str) -> None:
+    with pytest.raises(ct.CertError, match=error):
+        issue_dr(tmp_path, **kw)
+
+
+def test_command_line_dr_map(tmp_path: Path) -> None:
+    preds, rows = cases(2000)
+    rp, rr = recal_cases(300)
+    (tmp_path / "preds.jsonl").write_text("".join(json.dumps(p) + "\n" for p in preds + rp))
+    (tmp_path / "rows.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    (tmp_path / "recal.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rr))
+    (tmp_path / "prior.json").write_text(json.dumps(PRIOR.to_json()))
+    ct.keygen(tmp_path / "op.pem")
+    d = domain(tmp_path)
+    base = ["certify", "--predictions", str(tmp_path / "preds.jsonl"), "--data", str(tmp_path / "rows.jsonl"),
+            "--domain-dir", str(d), "--backend", "toy", "--key", str(tmp_path / "op.pem"),
+            "--audit", "full-label"]  # fmt: skip
+    dr = ["--map", "dr", "--recal-data", str(tmp_path / "recal.jsonl"), "--prior", str(tmp_path / "prior.json")]
+    for bad in [dr[:4], [*dr, "--spec", ct.SPEC_V1_1], dr[2:]]:  # no prior; not v1.2; no --map dr
+        with pytest.raises(SystemExit) as e:
+            ct.main([*base, *bad])
+        assert e.value.code == 2
+    ct.main([*base, *dr])
+    cert = json.loads((d / "calibration" / "toy.json").read_text())["approved"]["certificate"]
+    assert cert["calibration_map"]["kind"] == "dr" and cert["calibration_map"]["label_budget"] == 300
+    (tmp_path / "prior.json").write_text(json.dumps({"mu_a": 1, "sigma_a": 0, "sigma_b": 1}))
+    with pytest.raises(SystemExit, match="sigma_a > 0"):
+        ct.main([*base, *dr])
