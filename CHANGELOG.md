@@ -31,7 +31,7 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 - `docs/certificates.md`, `docs/conformance.md` and `docs/drafts/method.md`: monitoring with the
   histogram, its limits, and the v1.2 fixtures.
 - **Spec v1.2, the `dr` calibration map** (#24): `kind: "dr"`, softmax(a · scores + b), with params
-  `a` (> 0) and `b0` to `b<k−1>`, and a required `label_budget`: the labelled cases of a
+  `a` (> 0) and `b0` to `b<k−1>`, and a required `label_budget`: the cases the map was fitted on, from a
   recalibration set disjoint from both splits, which `data_hash` also covers. No new field. v1.2
   verifiers check the params of both kinds v1.2 defines, and leave other kinds to consumers.
 - **Applying a map** in both verifiers, kept in lockstep by the differential test:

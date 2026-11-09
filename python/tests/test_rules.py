@@ -193,3 +193,13 @@ def test_a_dr_map_is_applied_as_softmax_of_a_scores_plus_b() -> None:
     assert dc.verify(resign(base("v1.2/valid_other_map_kind")), KEYS).probabilities([1.0, 0.0]) is None
     assert dc.probabilities({"kind": "dr", "params": {"a": 1, "b0": 0, "b1": True}}, [0.0, 1.0]) is None
     assert dc.probabilities({"kind": "temperature", "params": {"temperature": 1}}, [0.0, 10**400]) is None
+
+
+def test_dr_maps_are_applied_in_v1_2_certificates_only() -> None:
+    # v1 and v1.1 define only `temperature`: a `dr` map there verifies as before but is not applied.
+    dr = {"kind": "dr", "params": {"a": 1, "b0": 0, "b1": 0}, "label_budget": None}
+    for name in ["valid_basic", "v1.1/valid_basic"]:
+        c = base(name)
+        c["calibration_map"] = dr
+        v = dc.verify(resign(c), KEYS)
+        assert v.probabilities([1.0, 0.0]) is None and v.confidence([1.0, 0.0]) is None

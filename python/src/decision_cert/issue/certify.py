@@ -501,7 +501,7 @@ def fit_dr(decision: str, recal: list[Case], cases: list[Case], prior: rc.Prior 
         raise CertError(f"decision '{decision}': the dr fit gave a = {a:g}; the map needs a > 0")
     # softmax(a · log softmax(s) + b) = softmax(a · s + b): the log-normaliser is the same for every option
     params = {"a": float(a), **{f"b{i}": float(x) for i, x in enumerate(b)}}
-    return {"kind": "dr", "params": params, "label_budget": len(recal)}
+    return {"kind": "dr", "params": params, "label_budget": len(scored)}  # the cases it was fitted on
 
 
 def load_prior(path: Path) -> rc.Prior:
@@ -515,7 +515,7 @@ def load_prior(path: Path) -> rc.Prior:
         not isinstance(raw, dict)
         or set(raw) != set(keys)
         or not all(isinstance(raw[k], (int, float)) and not isinstance(raw[k], bool) for k in keys)
-        or not all(np.isfinite(float(raw[k])) for k in keys)
+        or not all(abs(raw[k]) < 1e300 for k in keys)
         or not (raw["sigma_a"] > 0 and raw["sigma_b"] > 0)
     ):
         raise CertError(f"{path}: expected {{mu_a, sigma_a > 0, sigma_b > 0}} as finite numbers")

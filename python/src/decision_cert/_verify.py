@@ -539,8 +539,11 @@ class Verified:
         """The probabilities the certificate's calibration map gives a case's raw scores, one per
         option (spec v1.2 §1, `decision_cert.probabilities`). None when the map's kind is not one
         this package applies (`MAP_KINDS`), its params do not fit that kind, or `scores` does not
-        have one score per option. A consumer refuses a certificate whose map it does not apply
-        (spec v1.2 §4)."""
+        have one score per option, or the map is `dr` in a certificate before v1.2, which did not
+        define it. A consumer refuses a certificate whose map it does not apply (spec v1.2 §4)."""
+        m = self._typed["calibration_map"]
+        if m["kind"] != "temperature" and self._typed["spec"] != SPEC_V1_2:
+            return None
         if len(scores) != len(self._typed["options"]):
             return None
         return _map.probabilities(self._typed["calibration_map"], scores)

@@ -621,6 +621,7 @@ def test_command_line_dr_map(tmp_path: Path) -> None:
     ct.main([*base, *dr])
     cert = json.loads((d / "calibration" / "toy.json").read_text())["approved"]["certificate"]
     assert cert["calibration_map"]["kind"] == "dr" and cert["calibration_map"]["label_budget"] == 300
-    (tmp_path / "prior.json").write_text(json.dumps({"mu_a": 1, "sigma_a": 0, "sigma_b": 1}))
-    with pytest.raises(SystemExit, match="sigma_a > 0"):
-        ct.main([*base, *dr])
+    for bad_prior in [{"mu_a": 1, "sigma_a": 0, "sigma_b": 1}, {"mu_a": 10**400, "sigma_a": 1, "sigma_b": 1}]:
+        (tmp_path / "prior.json").write_text(json.dumps(bad_prior))
+        with pytest.raises(SystemExit, match="sigma_a > 0"):
+            ct.main([*base, *dr])

@@ -73,8 +73,8 @@ The procedure is v1.1's, apart from the `dr` map in step 2.
    hashed (§2) and reported in `window`.
 2. **Calibration map.** For `temperature`, `params.temperature` minimises NLL on the temperature
    split's scored cases. For `dr`, the parameters are fitted on a separate **recalibration set** of
-   `label_budget` labelled cases, disjoint from both splits, and nothing from the threshold split is
-   used. The reference issuer fits `a` and `b` by maximum a posteriori on the recalibration set's
+   labelled cases, disjoint from both splits, and nothing from the threshold split is used;
+   `label_budget` is the number of cases the fit used. The reference issuer fits `a` and `b` by maximum a posteriori on the recalibration set's
    scored cases, under a Gaussian prior learned from earlier shifts. The fit may use the
    recalibration set and anything chosen before it. The temperature split then serves only the grid
    (step 3) and the bins (§1.5). Either way the map is fixed before the threshold split is tested,
@@ -200,7 +200,7 @@ Every field is required; nullable ones are marked.
 | `n_cal` | integer | Threshold-split size. |
 | `n_temperature` | integer | Temperature-split size. |
 | `split` | `{method, seed}` | `method`: `"time"` or `"seeded"`. `seed`: an integer, or null for `"time"`. |
-| `calibration_map` | `{kind, params, label_budget}` | `kind` names the map, and `params` is an object of numbers. `label_budget` (integer \| null) is the number of target labels the map was fitted with, when that is part of its claim. `temperature`: `{"kind": "temperature", "params": {"temperature": T}, "label_budget": null}`, with `T` > 0. `dr`: `{"kind": "dr", "params": {"a": a, "b0": …, "b<k−1>": …}, "label_budget": m}`, with `a` > 0, one `b` per option, and `m` ≥ 1 the recalibration set's labelled cases (§1.1 step 2). |
+| `calibration_map` | `{kind, params, label_budget}` | `kind` names the map, and `params` is an object of numbers. `label_budget` (integer \| null) is the number of target labels the map was fitted with, when that is part of its claim. `temperature`: `params` `{"temperature": T}` with `T` > 0; issuers write `label_budget` null. `dr`: `params` `{"a": a, "b0": …, "b<k−1>": …}` with `a` > 0 and one `b` per option, and `label_budget` `m` ≥ 1, the recalibration cases the map was fitted on (§1.1 step 2). |
 | `rule` | `{cannot_tell_above, unscored}` | `cannot_tell_above`: number in [0, 1] \| null. `unscored`: `"abstain"`. |
 | `alpha` | number | In (0, 1). |
 | `delta` | number \| null | In (0, 1); null for `crc`. |

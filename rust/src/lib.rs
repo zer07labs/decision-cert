@@ -247,9 +247,12 @@ impl Verified {
     /// The probabilities the certificate's calibration map gives a case's raw scores, one per
     /// option (spec v1.2 §1, [`probabilities`]). None when the map's kind is not one this crate
     /// applies ([`MAP_KINDS`]), its params do not fit that kind, or `scores` does not have one score
-    /// per option. A consumer refuses a certificate whose map it does not apply (spec v1.2 §4).
+    /// per option, or the map is `dr` in a certificate before v1.2, which did not define it. A
+    /// consumer refuses a certificate whose map it does not apply (spec v1.2 §4).
     pub fn probabilities(&self, scores: &[f64]) -> Option<Vec<f64>> {
-        (scores.len() == self.cert.options.len())
+        let defined =
+            self.cert.calibration_map.kind == "temperature" || self.cert.spec == SPEC_V1_2;
+        (defined && scores.len() == self.cert.options.len())
             .then(|| probabilities(&self.cert.calibration_map, scores))
             .flatten()
     }
@@ -257,9 +260,8 @@ impl Verified {
     /// A case's confidence: the largest of its [`Verified::probabilities`]. A case is answered when
     /// this is at least [`Verified::threshold_for`] its segment (and the rule does not abstain on it).
     pub fn confidence(&self, scores: &[f64]) -> Option<f64> {
-        (scores.len() == self.cert.options.len())
-            .then(|| confidence(&self.cert.calibration_map, scores))
-            .flatten()
+        self.probabilities(scores)
+            .map(|p| p.into_iter().fold(f64::NEG_INFINITY, f64::max))
     }
 
     /// The temperature of a `kind: temperature` calibration map; None for other kinds.
@@ -543,6 +545,30 @@ mod tests {
             serde_json::from_str(include_str!("../../fixtures/valid_segments_unicode.json"))
                 .unwrap();
         f["certificate"].clone()
+    }
+
+    /// v1 and v1.1 define only `temperature`, so a `dr` map in one of them gives no probabilities,
+    /// though the certificate verifies as it always did.
+    #[test]
+    fn dr_maps_are_applied_in_v1_2_certificates_only() {
+        let mut cert: Certificate = serde_json::from_value(valid()).unwrap();
+        cert.calibration_map = CalibrationMap {
+            kind: "dr".into(),
+            params: [("a", 1.0), ("b0", 0.0), ("b1", 0.0)]
+                .iter()
+                .map(|(k, v)| (k.to_string(), *v))
+                .collect(),
+            label_budget: None,
+        };
+        let v = Verified {
+            id: String::new(),
+            cert,
+            expires_at: Utc::now(),
+        };
+        assert!(v.probabilities(&[1.0, 0.0]).is_none() && v.confidence(&[1.0, 0.0]).is_none());
+        let mut v12 = v.clone();
+        v12.cert.spec = SPEC_V1_2.into();
+        assert!(v12.confidence(&[1.0, 0.0]).unwrap() > 0.73);
     }
 
     #[test]
