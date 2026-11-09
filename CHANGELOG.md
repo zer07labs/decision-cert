@@ -1,9 +1,14 @@
 # Changelog
 
-All notable changes to this repository. The spec (`decision-certificate.v1`, `v1.1`) is versioned
+All notable changes to this repository. The spec (`decision-certificate.v1`, `v1.1`, `v1.2`) is versioned
 separately and is frozen; this log covers the crate, the verifiers, the fixtures and the docs.
 
 ## Unreleased
+
+## 0.4.0 — unreleased (the owner tags `v0.4.0`)
+
+Spec v1.2: frozen, verified, issued. Verifiers accept v1, v1.1 and v1.2; v1 and v1.1 certificates
+and fixtures are unchanged.
 
 - **Spec v1.2 frozen** (2026-11-08) with its two items, the histogram (#25) and the `dr` map (#24).
 - **Spec v1.2, the confidence histogram** (#25):
