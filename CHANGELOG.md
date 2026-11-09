@@ -5,7 +5,8 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 
 ## Unreleased
 
-- **Spec v1.2, the confidence histogram** (#25; v1.2 is in progress until the `dr` kind lands):
+- **Spec v1.2 frozen** (2026-11-08) with its two items, the histogram (#25) and the `dr` map (#24).
+- **Spec v1.2, the confidence histogram** (#25):
   `spec/decision-certificate.v1.2.md` and its schema. New fields `confidence_bins` and
   `confidence_histogram` (top level and per segment, nullable when withheld): each test's
   threshold-split cases per confidence bin, on bins chosen without the threshold split. The
@@ -29,6 +30,17 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
   The v1 and v1.1 sets are byte-unchanged.
 - `docs/certificates.md`, `docs/conformance.md` and `docs/drafts/method.md`: monitoring with the
   histogram, its limits, and the v1.2 fixtures.
+- **Spec v1.2, the `dr` calibration map** (#24): `kind: "dr"`, softmax(a · scores + b), with params
+  `a` (> 0) and `b0` to `b<k−1>`, and a required `label_budget`: the cases the map was fitted on, from a
+  recalibration set disjoint from both splits, which `data_hash` also covers. No new field. v1.2
+  verifiers check the params of both kinds v1.2 defines, and leave other kinds to consumers.
+- **Applying a map** in both verifiers, kept in lockstep by the differential test:
+  `probabilities` and `confidence` (free functions over a `calibration_map`), `MAP_KINDS`, and
+  `Verified::probabilities` / `Verified::confidence`. New Rust example `probabilities`.
+- **The issuer fits `dr` maps**: `--map dr --recal-data … --prior …` (v1.2 only; the recalibration
+  set must not share a case with the calibration cases).
+- **`fixtures/v1.2/`** gains seven map fixtures (`valid_dr_map`, `valid_other_map_kind`,
+  `invalid_dr_*`, `invalid_temperature_*`); its earlier files are byte-unchanged.
 
 ## 0.3.0 — 2026-11-08 (tag `v0.3.0`)
 

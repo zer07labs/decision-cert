@@ -75,6 +75,13 @@ EDGE_VALUES: list[Any] = [
     {"counts": [2500], "unscored": 0},
     {"counts": [2450, 0], "unscored": 50},
     {"counts": [1, 2], "unscored": -1},
+    "dr",
+    "temperature",
+    "platt",
+    {"temperature": 1.3},
+    {"a": 1, "b0": 0, "b1": 0},
+    {"a": 1, "b0": 0},
+    -0.5,
 ]
 
 PATHS = [
@@ -138,6 +145,20 @@ V12_PATHS = [
     "segments.1.confidence_histogram",
     "n",
     "segments.0.n",
+    "calibration_map.kind",
+    "calibration_map.params",
+    "calibration_map.params.temperature",
+    "calibration_map.label_budget",
+]
+
+DR_PATHS = [
+    "calibration_map.kind",
+    "calibration_map.params",
+    "calibration_map.params.a",
+    "calibration_map.params.b0",
+    "calibration_map.params.b1",
+    "calibration_map.params.b2",
+    "calibration_map.label_budget",
 ]
 
 SEGMENT_PATHS = [
@@ -179,6 +200,18 @@ def cases() -> list[tuple[str, str]]:
             add(f"v12-edit{i}-{path}", resign(c))
         except dc.Invalid:
             add(f"v12-unsigned{i}-{path}", c)
+    for i in range(200):
+        c = base("v1.2/valid_dr_map")
+        path = rng.choice([*DR_PATHS, "options", "options.0"])
+        value = rng.choice(EDGE_VALUES)
+        try:
+            c = set_path(c, path, value)
+        except (KeyError, IndexError, TypeError):
+            continue
+        try:
+            add(f"dr-edit{i}-{path}", resign(c))
+        except dc.Invalid:
+            add(f"dr-unsigned{i}-{path}", c)
     for name, raw in [("minus-zero-int", '"n": -0'), ("float-int", '"n": 2500.0'), ("exp-int", '"n": 25e2')]:
         c = resign(base())
         text = json.dumps({"certificate": c, "keys": KEYS}).replace('"n": 2500', raw, 1)
@@ -282,3 +315,52 @@ def test_python_and_rust_bin_and_score_windows_alike(tmp_path: Path) -> None:
         assert r["score"]["p_value"] == pytest.approx(s.p_value, rel=1e-9, abs=1e-15)
         scored += s.df > 0 and 1e-12 < s.p_value < 1
     assert scored >= 75, "too few cases exercise the chi-square tail"
+
+
+def map_cases() -> list[dict[str, Any]]:
+    """Raw scores under random temperature and dr maps, some with params that do not fit."""
+    rng = random.Random(20261109)
+    out: list[dict[str, Any]] = []
+    for _ in range(400):
+        k = rng.randint(1, 6)
+        scale = rng.choice([1e-3, 1, 10, 1e3, 1e200])
+        scores = [rng.uniform(-scale, scale) for _ in range(k)]
+        if rng.random() < 0.5:
+            params: dict[str, float] = {"temperature": rng.choice([rng.uniform(0.05, 5), 0.0, -1.0, 1e-300])}
+            kind = "temperature"
+        else:
+            params = {"a": rng.choice([rng.uniform(0.05, 3), 0.0, 1e300])}
+            params |= {f"b{i}": rng.uniform(-3, 3) for i in range(k + rng.choice([0, 0, 0, -1, 1]))}
+            kind = "dr"
+        if rng.random() < 0.05:
+            kind = "platt"
+        out.append({"map": {"kind": kind, "params": params, "label_budget": 9}, "scores": scores})
+    return out
+
+
+@pytest.mark.skipif(shutil.which("cargo") is None, reason="cargo not on PATH")
+def test_python_and_rust_apply_maps_alike(tmp_path: Path) -> None:
+    cases = map_cases()
+    p = tmp_path / "maps.json"
+    p.write_text(json.dumps(cases))
+    run = subprocess.run(
+        ["cargo", "run", "--quiet", "--locked", "--example", "probabilities", "--", str(p)],
+        cwd=RUST,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    rust = [json.loads(line) for line in run.stdout.splitlines()]
+    assert len(rust) == len(cases)
+    applied = 0
+    for c, r in zip(cases, rust, strict=True):
+        py = dc.probabilities(c["map"], c["scores"])
+        if r["probabilities"] is None:
+            assert py is None, c
+            assert r["confidence"] is None and dc.confidence(c["map"], c["scores"]) is None
+            continue
+        assert py is not None, c
+        assert list(py) == pytest.approx(r["probabilities"], rel=1e-12, abs=1e-300), c
+        assert dc.confidence(c["map"], c["scores"]) == pytest.approx(r["confidence"], rel=1e-12), c
+        applied += 1
+    assert 100 <= applied < len(cases), "both the applied and the refused paths are exercised"

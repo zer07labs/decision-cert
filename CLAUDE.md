@@ -10,7 +10,7 @@ PyPI, both `decision-cert`) or a git revision. It holds no data and never calls 
 
 - **Certificates describe a measured process, never guarantee an outcome.** No names, docs or
   messages that promise an outcome; the CI `wording` job enforces this on the public docs.
-- **`spec/decision-certificate.v1.md` and `v1.1.md` are frozen**, and so is v1.2 once it is marked frozen.
+- **`spec/decision-certificate.v1.md`, `v1.1.md` and `v1.2.md` are frozen**, with their fixture sets.
   A frozen spec's fields and their meaning never change; additions go in a new `spec` value.
   Corrections and clarifications go in `spec/ERRATA.md` as dated entries, never edits of the
   frozen text.

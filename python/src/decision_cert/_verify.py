@@ -16,7 +16,7 @@ import hashlib
 import itertools
 import json
 import math
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -24,7 +24,7 @@ import rfc8785
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
-from . import _ed25519
+from . import _ed25519, _map
 from ._monitor import Histogram
 
 #: The `spec` of a certificate produced by the v1 procedure.
@@ -349,6 +349,8 @@ def _check(c: Mapping[str, Any]) -> None:
         timestamp(c["window"]["end"])
     if c["spec"] == SPEC_V1_2:
         _check_histograms(c)
+        if (msg := _map.check(c["calibration_map"], len(opts))) is not None:
+            raise Invalid(msg)
 
 
 def _check_fields_for_spec(c: Mapping[str, Any]) -> None:
@@ -532,6 +534,25 @@ class Verified:
                     h = s.get("confidence_histogram")
                     break
         return None if h is None else Histogram(tuple(h["counts"]), h["unscored"])
+
+    def probabilities(self, scores: Sequence[float]) -> tuple[float, ...] | None:
+        """The probabilities the certificate's calibration map gives a case's raw scores, one per
+        option (spec v1.2 §1, `decision_cert.probabilities`). None when the map's kind is not one
+        this package applies (`MAP_KINDS`), its params do not fit that kind, or `scores` does not
+        have one score per option, or the map is `dr` in a certificate before v1.2, which did not
+        define it. A consumer refuses a certificate whose map it does not apply (spec v1.2 §4)."""
+        m = self._typed["calibration_map"]
+        if m["kind"] != "temperature" and self._typed["spec"] != SPEC_V1_2:
+            return None
+        if len(scores) != len(self._typed["options"]):
+            return None
+        return _map.probabilities(self._typed["calibration_map"], scores)
+
+    def confidence(self, scores: Sequence[float]) -> float | None:
+        """A case's confidence: the largest of its `probabilities`. A case is answered when this is
+        at least `threshold_for` its segment (and the rule does not abstain on it)."""
+        p = self.probabilities(scores)
+        return None if p is None else max(p)
 
     def temperature(self) -> float | None:
         """The temperature of a `kind: temperature` calibration map; None for other kinds."""

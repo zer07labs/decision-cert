@@ -1,7 +1,7 @@
 # Decision certificate, v1.2
 
-Status: **in progress** (2026-11-08). This text holds the stored confidence histogram (§1.5, §4, §6).
-The `dr` calibration map kind is added next; v1.2 is frozen when both are in. v1.2 extends
+Status: **frozen** (2026-11-08). v1.2 adds the stored confidence histogram (§1.5, §4, §6) and the
+`dr` calibration map kind (§1, §1.1, §2). Corrections go in [`ERRATA.md`](ERRATA.md). v1.2 extends
 [`decision-certificate.v1.1`](decision-certificate.v1.1.md) (frozen 2026-11-08) and
 [`decision-certificate.v1`](decision-certificate.v1.md) (frozen 2026-10-25), which both stay frozen and
 valid.
@@ -34,8 +34,15 @@ the Python verifier [`python/`](../python/) (module `decision_cert`) and the Pyt
 ## 1. What is measured
 
 A model gives each case a raw score per option. The certificate's `calibration_map` turns those into
-probabilities (v1.2 issuers write `kind: "temperature"`: softmax of the scores divided by
-`params.temperature`). The case's **confidence** is the top probability. The decision **answers** a
+probabilities. v1.2 defines two kinds:
+
+- `temperature`: softmax of the scores divided by `params.temperature`;
+- `dr`: softmax of `a · s_j + b_j` over the options `j`, where `s_j` is option `j`'s score, `a` is
+  `params.a` and `b_j` is `params.b<j>` (`b0` for the first option). The map rescales the scores and
+  shifts each option, so a model can be moved to a population whose base rates and confidence
+  differ, on few labels from that population.
+
+The case's **confidence** is the top probability. The decision **answers** a
 case when `confidence >= threshold` and abstains otherwise. The threshold is the case's certified
 segment's `abstain_below` (§1.3), else the top-level `abstain_below`.
 
@@ -55,7 +62,7 @@ p-values. `crc` is conformal risk control (Angelopoulos et al., 2022) with loss 
 
 ### 1.1 Procedure (normative)
 
-The procedure is v1.1's, unchanged.
+The procedure is v1.1's, apart from the `dr` map in step 2.
 
 1. **Splits.** The labelled cases are split into two disjoint parts, a **temperature split** and a
    **threshold split** (`n_cal` = the threshold split's size). When every case has a timestamp
@@ -64,7 +71,14 @@ The procedure is v1.1's, unchanged.
    `decided_at` is first **normalised** to the certificate's timestamp form, UTC with whole seconds
    (fraction truncated; a timestamp with no offset is UTC), and that form is what is ordered,
    hashed (§2) and reported in `window`.
-2. **Calibration map.** `params.temperature` minimises NLL on the temperature split's scored cases.
+2. **Calibration map.** For `temperature`, `params.temperature` minimises NLL on the temperature
+   split's scored cases. For `dr`, the parameters are fitted on a separate **recalibration set** of
+   labelled cases, disjoint from both splits, and nothing from the threshold split is used;
+   `label_budget` is the number of cases the fit used. The reference issuer fits `a` and `b` by maximum a posteriori on the recalibration set's
+   scored cases, under a Gaussian prior learned from earlier shifts. The fit may use the
+   recalibration set and anything chosen before it. The temperature split then serves only the grid
+   (step 3) and the bins (§1.5). Either way the map is fixed before the threshold split is tested,
+   so the tests of steps 4–7 are unchanged.
 3. **Grid.** Built from the temperature split only:
    - the cuts are the midpoints between its adjacent distinct confidences, descending, then 0.0;
    - each test of step 4 (each certified segment, and the remainder) starts at the cut with the
@@ -182,11 +196,11 @@ Every field is required; nullable ones are marked.
 | `options` | string[] | The decision's option ids in score order. Scores are positional, so a reordered domain no longer matches. |
 | `model_id` | string | `<backend>/<model>@<version>`, from the predictions; issuers refuse when model or version is unknown. |
 | `manifest_hash` | string \| null | `sha256:<hex>` of the model's provenance manifest file. Null when it has none (e.g. a vendor): then the scored function can't be verified. |
-| `data_hash` | string | `sha256:<hex>` of the JCS bytes of a list with one entry per labelled case used (both splits), sorted bytewise by UTF-8 `case_id`: `[case_id, label_index, raw_scores \| null, decided_at \| null, segment \| null, propensity \| null]`. Unlabelled cases are excluded. Only an auditor holding the data can recompute it. |
+| `data_hash` | string | `sha256:<hex>` of the JCS bytes of a list with one entry per labelled case used (both splits, and a `dr` map's recalibration set), sorted bytewise by UTF-8 `case_id`: `[case_id, label_index, raw_scores \| null, decided_at \| null, segment \| null, propensity \| null]`. Unlabelled cases are excluded. Only an auditor holding the data can recompute it. |
 | `n_cal` | integer | Threshold-split size. |
 | `n_temperature` | integer | Temperature-split size. |
 | `split` | `{method, seed}` | `method`: `"time"` or `"seeded"`. `seed`: an integer, or null for `"time"`. |
-| `calibration_map` | `{kind, params, label_budget}` | `kind` names the map, and `params` is an object of numbers. `label_budget` (integer \| null) is the number of target labels the map was fitted with, when that is part of its claim. v1.2 issuers write `{"kind": "temperature", "params": {"temperature": T}, "label_budget": null}`. |
+| `calibration_map` | `{kind, params, label_budget}` | `kind` names the map, and `params` is an object of numbers. `label_budget` (integer \| null) is the number of target labels the map was fitted with, when that is part of its claim. `temperature`: `params` `{"temperature": T}` with `T` > 0; issuers write `label_budget` null. `dr`: `params` `{"a": a, "b0": …, "b<k−1>": …}` with `a` > 0 and one `b` per option, and `label_budget` `m` ≥ 1, the recalibration cases the map was fitted on (§1.1 step 2). |
 | `rule` | `{cannot_tell_above, unscored}` | `cannot_tell_above`: number in [0, 1] \| null. `unscored`: `"abstain"`. |
 | `alpha` | number | In (0, 1). |
 | `delta` | number \| null | In (0, 1); null for `crc`. |
@@ -201,7 +215,7 @@ Every field is required; nullable ones are marked.
 | `window` | `{start, end}` \| null | Earliest and latest `decided_at`; null unless every case has one. |
 | `fitted_at` | timestamp | |
 | `expires_at` | timestamp | `window.end` (else `fitted_at`) + the domain's `certificate.ttl_days`. |
-| `audit` | `{mode, rate, n, propensity_logged}` | §1.4. `n` = labelled cases used (both splits). |
+| `audit` | `{mode, rate, n, propensity_logged}` | §1.4. `n` = labelled cases in the two splits; a `dr` map's recalibration set is counted by `label_budget`. |
 | `issuer` | `{tool, version}` | The library that issued it, e.g. `{"tool": "decision-cert", "version": "0.4.0"}`. Not checked by verifiers. |
 | `confidence_bins` | number[] | §1.5: 2 to 101 bin edges, rising strictly from 0 to 1. |
 | `confidence_histogram` | `{counts, unscored}` \| null | §1.5: the remainder's threshold-split cases per bin (`counts`, integers, one per bin) and the ones the rule abstains on whatever the threshold (`unscored`). Null when withheld. Each segment carries its own, for its cases. |
@@ -229,7 +243,13 @@ also reject a v1.2 certificate when:
   0 and the length);
 - a histogram that is not null has a number of `counts` other than the number of bins
   (`len(confidence_bins) − 1`), or its `counts` and `unscored` do not sum to its test's `n` (the
-  top level's `n` for the top-level histogram, the segment's `n` for a segment's).
+  top level's `n` for the top-level histogram, the segment's `n` for a segment's);
+- a `temperature` map's `params` are not exactly `temperature`, above 0;
+- a `dr` map's `params` are not exactly `a`, above 0, and `b0` to `b<k−1>` for the certificate's `k`
+  options, or its `label_budget` is null or below 1.
+
+A `calibration_map.kind` v1.2 does not define is not checked: the certificate verifies, and a
+consumer that does not apply that kind refuses it (§4).
 
 And they reject any certificate whose fields belong to another `spec`: a v1.2 certificate without a
 v1.2 field (refused as a spec it is not: "spec is not consistent with the fields"), or a v1 or v1.1
@@ -257,8 +277,8 @@ A consumer loads a certificate for a decision and refuses it when:
   against the consumer's trusted keys;
 - `domain`, `decision` or `options` differ from the consumer's configuration;
 - `model_id` doesn't start with `<backend>/` for the backend the consumer scores with;
-- `calibration_map.kind` isn't one the consumer applies (v1.2: `temperature`), or its parameters or
-  thresholds differ from the ones in force;
+- `calibration_map.kind` isn't one the consumer applies (v1.2 defines `temperature` and `dr`), or
+  its parameters or thresholds differ from the ones in force;
 - `rule.cannot_tell_above` differs from the one in force;
 - a certified segment's field isn't the consumer's declared segment field, or its value is no longer
   declared (its cases would fall to a threshold not measured on them).
@@ -318,6 +338,10 @@ holds (§5).
 - **Fairness, legality, labels.** Nothing about fairness or legality, or the quality of the labels
   themselves.
 - **`crc`.** It certifies an average, not a high-probability bound.
+- **A `dr` map.** The bound is measured on the threshold split with the map fixed, so it covers the
+  population the splits were sampled from, like any map. The recalibration set only shapes the map:
+  `label_budget` counts the labels it used, and says nothing about how well the map fits the cases
+  in use or about a population the splits did not sample.
 - **What monitoring without labels can see.** Both scores of §4 look only at the model's
   confidences. They cannot show a change in error at the same confidence, or a change in the mix of
   groups the model cannot tell apart. Only labelled cases from the population in use can show those.
@@ -357,8 +381,12 @@ holds (§5).
   §2), with the checks beyond the schema of §2.
 - §4: the shift score, a label-free comparison of a window with the stored histogram; §5: what it
   does and does not show; §6: its size, binning and privacy.
-- `spec` is `decision-certificate.v1.2`. The procedure of §1.1 to §1.4 is v1.1's, and no field of
-  v1.1 changes meaning.
+- A second calibration map kind, `dr` (§1, §1.1 step 2, §2), fitted on a recalibration set
+  disjoint from both splits and counted by `label_budget`; `data_hash` covers that set too. v1.2
+  verifiers check the parameters of both kinds v1.2 defines (§2).
+- `spec` is `decision-certificate.v1.2`. The procedure of §1.1 to §1.4 is v1.1's apart from the `dr`
+  map, and no field of v1.1 changes meaning.
 
 The evidence is in [`drafts/`](drafts/): the [v1.2 draft](drafts/decision-certificate.v1.2.md) and
-its study.
+its studies. The `dr` map's candidate and decision are in the
+[v1.1 draft](drafts/decision-certificate.v1.1.md) (O5) and the v1.2 draft (D1).

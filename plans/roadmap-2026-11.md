@@ -109,7 +109,8 @@ owner.
 Status: the owner approved building v1.2 (relayed 2026-11-08). The histogram is in
 [`spec/decision-certificate.v1.2.md`](../spec/decision-certificate.v1.2.md) (§1.5, §4–§6), with its
 evidence in [`spec/drafts/h1-histogram-study.md`](../spec/drafts/h1-histogram-study.md), both
-verifiers, the issuer and `fixtures/v1.2/`. The `dr` kind is next.
+verifiers, the issuer and `fixtures/v1.2/`. The `dr` map kind followed (#24), and v1.2 was frozen
+on 2026-11-08 with both. 0.4.0 carries it; its tag waits on the owner.
 
 ## Naming (decided 2026-11-07)
 

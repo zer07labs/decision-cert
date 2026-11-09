@@ -12,8 +12,12 @@ every conformance fixture. A certificate describes a measured process; it never 
     # None for a case unscored or above `rule.cannot_tell_above`
     window = Histogram.of(v.confidence_bins(), confidences)
     shift_score(v.histogram_for("north"), window).p_value
+
+    # apply the certificate's calibration map (v1.2 kinds: temperature, dr) to a case's raw scores
+    v.confidence(raw_scores) >= v.threshold_for("north")
 """
 
+from ._map import MAP_KINDS, confidence, probabilities
 from ._monitor import Histogram, ShiftScore, bin_of, chi2_sf, shift_score
 from ._verify import (
     ABSTAIN_ALL,
@@ -42,6 +46,7 @@ __version__ = "0.3.0"
 
 __all__ = [
     "ABSTAIN_ALL",
+    "MAP_KINDS",
     "SPEC",
     "SPECS",
     "SPEC_V1_1",
@@ -60,9 +65,11 @@ __all__ = [
     "canonical",
     "certificate_id",
     "chi2_sf",
+    "confidence",
     "is_expired",
     "key_id",
     "loads",
+    "probabilities",
     "shift_score",
     "threshold_for",
     "timestamp",

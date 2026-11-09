@@ -51,7 +51,8 @@ holds theirs. This section describes what any issuer does, following
 2. **Score a labelled calibration set** with the model: one row per case with the case id, the
    label, the raw score per option, and optionally `decided_at`, a segment value and the audit
    propensity.
-3. **Run the procedure** of spec §1.1: split, fit the calibration map on the temperature split,
+3. **Run the procedure** of spec §1.1: split, fit the calibration map (a temperature on the
+   temperature split, or, v1.2, a `dr` map on a separate recalibration set),
    build the grid, test each certified segment and the remainder, compute the descriptive `ucb`
    and `realized_band` (§1.2), and (v1.2) each test's confidence histogram (§1.5).
 4. **Sign** the canonical (RFC 8785) bytes of the certificate without `signature`, and attach the
@@ -94,6 +95,13 @@ What an issuer writes, and what it refuses:
 - **Histograms** (v1.2). Bins at the 20-quantiles of the temperature split's confidences, and per
   test the threshold-split cases per bin. A test with fewer than `histogram_min_n` cases (default
   30) gets `null` instead, so that a few cases' confidences are not published one by one (spec §6).
+- **`dr` map** (v1.2). `--map dr --recal-data recal.jsonl --prior prior.json` fits
+  softmax(a · scores + b) on labelled cases from the population in use, disjoint from `--data` (the
+  predictions file covers them too), under a prior `{"mu_a", "sigma_a", "sigma_b"}` learned from
+  earlier shifts (`decision_cert.issue.recal.meta_prior`). `label_budget` records how many there
+  were, and `data_hash` covers them. The temperature split then only builds the grid and the bins.
+  The bound is still measured on the threshold split, so it covers the population the splits came
+  from.
 
 ### How many labelled cases
 
@@ -154,8 +162,9 @@ Spec §4 is normative; in short:
   - doesn't match the schema;
   - isn't signed by a trusted key;
   - names another domain, decision, option order or backend;
-  - uses a calibration map the consumer does not apply (v1, v1.1 and v1.2: `temperature`), or
-    disagrees with the calibration entry's temperature or threshold;
+  - uses a calibration map the consumer does not apply (v1 and v1.1 consumers apply `temperature`;
+    v1.2 defines `temperature` and `dr`, which `Verified::probabilities` applies), or disagrees with
+    the calibration entry's map or threshold;
   - was measured with another `cannot_tell_above`;
   - certifies segments by another field, or a segment value the domain no longer declares.
 - **Deciding.** Each decision made under a certificate carries `certificate_id` (`sha256:` of the

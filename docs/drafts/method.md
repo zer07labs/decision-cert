@@ -12,7 +12,8 @@ measured process. It never guarantees an outcome.
 ## The decision rule being measured
 
 The model gives each case a score per option. A temperature-scaled softmax turns the scores into
-probabilities, and the top probability is the case's **confidence**. The rule answers a case when
+probabilities (or, since v1.2, a `dr` map: a rescaling and a per-option shift refitted on a few
+labels from a shifted population, kept apart from both splits), and the top probability is the case's **confidence**. The rule answers a case when
 its confidence is at or above a threshold, and abstains otherwise. Cases the model did not score
 count as abstentions, so missing scores can never make the measured error look smaller.
 

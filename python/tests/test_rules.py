@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import math
 from typing import Any
 
 import pytest
@@ -169,3 +170,36 @@ def _fixture_pair(name: str) -> tuple[Any, Any]:
 
     f = fixture(name)
     return f["certificate"], f["keys"]
+
+
+def test_map_params_are_checked_in_v1_2_only() -> None:
+    # A v1.1 certificate's map is as v1.1 left it: any params. v1.2 holds its kinds to their shape.
+    zero = {"kind": "temperature", "params": {"temperature": 0}, "label_budget": None}
+    v11 = base("v1.1/valid_basic")
+    v11["calibration_map"] = zero
+    assert dc.verify(resign(v11), KEYS).temperature() == 0.0
+    v12 = base("v1.2/valid_basic")
+    v12["calibration_map"] = zero
+    with pytest.raises(dc.Invalid, match="`temperature` calibration_map needs"):
+        dc.verify(resign(v12), KEYS)
+
+
+def test_a_dr_map_is_applied_as_softmax_of_a_scores_plus_b() -> None:
+    v = dc.verify(resign(base("v1.2/valid_dr_map")), KEYS)
+    p = v.probabilities([1.0, -1.0])
+    assert p is not None and p[0] == pytest.approx(1 / (1 + math.exp(-2.375)), rel=1e-15)
+    assert v.confidence([1.0, -1.0]) == p[0] and v.probabilities([1.0, -1.0, 0.0]) is None
+    assert v.temperature() is None
+    assert dc.verify(resign(base("v1.2/valid_other_map_kind")), KEYS).probabilities([1.0, 0.0]) is None
+    assert dc.probabilities({"kind": "dr", "params": {"a": 1, "b0": 0, "b1": True}}, [0.0, 1.0]) is None
+    assert dc.probabilities({"kind": "temperature", "params": {"temperature": 1}}, [0.0, 10**400]) is None
+
+
+def test_dr_maps_are_applied_in_v1_2_certificates_only() -> None:
+    # v1 and v1.1 define only `temperature`: a `dr` map there verifies as before but is not applied.
+    dr = {"kind": "dr", "params": {"a": 1, "b0": 0, "b1": 0}, "label_budget": None}
+    for name in ["valid_basic", "v1.1/valid_basic"]:
+        c = base(name)
+        c["calibration_map"] = dr
+        v = dc.verify(resign(c), KEYS)
+        assert v.probabilities([1.0, 0.0]) is None and v.confidence([1.0, 0.0]) is None

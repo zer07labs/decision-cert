@@ -55,6 +55,9 @@ if let (Some(bins), Some(stored)) = (v.confidence_bins(), v.histogram_for(Some("
     let window = Histogram::of(bins, recent_confidences).expect("confidences in [0, 1]");
     let p = shift_score(stored, &window).expect("same bins").p_value; // small: measure again
 }
+
+// v1.2: apply the certificate's calibration map (temperature or dr) to a case's raw scores
+let answered = v.confidence(&raw_scores).is_some_and(|c| c >= threshold);
 ```
 
 `verify` rejects a certificate that does not match the schema (unknown fields included), is signed
@@ -65,8 +68,8 @@ certificate and its expiry.
 
 | Path | What |
 |---|---|
-| [`spec/`](spec/) | [`decision-certificate.v1.2.md`](spec/decision-certificate.v1.2.md) (normative, in progress), [`decision-certificate.v1.1.md`](spec/decision-certificate.v1.1.md) (**frozen** 2026-11-08), [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (**frozen** 2026-10-25), and a JSON Schema for each |
-| [`rust/`](rust/) | the `decision-cert` crate: `verify`, `canonical`, `certificate_id`, `key_id`, segment thresholds, expiry, and the v1.2 shift score |
+| [`spec/`](spec/) | [`decision-certificate.v1.2.md`](spec/decision-certificate.v1.2.md) (**frozen** 2026-11-08), [`decision-certificate.v1.1.md`](spec/decision-certificate.v1.1.md) (**frozen** 2026-11-08), [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (**frozen** 2026-10-25), and a JSON Schema for each |
+| [`rust/`](rust/) | the `decision-cert` crate: `verify`, `canonical`, `certificate_id`, `key_id`, segment thresholds, expiry, the v1.2 calibration maps (`probabilities`, `confidence`) and shift score |
 | [`python/`](python/) | a pure-Python verifier (`decision_cert`), a port of the crate that passes the same fixtures |
 | [`fixtures/`](fixtures/) | conformance fixtures: signed certificates with their canonical bytes, ids and expected verdicts, plus `mutations/schema_invalid.json`, schema-invalid certificates a verifier must reject; v1 at the top level, v1.1 in `fixtures/v1.1/`, v1.2 in `fixtures/v1.2/` |
 | [`docs/certificates.md`](docs/certificates.md) | how a certificate is issued, verified and applied |
@@ -75,7 +78,8 @@ certificate and its expiry.
 v1 and v1.1 are frozen, and verifiers accept them and v1.2. v1 and v1.1 have the same fields; v1.1
 changes one step of the issuing procedure (each test starts the threshold grid on its own cases) and
 clarifies the text. v1.2 keeps v1.1's procedure and adds fields under its own `spec` value: the
-confidence histogram for monitoring without labels. A frozen spec's fields never change meaning, and
+confidence histogram for monitoring without labels. It also defines a second calibration map kind,
+`dr`, refitted on a few labels from a shifted population. A frozen spec's fields never change meaning, and
 verifiers reject unknown fields. Corrections to frozen text go in [`spec/ERRATA.md`](spec/ERRATA.md), never in the text.
 
 From the command line, in Rust or Python (exit 0 verified and unexpired, 1 rejected or expired,
