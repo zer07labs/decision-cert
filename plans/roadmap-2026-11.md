@@ -103,14 +103,14 @@ on 2026-11-08 (tag `v0.3.0`, on crates.io and PyPI).
 
 v1.2 adds, under its own `spec` value, the two items v1.1 left out: a stored confidence histogram
 for monitoring without labels (#25), then a `dr` calibration map kind (#24). v1 and v1.1 and their
-fixtures stay unchanged; verifiers accept all three. 0.4.0 carries v1.2; its tag waits on the
-owner.
+fixtures stay unchanged; verifiers accept all three. 0.4.0 carries v1.2.
 
 Status: the owner approved building v1.2 (relayed 2026-11-08). The histogram is in
 [`spec/decision-certificate.v1.2.md`](../spec/decision-certificate.v1.2.md) (§1.5, §4–§6), with its
 evidence in [`spec/drafts/h1-histogram-study.md`](../spec/drafts/h1-histogram-study.md), both
 verifiers, the issuer and `fixtures/v1.2/`. The `dr` map kind followed (#24), and v1.2 was frozen
-on 2026-11-08 with both. 0.4.0 carries it; its tag waits on the owner.
+on 2026-11-08 with both. 0.4.0, which carries it, was released on 2026-11-09 (tag `v0.4.0`, on
+crates.io and PyPI).
 
 ## Naming (decided 2026-11-07)
 

@@ -5,7 +5,7 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 
 ## Unreleased
 
-## 0.4.0 — unreleased (the owner tags `v0.4.0`)
+## 0.4.0 — 2026-11-09 (tag `v0.4.0`)
 
 Spec v1.2: frozen, verified, issued. Verifiers accept v1, v1.1 and v1.2; v1 and v1.1 certificates
 and fixtures are unchanged.
