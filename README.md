@@ -73,6 +73,7 @@ certificate and its expiry.
 | [`python/`](python/) | a pure-Python verifier (`decision_cert`), a port of the crate that passes the same fixtures |
 | [`fixtures/`](fixtures/) | conformance fixtures: signed certificates with their canonical bytes, ids and expected verdicts, plus `mutations/schema_invalid.json`, schema-invalid certificates a verifier must reject; v1 at the top level, v1.1 in `fixtures/v1.1/`, v1.2 in `fixtures/v1.2/` |
 | [`docs/certificates.md`](docs/certificates.md) | how a certificate is issued, verified and applied |
+| [`docs/credit-approval.md`](docs/credit-approval.md) | a profile: one certificate per credit-approval deployment, with the label-free drift alarm |
 | [`plans/`](plans/) | the public roadmap |
 
 v1 and v1.1 are frozen, and verifiers accept them and v1.2. v1 and v1.1 have the same fields; v1.1
