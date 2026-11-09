@@ -39,6 +39,9 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
   `Verified::probabilities` / `Verified::confidence`. New Rust example `probabilities`.
 - **The issuer fits `dr` maps**: `--map dr --recal-data … --prior …` (v1.2 only; the recalibration
   set must not share a case with the calibration cases).
+- `docs/credit-approval.md`: a profile for automating part of a credit-approval decision. It is the
+  v1.2 spec applied as is: the error target is chosen and the coverage measured, with the shift score
+  as a drift alarm.
 - **`fixtures/v1.2/`** gains seven map fixtures (`valid_dr_map`, `valid_other_map_kind`,
   `invalid_dr_*`, `invalid_temperature_*`); its earlier files are byte-unchanged.
 
