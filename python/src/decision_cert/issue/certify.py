@@ -274,7 +274,7 @@ def _audit(cases: list[Case], mode: str, decision: str) -> dict[str, Any]:
             "(public sets where every row is labelled: --audit full-label)"
         )
     if len(set(props)) != 1:
-        raise CertError(f"decision '{decision}': audit propensities differ; v1 certifies uniform audit samples only")
+        raise CertError(f"decision '{decision}': audit propensities differ; only uniform audit samples are certified")
     return {"mode": mode, "rate": props[0], "n": len(cases), "propensity_logged": True}
 
 
@@ -672,11 +672,11 @@ def budget_notes(cert: dict[str, Any]) -> list[str]:
     return [
         f"{cert['decision']}: the {where} has {n} threshold-split cases, and ltt at alpha {alpha:g} "
         f"(test level {d:.3g}) needs at least {need} answered cases with no errors, so it abstains on "
-        f"everything. The threshold split is half the labelled cases: give the test at least "
-        f"{2 * need - 1} labelled cases (more when it answers fewer than all of them or makes errors), "
+        f"everything. The threshold split is half the labelled cases: give the test about {2 * need} "
+        "labelled cases at least (more when it answers fewer than all of them or makes errors), "
         "or choose a larger alpha; --method crc makes a weaker claim (an average), and is not chosen for you"
         for where, n in tests
-        if n < need
+        if 0 < n < need  # a remainder with no cases decides none
     ]
 
 

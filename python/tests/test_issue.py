@@ -192,9 +192,9 @@ def test_unscored_cases_count_as_abstentions(tmp_path: Path) -> None:
 
 def test_the_small_n_arithmetic_holds_in_the_issuer(tmp_path: Path) -> None:
     """docs/certificates.md: at alpha 0.10, delta 0.10, ltt needs 22 answered threshold-split cases
-    with no errors, so 43 labelled rows (the threshold split is the larger half); 41 rows cannot pass."""
+    with no errors, so 43 labelled rows (the threshold split is the larger half); 42 rows cannot pass."""
     assert cs.n_min(0.10, 0.10) == 22 and cs.n_min(0.05, 0.10) == 45 and cs.n_min(0.20, 0.10) == 11
-    for n, passes in ((43, True), (41, False)):
+    for n, passes in ((43, True), (42, False)):
         preds, rows = cases(n)
         for p, r in zip(preds, rows, strict=True):  # a model that is always right, and sure of it
             truth = OPTIONS.index(r["labels"]["approved"])
@@ -207,6 +207,21 @@ def test_the_small_n_arithmetic_holds_in_the_issuer(tmp_path: Path) -> None:
     assert "--method crc" in ct.budget_notes(c)[0]
     crc = ct.issue(preds, rows, domain(tmp_path), "toy", KEY, now=NOW, alpha=0.1, method="crc", audit="full-label")
     assert ct.budget_notes(crc[0]["approved"]["certificate"]) == []
+
+
+def test_budget_notes_use_the_level_with_certified_segments(tmp_path: Path) -> None:
+    segs = {"field": "region", "values": ["north", "south"], "floor": 25}
+    preds, rows = cases(90, regions=["north", "north", "south"])
+    out = ct.issue(preds, rows, domain(tmp_path, segments=segs), "toy", KEY, now=NOW, alpha=0.1, audit="full-label")
+    cert = out[0]["approved"]["certificate"]
+    certified = [s for s in cert["segments"] if not s["inherited"]]
+    assert [s["value"] for s in certified] == ["north"]  # south is below the floor: inherited, no test
+    need = cs.n_min(0.1, 0.1 / 2)
+    assert need == 29
+    want = [w for w, n in (("top-level test", cert["n"]), ("segment 'north'", certified[0]["n"])) if 0 < n < need]
+    notes = ct.budget_notes(cert)
+    assert [w for w in want if any(w in x for x in notes)] == want and len(notes) == len(want)
+    assert all("needs at least 29 answered cases" in x and "'south'" not in x for x in notes)
 
 
 def test_too_few_cases_is_refused(tmp_path: Path) -> None:
@@ -245,7 +260,7 @@ def test_a_uniform_audit_sample_is_certified_with_its_rate(tmp_path: Path) -> No
         "propensity_logged": True,
     }
     rows[0]["propensity"] = 0.06
-    with pytest.raises(ct.CertError, match="uniform audit samples only"):
+    with pytest.raises(ct.CertError, match="only uniform audit samples are certified"):
         ct.issue(preds, rows, domain(tmp_path), "toy-backend", KEY, now=NOW)
 
 

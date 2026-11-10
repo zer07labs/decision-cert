@@ -122,8 +122,8 @@ so the label budget is twice `n_cal`. They are guidance only:
 With fewer cases, `crc` gives a weaker claim (an average, §1), or a larger `alpha` may be the honest
 choice.
 
-**The arithmetic floor.** Below these counts a test cannot pass whatever the model, because the
-exact binomial p-value (spec §1.1 step 5) cannot reach the test level. With `delta` 0.10 and no
+**The arithmetic floor.** Below the no-error counts a test cannot pass whatever the model, because
+the exact binomial p-value (spec §1.1 step 5) cannot reach the test level. With `delta` 0.10 and no
 certified segments:
 
 - an `ltt` test needs `m` = ⌈ln `delta` / ln(1 − `alpha`)⌉ answered threshold-split cases with
@@ -141,12 +141,14 @@ certified segments:
 | `alpha` 0.10, errors at half `alpha` | 91 | 181 | 243 | 363 | 727 |
 | `alpha` 0.20, errors at half `alpha` | 38 | 75 | 101 | 151 | 303 |
 
-"Errors at half `alpha`" counts answered cases whose error rate is half of `alpha`, with the errors
-at their expected number (rounded): the smallest count from which every larger count passes. Real
-error counts vary from draw to draw, which is why the simulation table above, which asks for
-certifying in 90% of draws, needs several times more. Each certified segment is a test of its own at
-the level `delta` / (1 + k): with no errors it needs 59 answered cases at `alpha` 0.05 for k = 1
-(72 for k = 3), 29 (36) at 0.10 and 14 (17) at 0.20.
+The "errors at half `alpha`" rows are not floors: they are where a model whose error among the
+answered cases is half of `alpha` starts to pass, with the errors at their expected number rounded
+half up, as the smallest count from which every larger count passes. Real error counts vary from
+draw to draw, which is why the simulation table above, which asks for certifying in 90% of draws,
+needs several times more. With k certified segments every test, the remainder's included, runs at
+the level `delta` / (1 + k), and each segment is a test on its own cases: with no errors a test
+needs 59 answered cases at `alpha` 0.05 for k = 1 (72 for k = 3), 29 (36) at 0.10 and 14 (17) at
+0.20.
 
 A `crc` test passes with no errors at `n_cal` ≥ 1/`alpha` − 1 (19, 9 and 4, so 37, 17 and 7 rows),
 whatever the coverage; this is the issuer's refusal floor. It bounds the average joint error, not the

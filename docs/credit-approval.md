@@ -116,20 +116,25 @@ Spec §1.4 asks for an audit sample drawn from **all** applications instead.
    depend on the case.
 2. Label every case the coin selects, and log `rate` as the case's `propensity`. Every selected case
    keeps its label in the data, including the ones that are slow, costly or unfavourable to label.
-   The issuer refuses a missing label, so dropping cases is a selection the bound does not cover.
+   Under `--audit sample` the issuer skips a row without a label, and it cannot see a case left out
+   of the data, so dropping cases is a selection the bound does not cover and nothing flags it.
 3. With outcome labels, the window must end at least one full performance period before the
    certificate is issued, so that every selected case has an outcome. Early outcomes only would bias
-   the sample towards early defaults.
+   the sample towards early defaults. `expires_at` counts from the window's end (`window.end` +
+   `ttl_days`), so `ttl_days` must cover the performance period as well as the time the certificate
+   is meant to be used; with a 12-month period, the profile's `ttl_days: 90` expires it before it is
+   issued.
 4. Issue with `--audit sample`. The certificate records `audit.mode: sample`, `rate`, `n` and
    `propensity_logged: true`.
 
 **How large.** The audit needs the labelled rows of the [small-n table](certificates.md#how-many-labelled-cases)
-for the `alpha` and the coverage expected, and in practice the simulation sizes above it. So `rate`
+for the `alpha` and the coverage expected, and in practice twice the simulation `n_cal` above it
+(those sizes count the threshold split only). So `rate`
 ≈ rows needed / applications in the window. For example, 2,000 labelled rows from a window of
 100,000 applications is a `rate` of 0.02. Each certified segment needs its own cases, so a
 segment with a small share of applications sets the rate: a product with 5% of applications and a
 floor of 1,000 threshold-split cases needs about 2,000 of its rows labelled, which is a `rate` of 0.4
-from a window of 100,000.
+from a window of 100,000, so about 40,000 labelled rows in all at one uniform rate.
 
 **What v1.2 does not support.** v1.2 certifies **uniform** audit samples only: every case's
 propensity must be the same, and the issuer refuses differing propensities. A design that samples
