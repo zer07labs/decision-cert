@@ -117,7 +117,8 @@ crates.io and PyPI).
 [`spec/drafts/decision-certificate.v1.3.md`](../spec/drafts/decision-certificate.v1.3.md) collects
 candidate items with their open questions: a deployment fingerprint, dataset roles and an issuance
 ledger, key revocation and rotation, binding the per-case `cannot_tell` values, a typed uncertainty
-selector, and optionally segment correction and the drift alarm's false-alarm rate. Nothing in it is
+selector, an error bound for the automated options only, and optionally segment correction and the
+drift alarm's false-alarm rate. Nothing in it is
 approved for implementation; the owner decides each item first.
 
 ## Naming (decided 2026-11-07)

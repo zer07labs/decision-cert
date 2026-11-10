@@ -21,12 +21,15 @@ decisions, not decisions.
 
 **Problem.** A v1.2 certificate names what was measured with `model_id`
 (`<backend>/<model>@<version>`) and an optional `manifest_hash`. Spec v1.2 §4 asks a consumer only
-to refuse a certificate whose `model_id` does not start with `<backend>/`. So a consumer can apply a
-certificate to a different model version, a changed preprocessing step, a new input schema, other
-decision rules or another population, and nothing in the certificate refuses it. The measured error
+to refuse a certificate whose `model_id` does not start with `<backend>/`. §4 already refuses on
+`domain`, `decision`, `options`, the calibration map and its parameters, `rule.cannot_tell_above`
+and the segment field, and `manifest_hash` is written but no consumer is asked to compare it. The
+rest is not bound: a consumer can apply a certificate to a different model version or weights, a
+changed preprocessing step, other decision rules or another population, and nothing refuses it. The measured error
 belongs to the whole pipeline that turned a case into scores and an abstention, not to the backend.
 
-**Proposed shape.** A required `deployment` object whose components are each a hash or null:
+**Proposed shape.** A `deployment` object (which components are required is question 1), each
+component a hash or null:
 
 | Component | What it binds |
 |---|---|
@@ -57,13 +60,17 @@ differs, naming the components that differ.
    it give the appearance of a check that it is not?
 5. Should v1.3 also tighten spec §4's `model_id` rule to an exact match? That change stands on its
    own, without the rest of F1.
+6. What does `model` bind for a hosted model whose weights the operator cannot hash (today's null
+   `manifest_hash`)?
+7. Does `deployment` replace `manifest_hash`, or sit beside it?
 
 ### R1. Dataset roles and an issuance ledger
 
 **Problem.** The bound needs the threshold-split cases to be unused by anything chosen before the
-test: training, adapting, tuning a prompt or a threshold, or choosing the model or `alpha`. The v1.2
-issuer checks only one such overlap: a `dr` map's recalibration cases against the calibration
-cases (`python/src/decision_cert/issue/certify.py:482`, `fit_dr`). A certificate does not record
+test: training, adapting, tuning a prompt or a threshold, or choosing the model or `alpha`. Apart
+from refusing a repeated `case_id`, which keeps the two splits disjoint, the v1.2 issuer checks only
+one cross-role overlap: a `dr` map's recalibration cases against the calibration cases
+(`python/src/decision_cert/issue/certify.py:488`, in `fit_dr`). A certificate does not record
 which cases were used for what, so reuse cannot be detected. It also does not record repeated
 attempts, so issuing at several values of `alpha` (or several seeds, windows or models) on the same
 cases and keeping the best is invisible, although the bound does not cover that selection
@@ -74,7 +81,7 @@ cases and keeping the best is invisible, although the bound does not cover that 
 - `data_roles`: for each role (`train`, `adapt`, `tune`, `select`, `recalibrate`, `certify`), the
   number of cases and a commitment to their ids: a hash of the sorted case ids, or the root of a
   Merkle tree so that one case's membership can be shown without revealing the others. The issuer
-  refuses a `certify` case that appears in any other declared role.
+  would refuse a `certify` case that appears in any other declared role.
 - `issuance`: `{ledger_id, seq, prev}`. `seq` counts the operator's certification attempts on a
   ledger, and `prev` is the hash of the ledger's previous entry. Every attempt appends an entry
   (`data_hash`, `alpha`, `delta`, `method`, seed, outcome, certificate id or null), including
@@ -92,27 +99,35 @@ cases and keeping the best is invisible, although the bound does not cover that 
    Should R1 wait for #28, or ship a local ledger that #28 later anchors?
 4. Does an attempt that the operator never signs (a dry run) count as an attempt? If not, what
    stops selection by dry runs?
+5. What does a consumer do with `seq` > 1: refuse, apply a correction to the level, or only show
+   it? Without a rule the ledger records selection but changes nothing about the bound.
+6. How do the roles map onto the two splits? The bound needs the threshold split unused; is
+   `certify` both splits, or the threshold split only?
+7. For a model the operator did not train, `train` cannot be declared at all. Is it then null with
+   a stated meaning?
 
 ### K1. Key revocation, rotation and key-id lifetime
 
 **Problem.** v1.2 trusts a key as long as it is in the consumer's trusted-keys map (spec v1.2 §3,
 §4). There is no validity period, no revocation and no rotation. A key that leaks stays trusted
 until every consumer removes it, and removing it also refuses every honest certificate it signed.
-`signer_key_id` is the first 16 hex characters (64 bits) of the key's SHA-256, with no rule against
-reuse.
+`signer_key_id` is `ed25519:` + the first 16 hex characters (64 bits) of the key's SHA-256, with no
+rule against duplicate entries. A trusted-keys file that lists one id twice keeps only the last
+entry in the Python verifier, without a word.
 
 **Proposed shape.** A trusted-key entry becomes
 `{public_key, not_before, not_after, revoked_at, reason}`:
 
 - a certificate verifies only if its `fitted_at` is within `[not_before, not_after]` of its key;
 - **rotation** (planned): the old key gets a `not_after`, and certificates it signed before then
-  keep verifying until their own `expires_at`;
+  keep verifying; after their own `expires_at` the consumer's expiry policy applies as in v1.2.
+  Rotation binds only a signer who retires the old private key: `fitted_at` is the signer's;
 - **revocation for compromise**: `fitted_at` is written by the signer, so a holder of a leaked key can
-  backdate it. A compromised key's certificates are therefore all refused, unless the time of signing
-  is shown by a source the key holder does not control (a timestamp from #28 or an RFC 3161
-  authority). Revocation for another reason (`reason: superseded`) refuses only certificates with
-  `fitted_at` after `revoked_at`.
-- A key id is never reused, and a consumer refuses two trusted entries with the same key id.
+  backdate it. A compromised key's certificates would therefore all be refused, unless the time of
+  signing is shown by a source the key holder does not control (a timestamp from #28 or an RFC 3161
+  authority). Revocation for another reason (`reason: superseded`) would refuse only certificates
+  with `fitted_at` after `revoked_at`, which again relies on the signer's own clock.
+- A key id would never be reused, and a consumer would refuse two trusted entries with one key id.
 
 **Open questions.**
 
@@ -122,15 +137,20 @@ reuse.
    call this library never makes), or configuration they are given?
 3. Should certificates signed by a compromised key fail closed (refused) or fail to a person (refer)?
    For a decision boundary, refusing the certificate already sends every case to a person.
-4. Should the key id be longer than 64 bits?
+4. Should the key id be longer than 64 bits? The verifier checks that the trusted key hashes to
+   its id, so a collision makes the lookup ambiguous but cannot forge a signature.
+5. Should a duplicated key id in a trusted-keys file be refused (the proposal), and does that need
+   the spec or only the verifiers?
 
 ### C1. Bind the per-case `cannot_tell` values
 
-**Finding.** The `cannot_tell` cut is bound: `rule.cannot_tell_above` is a signed field, and a
+**Problem.** The `cannot_tell` cut is bound: `rule.cannot_tell_above` is a signed field, and a
 consumer refuses a certificate whose cut differs from the one in force (spec v1.2 §1, §4). The
 per-case values are **not** bound. The tuple hashed into `data_hash` is
-`[case_id, label_index, raw, decided_at, segment, propensity]`
-(`python/src/decision_cert/issue/certify.py:427`). A case's `cannot_tell` value decides whether it
+`[case_id, label_index, raw_scores, decided_at, segment, propensity]`, as spec v1.2 §2 (the
+`data_hash` row) defines it and the issuer writes it
+(`python/src/decision_cert/issue/certify.py:427`). The gap is in the frozen spec, not only the
+issuer. A case's `cannot_tell` value decides whether it
 is answered (`certify.py:236`), but it is not in that tuple. Two runs on the same labelled cases
 and raw scores, with different `cannot_tell` values, give the same `data_hash` but different
 answered sets, thresholds and counts. So `data_hash` does not identify the measurement, and a
@@ -143,6 +163,8 @@ source of the values (which model and version produced them) is bound by F1's `s
 
 1. Should the tuple be versioned as a whole (a new tuple per spec value), or become an object with
    named members, so that later additions (U1) do not each need a new tuple?
+2. C1 can ship without F1: it binds the values, and F1's `selector` would later bind their
+   source. Should it?
 
 ### U1. A typed uncertainty field for abstention
 
@@ -165,6 +187,37 @@ used is bound in the hashed tuple (C1), and the source by F1's `selector`.
 3. Does the confidence histogram (v1.2 §1.5) count selector-abstained cases as `unscored`, as it
    counts cannot-tell cases? Consistency says yes; then a shift in the uncertainty measure shows only
    as a change in the unscored count.
+4. Who chooses each selector's `above`, and on which data? Choosing it on the threshold split
+   would break the test. Is it fixed in the domain config, as `cannot_tell_above` is?
+5. Should §4 refuse a certificate whose selectors differ from the ones in force, as it does for
+   `cannot_tell_above`?
+
+### P1. An error bound for the automated options only
+
+**Problem.** The `ltt` statement (spec v1.2 §1) is about P(error | answered) over all answered
+cases, whatever option the answer is. A consumer may automate only some options, for example
+approvals, and send every other answer to a person. The certificate then states no error for the
+cases it actually decides: errors can be concentrated in the automated option and diluted by the
+answers that are referred, so the measured rate over all answered cases says nothing about the
+automated subset.
+
+**Possible shape.** A test on the automated subset alone: the cases whose top option is in a
+declared `automate_options` list, with confidence at or above the threshold, and a field naming
+that list. A per-option bound (one test per option) is the general case.
+
+**Open questions.**
+
+1. Should v1.3 carry this at all, or should a consumer that automates a subset certify that subset
+   as its decision (an issuer option that tests only the cases it would automate)?
+2. The subset has fewer cases, so it needs more labels at the same `alpha` (`docs/certificates.md`,
+   "The arithmetic floor"). Is that acceptable, or is it a reason to keep one test?
+3. Per option, or per automated subset? Per option multiplies the tests and needs a correction
+   across them, as segments do (S1).
+4. The subset is chosen by the model's own top option, so the threshold is tested on the cases the
+   rule selects. Does fixed-sequence testing on that subset stay valid as v1.2's argument does, with
+   the subset defined before the threshold split is seen?
+5. How does a consumer refuse a certificate whose automated options differ from the ones in force,
+   and how does it monitor the subset's answered share and histogram?
 
 ### S1 (optional). Segment correction beyond Bonferroni
 
@@ -175,25 +228,41 @@ Each added segment lowers every test's level, so the cases needed per test rise
 **Options.**
 
 - **Holm across the families.** Holm recycles a family's level only when that family's hypotheses
-  are all rejected. A family's fixed sequence runs down the grid to cut 0.0, so it rarely rejects
-  all its hypotheses, and Holm would rarely gain over Bonferroni here. This needs a study before it
-  is proposed.
+  are all rejected. A family's fixed sequence runs down the grid to cut 0.0, so Holm gains only when a
+  family's error with every case answered is credibly below `alpha`. That happens for a strong model
+  with a loose `alpha`, and not otherwise. This needs a study before it is proposed.
+- **Šidák, Hochberg or Hommel.** The tests run on disjoint case sets (spec v1.2 §1.1 step 4), so
+  they are independent, and these are valid. Šidák's level `1 − (1 − delta)^(1/(1+k))` is a little
+  above Bonferroni's (0.0102 against 0.0100 at `delta` 0.05 and k = 4): exact, but a tiny gain.
 - **Fixed sequence across families** (the top-level test first, segments in a declared order) has
   the same limit: a later family is tested only after an earlier one rejects everything.
 - **Weighted Bonferroni**: levels `w_i · delta` with weights summing to 1, declared before issuing
   (for example in proportion to each segment's expected share). This keeps family-wise control and
   can help the largest tests. The weights would be a new field.
+- **No simultaneity.** Each test at `delta`, with a per-test statement instead of one simultaneous
+  one. A weaker claim, shown so the trade-off is visible.
 
 **Open questions.** Which of these is worth a study? Should the weights be declared in the domain
-config, where they cannot be chosen after seeing the data?
+config, where they cannot be chosen after seeing the data? What happens to a declared segment's
+weight when it falls below `floor` and is not certified? Redistributing it is acceptable only
+because certification depends on segment counts, not labels, the argument spec v1.2 §1.1 step 3
+makes for `k`.
 
 ### M1 (optional). The drift alarm's false-alarm rate
 
-**Problem.** The shift score (spec v1.2 §4) is a test at one level per window. A deployment that
-checks every day at p < 0.01 raises about one false alarm every 100 days on an unchanged
-population, more when it checks several segments. Successive windows share the same stored
-histogram and often overlap, so their p-values are correlated, and the per-day rate does not give
-the rate over a horizon.
+**Problem.** The shift score (spec v1.2 §4) is a test at one level per window, and spec v1.2 §5
+already notes that checking many windows raises false alarms. A deployment that checks every day
+at p < 0.01 expects about one false alarm every 100 days on an unchanged population, more when it
+checks several segments. Successive windows share the same stored histogram and often overlap, so
+their p-values are correlated. The expected count still follows the per-day level, but the chance
+of at least one alarm over a horizon, and how alarms cluster, do not. Two more effects:
+
+- every window is compared with the same baseline. A baseline that is atypical by chance raises the
+  alarm rate of that deployment above nominal, for as long as the certificate is used; the nominal
+  rate holds only on average over calibration draws;
+- the 1% figure assumes the chi-square p-value is calibrated at 0.01. The
+  [H1 study](h1-histogram-study.md) checked the false-alarm rate near 5%, and the approximation is
+  weakest in the tail when bins hold few cases.
 
 **Options.** A section that states the per-window false-alarm rate and how it compounds, with
 guidance on the level for a target number of alarms a year. Or a sequential test (CUSUM, or an
@@ -201,8 +270,8 @@ e-process that controls the false-alarm rate over an unbounded horizon) defined 
 score.
 
 **Open questions.** Guidance only (docs, no spec change), or a normative sequential score? If
-sequential, what evidence does it need, along the lines of the
-[H1 study](h1-histogram-study.md)?
+sequential, what evidence does it need, along the lines of the H1 study, and how does it account for
+the baseline being itself a finite sample?
 
 ## Not in this draft
 
