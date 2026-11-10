@@ -1,7 +1,7 @@
 //! The Rust verifier agrees with the issuer on the JCS bytes, the certificate id and the
-//! verdict of every fixture in fixtures/ (v1), fixtures/v1.1/ and fixtures/v1.2/ (see
-//! fixtures/README.md for which program wrote each). The v1 and v1.1 sets are frozen: a newer
-//! verifier gives every one of their files the same verdict, id and bytes.
+//! verdict of every fixture in fixtures/ (v1), fixtures/v1.1/, fixtures/v1.2/ and fixtures/v1.3/
+//! (see fixtures/README.md for which program wrote each). The v1, v1.1 and v1.2 sets are frozen: a
+//! newer verifier gives every one of their files the same verdict, id and bytes.
 
 use std::{collections::BTreeMap, path::PathBuf};
 
@@ -51,6 +51,45 @@ fn rust_and_python_agree_on_every_v1_2_fixture() {
         && f["certificate"]["spec"] == "decision-certificate.v1.2"
         && f["certificate"]["confidence_histogram"].is_object()));
     agree_on(set);
+}
+
+#[test]
+fn rust_and_python_agree_on_every_v1_3_fixture() {
+    let set = fixtures("v1.3", 41);
+    assert!(set.iter().any(|(_, f)| f["valid"].as_bool().unwrap()
+        && f["certificate"]["spec"] == "decision-certificate.v1.3"
+        && f["certificate"]["automate_options"] == serde_json::json!(["yes"])));
+    agree_on(set);
+}
+
+/// A v1.3 verifier reads the automated options and each test's automated cases, and finds none in
+/// an earlier certificate.
+#[test]
+fn automated_cases_are_read_from_v1_3_certificates_only() {
+    let read = |set: &str, name: &str| {
+        let (_, f) = fixtures(set, 1)
+            .into_iter()
+            .find(|(n, _)| n == name)
+            .unwrap();
+        let keys: BTreeMap<String, String> = serde_json::from_value(f["keys"].clone()).unwrap();
+        verify(&f["certificate"], &keys).unwrap()
+    };
+    for set in ["", "v1.1", "v1.2"] {
+        let v = read(set, "valid_segments_unicode");
+        assert!(v.automate_options().is_none() && v.automated_for(None).is_none());
+    }
+    let all = read("v1.3", "valid_basic");
+    assert_eq!(all.automate_options().unwrap(), ["yes", "no"]);
+    assert_eq!(all.automated_for(None).unwrap().coverage, all.cert.coverage);
+    let v = read("v1.3", "valid_automated_subset");
+    assert_eq!(v.automate_options().unwrap(), ["yes"]);
+    assert_eq!(v.automated_for(None).unwrap().coverage, 0.3);
+    assert_eq!(v.automated_for(Some("east")).unwrap().coverage, 0.2);
+    // The inherited segment is decided with the remainder, so its cases read the top-level block.
+    assert_eq!(
+        v.automated_for(Some("z\u{fc}rich \u{2603}")),
+        v.automated_for(None)
+    );
 }
 
 /// A v1.2 verifier reads a v1.2 certificate's histograms, and finds none in a v1 or v1.1 one.
@@ -159,6 +198,11 @@ fn every_v1_1_schema_invalid_mutation_is_rejected() {
 #[test]
 fn every_v1_2_schema_invalid_mutation_is_rejected() {
     rejects_every_mutation("v1.2/mutations/schema_invalid.json");
+}
+
+#[test]
+fn every_v1_3_schema_invalid_mutation_is_rejected() {
+    rejects_every_mutation("v1.3/mutations/schema_invalid.json");
 }
 
 fn rejects_every_mutation(rel: &str) {

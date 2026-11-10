@@ -1,5 +1,6 @@
-"""Verify and apply decision certificates: `decision-certificate.v1`, `v1.1` and `v1.2`
-(spec/decision-certificate.v1.md, spec/decision-certificate.v1.1.md, spec/decision-certificate.v1.2.md).
+"""Verify and apply decision certificates: `decision-certificate.v1`, `v1.1`, `v1.2` and `v1.3`
+(spec/decision-certificate.v1.md, spec/decision-certificate.v1.1.md, spec/decision-certificate.v1.2.md,
+spec/decision-certificate.v1.3.md).
 
 A port of the Rust crate in this repository's `rust/`, which is the reference: both must agree on
 every conformance fixture. A certificate describes a measured process; it never promises an outcome.
@@ -15,6 +16,9 @@ every conformance fixture. A certificate describes a measured process; it never 
 
     # apply the certificate's calibration map (v1.2 kinds: temperature, dr) to a case's raw scores
     v.confidence(raw_scores) >= v.threshold_for("north")
+
+    # v1.3: the options the consumer automates, and the error of the answered cases among them
+    v.automate_options(), v.automated_for("north")
 """
 
 from ._map import MAP_KINDS, confidence, probabilities
@@ -24,8 +28,10 @@ from ._verify import (
     SPEC,
     SPEC_V1_1,
     SPEC_V1_2,
+    SPEC_V1_3,
     SPECS,
     V1_2_FIELDS,
+    V1_3_FIELDS,
     BadKey,
     BadSignature,
     CertError,
@@ -51,7 +57,9 @@ __all__ = [
     "SPECS",
     "SPEC_V1_1",
     "SPEC_V1_2",
+    "SPEC_V1_3",
     "V1_2_FIELDS",
+    "V1_3_FIELDS",
     "BadKey",
     "BadSignature",
     "CertError",
