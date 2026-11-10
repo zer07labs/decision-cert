@@ -530,6 +530,29 @@ def model_id_of(backend: str, preds: list[dict[str, Any]]) -> str:
     return f"{backend}/{model}@{version}"
 
 
+def _selected(r: dict[str, Any]) -> bool:
+    """A row the audit selected: it logs a propensity above 0 (spec §1.4)."""
+    p = r.get("propensity")
+    return isinstance(p, (int, float)) and not isinstance(p, bool) and p > 0
+
+
+def unlabelled_rows(preds: list[dict[str, Any]], rows: list[dict[str, Any]], decision: str, audit: str) -> int:
+    """How many rows of `--data` scored for `decision` have no label for it, which `collect` skips
+    under `--audit sample`. Refuses when one of them was selected by the audit (it logs a propensity
+    above 0): a selected case left unlabelled makes the sample other than the uniform one the
+    certificate states (spec §1.4). Rows with no prediction for `decision` are not its cases."""
+    scored = {p["case_id"] for p in preds if p["decision"] == decision}
+    missing = [r for r in rows if r["case_id"] in scored and decision not in r.get("labels", {})]
+    if audit == "sample" and (selected := [r["case_id"] for r in missing if _selected(r)]):
+        raise CertError(
+            f"decision '{decision}': {len(selected)} row(s) the audit selected (propensity above 0) have no "
+            f"label (first: {selected[0]!r}). Every case the audit selected needs its label, or the sample "
+            "is not the uniform sample the certificate would state; log a propensity only on rows the "
+            "audit selected"
+        )
+    return len(missing)
+
+
 def collect(
     preds: list[dict[str, Any]],
     rows: list[dict[str, Any]],
@@ -617,6 +640,7 @@ def issue(
     cal, diags = {}, {}
     for dec_id in wanted:
         options = dom.decision(dec_id).option_ids()
+        skipped = unlabelled_rows(preds, rows, dec_id, audit)  # under full-label, collect refuses them
         cases = collect(preds, rows, dec_id, options, cfg.segments, audit)
         recal = None if recal_rows is None else collect(preds, recal_rows, dec_id, options, cfg.segments, "sample")
         cert, diag = certify_decision(
@@ -654,7 +678,7 @@ def issue(
             },
             "certificate": signed,
         }
-        diags[dec_id] = {**diag, "certificate_id": certificate_id(signed)}
+        diags[dec_id] = {**diag, "n_skipped_unlabelled": skipped, "certificate_id": certificate_id(signed)}
     return cal, diags
 
 
@@ -845,6 +869,12 @@ def main(argv: list[str] | None = None) -> None:
     report.write_text(json.dumps({"backend": a.backend, "decisions": diags}, indent=2) + "\n")
     for dec, c in cal.items():
         cert = c["certificate"]
+        if skipped := diags[dec]["n_skipped_unlabelled"]:
+            print(
+                f"warning: {dec}: skipped {skipped} row(s) in --data scored for this decision without a label "
+                "for it (not selected by the audit: no propensity above 0)",
+                file=sys.stderr,
+            )
         for note in budget_notes(cert):
             print(f"warning: {note}", file=sys.stderr)
         if ct_expired(cert):

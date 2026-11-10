@@ -5,6 +5,13 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 
 ## Unreleased
 
+- **Issuer: unlabelled rows under `--audit sample`** (#37). **Behaviour change:** a row scored for
+  the decision that logs a propensity above 0 (the audit selected it) but has no label is refused,
+  with the count, so inputs that log the rate on every row of the window, selected or not, now
+  refuse: log it only on selected rows. Other scored rows without a label are skipped as before, now
+  counted in the diagnostics (`n_skipped_unlabelled`) and reported on stderr. Certificates and
+  fixtures are unchanged.
+
 - **Docs: how many labelled cases** (`docs/certificates.md`): the arithmetic floor of an `ltt` and
   a `crc` test at `alpha` 0.05, 0.10 and 0.20 (`delta` 0.10), in labelled rows by coverage, with the
   issuer's half split counted.
