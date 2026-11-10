@@ -11,7 +11,7 @@ import shutil
 import stat
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pytest
@@ -732,3 +732,106 @@ def test_command_line_dr_map(tmp_path: Path) -> None:
         (tmp_path / "prior.json").write_text(json.dumps(bad_prior))
         with pytest.raises(SystemExit, match="sigma_a > 0"):
             ct.main([*base, *dr])
+
+
+def _issued(tmp: Path, spec: str, preds: list[dict[str, Any]], rows: list[dict[str, Any]], **kw: Any) -> dict[str, Any]:
+    cal, diags = ct.issue(preds, rows, kw.pop("dom", None) or domain(tmp), "toy-backend", KEY, now=NOW, spec=spec,
+                          audit="full-label", **kw)  # fmt: skip
+    return {"cert": cal["approved"]["certificate"], "diags": diags["approved"]}
+
+
+def test_v1_3_hashes_cannot_tell_and_v1_2_does_not(tmp_path: Path) -> None:
+    """v1.3 (C1): `data_hash` covers each case's cannot_tell value, the input that decides a
+    cannot-tell abstention; a v1.2 certificate's hash does not."""
+
+    def cert(spec: str, bump: bool) -> dict[str, Any]:
+        preds, rows = cases(400)
+        for i, p in enumerate(preds):
+            p["cannot_tell"] = 0.2 if bump and i == 7 else 0.1  # both below the bound
+        dom = domain(tmp_path, cannot_tell_above=0.5)
+        return cast(dict[str, Any], _issued(tmp_path, spec, preds, rows, dom=dom)["cert"])
+
+    assert cert(ct.SPEC_V1_2, False)["data_hash"] == cert(ct.SPEC_V1_2, True)["data_hash"]
+    a, b = cert(ct.SPEC_V1_3, False), cert(ct.SPEC_V1_3, True)
+    assert a["data_hash"] != b["data_hash"]
+    # The value moved, the measurement did not: every other field is the same.
+    rest = ("data_hash", "signature")
+    assert {k: v for k, v in a.items() if k not in rest} == {k: v for k, v in b.items() if k not in rest}
+
+
+def test_v1_3_with_every_option_automated_repeats_each_test(tmp_path: Path) -> None:
+    preds, rows = cases(4000, regions=["east", "north", "east", "south"])
+    # east, half the cases, is certified; north and south, a quarter each, fall below the floor
+    dom = domain(tmp_path, segments={"field": "region", "values": ["east", "north", "south"], "floor": 700})
+    out = _issued(tmp_path, ct.SPEC_V1_3, preds, rows, dom=dom)
+    c = out["cert"]
+    assert c["automate_options"] == ["yes", "no"]
+    assert c["automated"] == {"coverage": c["coverage"], "ucb": c["ucb"], "realized_band": c["realized_band"]}
+    assert sorted(s["inherited"] for s in c["segments"]) == [False, True, True]
+    for s in c["segments"]:
+        want = {"coverage": s["coverage"], "ucb": s["ucb"], "realized_band": s["realized_band"]}
+        assert s["automated"] == want  # an inherited segment's ucb and band are null, like its test's
+    # Everything else is the v1.2 certificate's (bar the spec and data_hash).
+    v12 = _issued(tmp_path, ct.SPEC_V1_2, preds, rows, dom=dom)["cert"]
+    rest = ("spec", "data_hash", "signature", "automate_options", "automated")
+
+    def strip(x: dict[str, Any]) -> dict[str, Any]:
+        return {k: v for k, v in x.items() if k not in rest}
+
+    assert strip({**c, "segments": [strip(s) for s in c["segments"]]}) == strip(
+        {**v12, "segments": [strip(s) for s in v12["segments"]]}
+    )
+
+
+def test_v1_3_reports_the_automated_options_only(tmp_path: Path) -> None:
+    """v1.3 (P1): with approvals automated only, each test also reports the answered cases whose
+    answer is "yes": their share, and their error at the test's own level."""
+    preds, rows = cases(4000)
+    out = _issued(tmp_path, ct.SPEC_V1_3, preds, rows, automate_options=["yes"])
+    c, d = out["cert"], out["diags"]
+    a = c["automated"]
+    assert c["automate_options"] == ["yes"]
+    assert 0 < a["coverage"] < c["coverage"]
+    k, e = d["automated"]["answered"], d["automated"]["errors"]
+    assert a["coverage"] == k / c["n"]
+    assert a["ucb"] == cs.ucb(k, e, d["test_level"])
+    low, high = cs.band(k, e, ct.BAND_LEVEL)
+    assert a["realized_band"] == {"level": ct.BAND_LEVEL, "low": low, "high": high}
+    v = dc.verify(c, {ct.key_id(KEY.public_key()): ct.b64url(ct.raw_public(KEY.public_key()))})
+    assert v.automate_options() == ("yes",) and v.automated_for(None) == a
+    # crc has no ucb, so neither has its automated block.
+    crc = _issued(tmp_path, ct.SPEC_V1_3, preds, rows, automate_options=["yes"], method="crc")["cert"]
+    assert crc["automated"]["ucb"] is None and crc["automated"]["realized_band"] is not None
+
+
+@pytest.mark.parametrize(
+    ("spec", "auto", "match"),
+    [
+        (ct.SPEC_V1_2, ["yes"], "automate_options needs decision-certificate.v1.3"),
+        (ct.SPEC_V1_3, ["maybe"], "must name one or more of"),
+        (ct.SPEC_V1_3, ["yes", "yes"], "must name one or more of"),
+        (ct.SPEC_V1_3, [], "must name one or more of"),
+    ],
+)
+def test_automate_options_are_refused_unless_v1_3_options(
+    tmp_path: Path, spec: str, auto: list[str], match: str
+) -> None:
+    preds, rows = cases(400)
+    with pytest.raises(ct.CertError, match=match):
+        _issued(tmp_path, spec, preds, rows, automate_options=auto)
+
+
+def test_the_cli_takes_automate_options_with_v1_3_only(tmp_path: Path) -> None:
+    preds, rows = cases(2000)
+    (tmp_path / "p.jsonl").write_text("".join(json.dumps(p) + "\n" for p in preds))
+    (tmp_path / "r.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    ct.keygen(tmp_path / "op.pem")
+    args = ["certify", "--predictions", str(tmp_path / "p.jsonl"), "--data", str(tmp_path / "r.jsonl"),
+            "--domain-dir", str(domain(tmp_path)), "--backend", "toy", "--key", str(tmp_path / "op.pem"),
+            "--audit", "full-label", "--automate-options", "yes"]  # fmt: skip
+    with pytest.raises(SystemExit):
+        ct.main(args)
+    out = tmp_path / "cal.json"
+    ct.main([*args, "--spec", ct.SPEC_V1_3, "--out", str(out)])
+    cert = json.loads(out.read_text())["approved"]["certificate"]
+    assert cert["spec"] == ct.SPEC_V1_3 and cert["automate_options"] == ["yes"]

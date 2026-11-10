@@ -96,6 +96,11 @@ What an issuer writes, and what it refuses:
 - **Spec.** The reference issuer writes `decision-certificate.v1.2`. `--spec decision-certificate.v1.1`
   writes the same test without the confidence histogram, for consumers that do not read v1.2 yet;
   `--spec decision-certificate.v1` issues by the v1 procedure, to reproduce an earlier certificate.
+  `--spec decision-certificate.v1.3` ([spec](../spec/decision-certificate.v1.3.md), implemented,
+  not frozen) adds, with `--automate-options yes` (default every option), each test's answered
+  share and error among the cases whose answer is an automated option. Those numbers are
+  descriptive, and the bound still covers every answered case. v1.3's `data_hash` also binds each
+  case's `cannot_tell` value.
 - **Histograms** (v1.2). Bins at the 20-quantiles of the temperature split's confidences, and per
   test the threshold-split cases per bin. A test with fewer than `histogram_min_n` cases (default
   30) gets `null` instead, so that a few cases' confidences are not published one by one (spec §6).

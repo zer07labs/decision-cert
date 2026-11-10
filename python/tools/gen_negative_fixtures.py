@@ -133,7 +133,9 @@ def rust_verdicts(paths: list[Path]) -> dict[str, dict[str, Any]]:
 
 
 def manifest() -> str:
-    files = sorted(p for p in FIXTURES.rglob("*.json") if not {"v1.1", "v1.2"} & set(p.relative_to(FIXTURES).parts))
+    files = sorted(
+        p for p in FIXTURES.rglob("*.json") if not {"v1.1", "v1.2", "v1.3"} & set(p.relative_to(FIXTURES).parts)
+    )
     lines = [f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.relative_to(FIXTURES).as_posix()}" for p in files]
     return "\n".join(lines) + "\n"
 

@@ -78,6 +78,26 @@ if stored is not None:
 Also compare the window's automated share with `coverage` (spec §4). Use one window per threshold:
 a certified segment's own cases, or everything the top-level threshold decides.
 
+## Approvals only (v1.3)
+
+A deployment that approves automatically and sends every "no" answer to a person, as well as every
+abstention, decides fewer cases than `coverage` counts, and the error among them can differ from the
+error of all answered cases. A v1.3 certificate
+([spec](../spec/decision-certificate.v1.3.md), implemented, not frozen) states both:
+
+```bash
+python -m decision_cert.issue certify ... --spec decision-certificate.v1.3 --automate-options yes
+```
+
+```python
+assert v.automate_options() == ("yes",)   # refuse a certificate for other automated options
+auto = v.automated_for(case_product)      # coverage, ucb, realized_band of the approvals it answers
+```
+
+The bound at `alpha` still covers every answered case. `automated` describes the approvals at the
+chosen threshold (descriptive, spec v1.3 §1.6) with a wider band, as it has fewer cases. Compare a
+window's approval share with `automated.coverage` as well as its answered share with `coverage`.
+
 ## What this does not claim
 
 Spec v1.2 §5 applies in full. For credit approval in particular:
@@ -120,6 +140,9 @@ Spec §1.4 asks for an audit sample drawn from **all** applications instead.
    a row that logs a propensity above 0 but has no label, and counts the other unlabelled rows it
    skips (in the diagnostics and on stderr). It cannot see a
    case left out of the data altogether, so dropping cases is a selection the bound does not cover.
+   The same holds for a case the audit selected that has neither a prediction nor a label for the
+   decision: the issuer counts only the cases scored for the decision, so that case is as invisible
+   as one left out of the data. Score every selected case.
 3. With outcome labels, the window must end at least one full performance period before the
    certificate is issued, so that every selected case has an outcome. Early outcomes only would bias
    the sample towards early defaults. `expires_at` counts from the window's end (`window.end` +

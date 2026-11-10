@@ -7,7 +7,11 @@ without the confidence histogram, and `spec="decision-certificate.v1"` issues by
         --domain-dir <domain> --backend <name> --key operator.pem [--audit sample|full-label] [--in-environment]
     python -m decision_cert.issue verify --calibration <domain>/calibration/<backend>.json --keys keys.json
 
-`--map dr --recal-data recal.jsonl --prior prior.json` (v1.2) fits a `dr` calibration map on a
+`--spec decision-certificate.v1.3` adds the automated options (`--automate-options yes`, default every
+option) and, per test, the share and error of the answered cases whose answer is one of them; its
+`data_hash` also covers each case's `cannot_tell` value (spec v1.3).
+
+`--map dr --recal-data recal.jsonl --prior prior.json` (v1.2 or later) fits a `dr` calibration map on a
 recalibration set of labelled target cases, disjoint from the calibration cases, instead of the
 temperature (spec v1.2 §1.1 step 2). The predictions file covers those cases too. The prior is
 `{"mu_a", "sigma_a", "sigma_b"}`, learned from earlier shifts (`decision_cert.issue.recal.meta_prior`).
@@ -55,8 +59,9 @@ from . import stats as cs
 SPEC_V1 = "decision-certificate.v1"
 SPEC_V1_1 = "decision-certificate.v1.1"
 SPEC_V1_2 = "decision-certificate.v1.2"
+SPEC_V1_3 = "decision-certificate.v1.3"  # v1.2 + the automated options (P1) and cannot_tell hashed (C1)
 SPEC = SPEC_V1_2  # what this issuer writes by default
-SPECS = (SPEC_V1, SPEC_V1_1, SPEC_V1_2)
+SPECS = (SPEC_V1, SPEC_V1_1, SPEC_V1_2, SPEC_V1_3)
 HISTOGRAM_BINS = 20  # v1.2: bins at the 20-quantiles of the temperature split's confidences
 ISSUER = {"tool": "decision-cert", "version": __version__}
 BAND_LEVEL = 0.95
@@ -232,10 +237,17 @@ def score(case: Case, cmap: CalMap | float, cannot_tell_above: float | None) -> 
     """(confidence, error) of one case under the rule and the calibration map (a float is a
     temperature). A case the rule abstains on whatever the threshold (unscored, or cannot-tell above
     the domain's bound) gets UNSCORED, below every cut."""
+    conf, err, _ = scored(case, cmap, cannot_tell_above)
+    return conf, err
+
+
+def scored(case: Case, cmap: CalMap | float, cannot_tell_above: float | None) -> tuple[float, bool, int]:
+    """`score`, and the index of the case's top option (-1 when the rule abstains on it whatever the
+    threshold)."""
     if case.raw is None or (
         cannot_tell_above is not None and case.cannot_tell is not None and case.cannot_tell > cannot_tell_above
     ):
-        return UNSCORED, False
+        return UNSCORED, False, -1
     m = temperature_map(cmap) if isinstance(cmap, (int, float)) else cmap
     if m["kind"] == "temperature":
         p = sp.softmax(np.asarray(case.raw, float), m["params"]["temperature"])
@@ -244,7 +256,8 @@ def score(case: Case, cmap: CalMap | float, cannot_tell_above: float | None) -> 
         if q is None:
             raise CertError(f"case {case.case_id!r}: the {m['kind']} map gives no probabilities for its scores")
         p = np.asarray(q, float)
-    return float(p.max()), bool(int(np.argmax(p)) != case.label_index)
+    top = int(np.argmax(p))
+    return float(p.max()), bool(top != case.label_index), top
 
 
 def apply_rule(
@@ -288,6 +301,22 @@ def _histogram(bins: list[float], conf: np.ndarray, min_n: int) -> dict[str, Any
     return {"counts": list(h.counts), "unscored": h.unscored}
 
 
+def _automated(
+    conf: np.ndarray, err: np.ndarray, auto: np.ndarray, abstain_below: float, d: float | None, bounded: bool
+) -> dict[str, Any]:
+    """v1.3 (P1): one test's answered cases whose answer is an automated option. Their share of the
+    test's cases, and `ucb` (ltt only) and `realized_band` of their error, computed as the test's own
+    are (descriptive, spec v1.2 §1.2); both null for an inherited segment, which has no test."""
+    hit = (conf >= abstain_below) & auto
+    k, e = int(hit.sum()), int(err[hit].sum())
+    out: dict[str, Any] = {"coverage": k / len(conf) if len(conf) else 0.0, "ucb": None, "realized_band": None}
+    if bounded:
+        low, high = cs.band(k, e, BAND_LEVEL)
+        out["ucb"] = cs.ucb(k, e, d) if d is not None else None
+        out["realized_band"] = {"level": BAND_LEVEL, "low": low, "high": high}
+    return {**out, "_answered": k, "_errors": e}
+
+
 def _test(conf: np.ndarray, err: np.ndarray, cuts: np.ndarray, alpha: float, d: float | None) -> dict[str, Any]:
     """One test (spec §1.1): ltt at level d, or crc when d is None."""
     pt = cs.ltt(conf, err, cuts, alpha, d) if d is not None else cs.crc(conf, err, cuts, alpha)
@@ -322,6 +351,7 @@ def certify_decision(
     spec: str = SPEC,
     recal: list[Case] | None = None,
     prior: rc.Prior | None = None,
+    automate_options: list[str] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """(unsigned certificate, aggregate diagnostics) for one decision. Spec §1.1. Under v1.1 and
     v1.2 each test starts at the best cut on its own temperature-split cases; under v1, every test
@@ -333,8 +363,17 @@ def certify_decision(
     the bins."""
     if spec not in SPECS:
         raise CertError(f"unknown spec {spec!r}; this issuer writes {' or '.join(SPECS)}")
-    if recal is not None and spec != SPEC_V1_2:
-        raise CertError(f"decision '{decision}': the dr calibration map needs {SPEC_V1_2}")
+    if recal is not None and spec not in (SPEC_V1_2, SPEC_V1_3):
+        raise CertError(f"decision '{decision}': the dr calibration map needs {SPEC_V1_2} or later")
+    v13 = spec == SPEC_V1_3
+    if automate_options is not None and not v13:
+        raise CertError(f"decision '{decision}': automate_options needs {SPEC_V1_3}")
+    auto = list(options) if automate_options is None else [o for o in options if o in automate_options]
+    if automate_options is not None and (not automate_options or len(automate_options) != len(auto)):
+        raise CertError(
+            f"decision '{decision}': automate_options {automate_options} must name one or more of {options}, once each"
+        )
+    auto_idx = [options.index(o) for o in auto]
     audit_block = _audit(cases, audit, decision)
     timed = all(c.decided_at for c in cases)
     if timed:
@@ -357,14 +396,19 @@ def certify_decision(
     else:
         cmap = fit_dr(decision, recal, cases, prior)
 
-    def conf_err(idx: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        pairs = [score(cases[i], cmap, cannot_tell_above) for i in idx]
-        return np.array([c for c, _ in pairs], float).reshape(-1), np.array([e for _, e in pairs], bool).reshape(-1)
+    def conf_err(idx: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        s3 = [scored(cases[i], cmap, cannot_tell_above) for i in idx]
+        return (
+            np.array([c for c, _, _ in s3], float).reshape(-1),
+            np.array([e for _, e, _ in s3], bool).reshape(-1),
+            np.array([t for _, _, t in s3], int).reshape(-1),
+        )
 
-    conf_t, err_t = conf_err(t_idx)
+    conf_t, err_t, _ = conf_err(t_idx)
     all_cuts = cs.cuts_of(conf_t)
     pooled_start = cs.start(all_cuts, conf_t, err_t, alpha)
-    conf_a, err_a = conf_err(a_idx)
+    conf_a, err_a, top_a = conf_err(a_idx)
+    automated_a = np.isin(top_a, auto_idx)  # threshold-split cases whose answer would be automated
     per_case = [
         {"case_id": cases[i].case_id, "split": "temperature", "confidence": float(c), "error": bool(e)}
         for i, c, e in zip(t_idx, conf_t, err_t, strict=True)
@@ -390,14 +434,15 @@ def certify_decision(
             return all_cuts[pooled_start:]
         return all_cuts[cs.start(all_cuts, conf_t[mask_t], err_t[mask_t], alpha) :]
 
-    v12 = spec == SPEC_V1_2
+    v12 = spec in (SPEC_V1_2, SPEC_V1_3)
     bins = cs.bins_of(conf_t, HISTOGRAM_BINS) if v12 else []
     rest = ~np.isin(seg_a, certified) | ~has_seg
     rest_t = ~np.isin(seg_t, certified) | ~has_seg_t
     cuts = cuts_for(rest_t)
     top = _test(conf_a[rest], err_a[rest], cuts, alpha, d)
+    top_auto = _automated(conf_a[rest], err_a[rest], automated_a[rest], top["abstain_below"], d, True)
     segments: list[dict[str, Any]] = []
-    seg_diag: dict[str, dict[str, int]] = {}
+    seg_diag: dict[str, dict[str, Any]] = {}
     hidden = rest.copy()  # remainder cases no published inherited histogram counts (spec §6)
     for v in present:
         m = has_seg & (seg_a == v)
@@ -421,11 +466,16 @@ def certify_decision(
             entry["confidence_histogram"] = _histogram(bins, conf_a[m], cfg.histogram_min_n)
             if v not in certified and entry["confidence_histogram"] is not None:
                 hidden &= ~m
-        segments.append(entry)
         seg_diag[v] = {"answered": r["_answered"], "errors": r["_errors"]}
+        if v13:
+            a = _automated(conf_a[m], err_a[m], automated_a[m], r["abstain_below"], d, v in certified)
+            entry["automated"] = {k: x for k, x in a.items() if k[0] != "_"}
+            seg_diag[v]["automated"] = {"answered": a["_answered"], "errors": a["_errors"]}
+        segments.append(entry)
 
     hashed = [  # every labelled case used: both splits, and a dr map's recalibration cases
         [c.case_id, c.label_index, c.raw, c.decided_at, c.segment, c.propensity]
+        + ([c.cannot_tell] if v13 else [])  # v1.3 (C1): the value that decides a cannot-tell abstention
         for c in sorted([*cases, *(recal or [])], key=lambda c: c.case_id.encode())
     ]
     window = None
@@ -464,6 +514,9 @@ def certify_decision(
         # remainder cases (withheld segments, cases without a segment): withhold it when they are few.
         few = 0 < int(hidden.sum()) < cfg.histogram_min_n
         cert["confidence_histogram"] = None if few else _histogram(bins, conf_a[rest], cfg.histogram_min_n)
+    if v13:
+        cert["automate_options"] = auto
+        cert["automated"] = {k: x for k, x in top_auto.items() if k[0] != "_"}
     diag = {
         "n": len(cases),
         "n_unscored": sum(c.raw is None for c in cases),
@@ -472,6 +525,7 @@ def certify_decision(
         "answered": top["_answered"],
         "errors": top["_errors"],
         "segments": seg_diag,
+        **({"automated": {"answered": top_auto["_answered"], "errors": top_auto["_errors"]}} if v13 else {}),
         "temperature_at_search_bound": temperature is not None
         and (temperature <= sp.T_MIN * 1.05 or temperature >= sp.T_MAX * 0.95),
         "_cases": per_case,
@@ -619,9 +673,11 @@ def issue(
     spec: str = SPEC,
     recal_rows: list[dict[str, Any]] | None = None,
     prior: rc.Prior | None = None,
+    automate_options: list[str] | None = None,
 ) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
     """(calibration file contents, aggregate diagnostics per decision). `spec` picks what is written:
-    v1.2 by default, v1.1 (the same procedure, no confidence histogram), or v1
+    v1.2 by default, v1.3 (v1.2 plus the automated options in `automate_options`, default every
+    option, and `cannot_tell` in `data_hash`), v1.1 (the same procedure, no confidence histogram), or v1
     (`decision-certificate.v1`) to reproduce a v1 certificate. With `recal_rows` and `prior` (v1.2),
     each decision's map is `dr`, fitted on those rows' labelled cases (`certify_decision`); `preds`
     covers them too."""
@@ -661,6 +717,7 @@ def issue(
             spec=spec,
             recal=recal,
             prior=prior,
+            automate_options=automate_options,
         )
         signed = sign(cert, key)
         jsonschema.validate(signed, schema(spec))
@@ -831,9 +888,15 @@ def main(argv: list[str] | None = None) -> None:
     )
     ap.add_argument("--recal-data", type=Path, help="--map dr: labelled target cases, disjoint from --data")
     ap.add_argument("--prior", type=Path, help="--map dr: the prior {mu_a, sigma_a, sigma_b}")
+    ap.add_argument(
+        "--automate-options",
+        help=f"comma-separated options the consumer decides automatically ({SPEC_V1_3}; default every option)",
+    )
     a = ap.parse_args(argv)
-    if a.map == "dr" and (a.recal_data is None or a.prior is None or a.spec != SPEC_V1_2):
-        ap.error(f"--map dr needs --recal-data, --prior and --spec {SPEC_V1_2}")
+    if a.map == "dr" and (a.recal_data is None or a.prior is None or a.spec not in (SPEC_V1_2, SPEC_V1_3)):
+        ap.error(f"--map dr needs --recal-data, --prior and --spec {SPEC_V1_2} or {SPEC_V1_3}")
+    if a.automate_options is not None and a.spec != SPEC_V1_3:
+        ap.error(f"--automate-options needs --spec {SPEC_V1_3}")
     if a.map != "dr" and (a.recal_data is not None or a.prior is not None):
         ap.error("--recal-data and --prior go with --map dr")
 
@@ -853,6 +916,7 @@ def main(argv: list[str] | None = None) -> None:
             spec=a.spec,
             recal_rows=sp.read_cases(a.recal_data) if a.recal_data else None,
             prior=load_prior(a.prior) if a.prior else None,
+            automate_options=a.automate_options.split(",") if a.automate_options is not None else None,
         )
     except TooFewCases as e:
         print(f"{PROG} certify: {e}", file=sys.stderr)

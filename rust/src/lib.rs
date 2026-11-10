@@ -1,6 +1,7 @@
 //! Load, verify and apply decision certificates: `decision-certificate.v1`
 //! (spec/decision-certificate.v1.md), `decision-certificate.v1.1` (spec/decision-certificate.v1.1.md)
-//! and `decision-certificate.v1.2` (spec/decision-certificate.v1.2.md).
+//! `decision-certificate.v1.2` (spec/decision-certificate.v1.2.md) and `decision-certificate.v1.3`
+//! (spec/decision-certificate.v1.3.md).
 //!
 //! Verification canonicalises the JSON value exactly as received (RFC 8785, JCS), never a
 //! re-serialised struct, so number formatting can't drift from the issuer's. The typed
@@ -13,6 +14,9 @@
 //!
 //! [`probabilities`] applies a certificate's calibration map to a case's raw scores, for the map
 //! kinds v1.2 defines (`temperature` and `dr`, [`MAP_KINDS`]).
+//!
+//! A v1.3 certificate also names the options a consumer automates (`automate_options`) and reports,
+//! per test, the share and error of the answered cases whose answer is one of them ([`Automated`]).
 
 mod map;
 mod monitor;
@@ -34,8 +38,11 @@ pub const SPEC: &str = "decision-certificate.v1";
 pub const SPEC_V1_1: &str = "decision-certificate.v1.1";
 /// The `spec` of a v1.2 certificate: v1.1's procedure, plus the stored confidence histogram.
 pub const SPEC_V1_2: &str = "decision-certificate.v1.2";
-/// Every `spec` this verifier accepts. v1 and v1.1 have the same fields; v1.2 adds some.
-pub const SPECS: [&str; 3] = [SPEC, SPEC_V1_1, SPEC_V1_2];
+/// The `spec` of a v1.3 certificate: v1.2, plus the automated options and their answered share and
+/// error per test.
+pub const SPEC_V1_3: &str = "decision-certificate.v1.3";
+/// Every `spec` this verifier accepts. v1 and v1.1 have the same fields; v1.2 adds some, v1.3 more.
+pub const SPECS: [&str; 4] = [SPEC, SPEC_V1_1, SPEC_V1_2, SPEC_V1_3];
 /// Most bins a `confidence_bins` may define.
 pub const MAX_BINS: usize = 100;
 /// `abstain_below` that abstains on every case (as `dk calibrate` writes it).
@@ -70,6 +77,19 @@ pub struct Histogram {
     pub unscored: u64,
 }
 
+/// A test's answered cases whose answer is one of `automate_options` (v1.3): their share of the
+/// test's `n` cases, and `ucb` and `realized_band` of their error, as the test's own (descriptive,
+/// spec v1.2 §1.2). Null exactly where the test's are.
+#[derive(Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Automated {
+    pub coverage: f64,
+    #[serde(deserialize_with = "nullable")]
+    pub ucb: Option<f64>,
+    #[serde(deserialize_with = "nullable")]
+    pub realized_band: Option<Band>,
+}
+
 #[derive(Deserialize, Clone, Debug, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Segment {
@@ -86,6 +106,9 @@ pub struct Segment {
     /// v1.2 only: absent (None) before v1.2; present and null (Some(None)) when withheld.
     #[serde(default, deserialize_with = "present")]
     pub confidence_histogram: Option<Option<Histogram>>,
+    /// v1.3 only: absent (None) before v1.3.
+    #[serde(default, deserialize_with = "present")]
+    pub automated: Option<Automated>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq)]
@@ -179,6 +202,13 @@ pub struct Certificate {
     /// v1.2 only: the remainder's histogram; present and null (Some(None)) when withheld.
     #[serde(default, deserialize_with = "present")]
     pub confidence_histogram: Option<Option<Histogram>>,
+    /// v1.3 only (absent before v1.3): the options a consumer decides automatically; a case answered
+    /// with another option goes to a person.
+    #[serde(default, deserialize_with = "present")]
+    pub automate_options: Option<Vec<String>>,
+    /// v1.3 only: the remainder's automated cases.
+    #[serde(default, deserialize_with = "present")]
+    pub automated: Option<Automated>,
 }
 
 /// A field that may be absent (with `default`, as None) but, when present, is read as `T`: so a
@@ -244,14 +274,36 @@ impl Verified {
         }
     }
 
+    /// The options a v1.3 certificate's consumer automates; None before v1.3. A consumer refuses a
+    /// certificate whose list differs from the options it automates (spec v1.3 §4).
+    pub fn automate_options(&self) -> Option<&[String]> {
+        self.cert.automate_options.as_deref()
+    }
+
+    /// The automated cases of the test that decides a case in `segment` (a certified segment's own,
+    /// else the top level's): their share and error. None before v1.3.
+    pub fn automated_for(&self, segment: Option<&str>) -> Option<&Automated> {
+        let own = segment.and_then(|v| {
+            self.cert
+                .segments
+                .iter()
+                .find(|s| !s.inherited && s.value == v)
+        });
+        match own {
+            Some(s) => s.automated.as_ref(),
+            None => self.cert.automated.as_ref(),
+        }
+    }
+
     /// The probabilities the certificate's calibration map gives a case's raw scores, one per
     /// option (spec v1.2 §1, [`probabilities`]). None when the map's kind is not one this crate
     /// applies ([`MAP_KINDS`]), its params do not fit that kind, or `scores` does not have one score
     /// per option, or the map is `dr` in a certificate before v1.2, which did not define it. A
     /// consumer refuses a certificate whose map it does not apply (spec v1.2 §4).
     pub fn probabilities(&self, scores: &[f64]) -> Option<Vec<f64>> {
-        let defined =
-            self.cert.calibration_map.kind == "temperature" || self.cert.spec == SPEC_V1_2;
+        let defined = self.cert.calibration_map.kind == "temperature"
+            || self.cert.spec == SPEC_V1_2
+            || self.cert.spec == SPEC_V1_3;
         (defined && scores.len() == self.cert.options.len())
             .then(|| probabilities(&self.cert.calibration_map, scores))
             .flatten()
@@ -335,7 +387,7 @@ fn check(c: &Certificate) -> Result<(), CertError> {
     let open = |x: f64| x > 0.0 && x < 1.0;
     let threshold = |x: f64| (0.0..=ABSTAIN_ALL).contains(&x);
     if !SPECS.contains(&c.spec.as_str()) {
-        return bad("spec is not decision-certificate.v1, decision-certificate.v1.1 or decision-certificate.v1.2");
+        return bad("spec is not decision-certificate.v1, decision-certificate.v1.1, decision-certificate.v1.2 or decision-certificate.v1.3");
     }
     fields_for_spec(c)?;
     let mut seen = std::collections::BTreeSet::new();
@@ -413,35 +465,50 @@ fn check(c: &Certificate) -> Result<(), CertError> {
         timestamp(&w.start)?;
         timestamp(&w.end)?;
     }
-    if c.spec == SPEC_V1_2 {
+    if c.spec == SPEC_V1_2 || c.spec == SPEC_V1_3 {
         histograms(c)?;
         map::check(&c.calibration_map, c.options.len())?;
+    }
+    if c.spec == SPEC_V1_3 {
+        automated(c)?;
     }
     Ok(())
 }
 
-/// A v1.2 certificate has every v1.2 field, and a v1 or v1.1 certificate none of them, at the top
-/// level and in every segment. A certificate whose fields belong to another spec is refused as a
-/// spec it is not, so a v1.1-shaped certificate naming v1.2 is still refused as an unknown spec.
+/// A v1.2 certificate has every v1.2 field, a v1.3 certificate every v1.2 and v1.3 field, and an
+/// earlier certificate none of them, at the top level and in every segment. A certificate whose
+/// fields belong to another spec is refused as a spec it is not, so a v1.1-shaped certificate naming
+/// v1.2, or a v1.2-shaped one naming v1.3, is still refused as an unknown spec.
 fn fields_for_spec(c: &Certificate) -> Result<(), CertError> {
-    let v12 = c.spec == SPEC_V1_2;
+    let v13 = c.spec == SPEC_V1_3;
+    let v12 = c.spec == SPEC_V1_2 || v13;
+    // (name, present, required by this spec): the v1.2 fields first, then the v1.3 ones.
     let mut present = vec![
-        ("confidence_bins", c.confidence_bins.is_some()),
-        ("confidence_histogram", c.confidence_histogram.is_some()),
-    ];
-    present.extend(c.segments.iter().map(|s| {
+        ("confidence_bins", c.confidence_bins.is_some(), v12),
         (
+            "confidence_histogram",
+            c.confidence_histogram.is_some(),
+            v12,
+        ),
+        ("automate_options", c.automate_options.is_some(), v13),
+        ("automated", c.automated.is_some(), v13),
+    ];
+    for s in &c.segments {
+        present.push((
             "segments[].confidence_histogram",
             s.confidence_histogram.is_some(),
-        )
-    }));
-    for (name, here) in present {
-        if v12 && !here {
+            v12,
+        ));
+        present.push(("segments[].automated", s.automated.is_some(), v13));
+    }
+    for (name, here, required) in present {
+        if required && !here {
             return Err(CertError::Invalid(format!(
-                "spec is not consistent with the fields: {SPEC_V1_2} requires `{name}`"
+                "spec is not consistent with the fields: {} requires `{name}`",
+                c.spec
             )));
         }
-        if !v12 && here {
+        if !required && here {
             return Err(CertError::Invalid(format!(
                 "unknown field `{name}` in a {} certificate",
                 c.spec
@@ -476,6 +543,50 @@ fn histograms(c: &Certificate) -> Result<(), CertError> {
                     "a confidence_histogram needs one count per bin, and its counts and unscored must sum to n".into(),
                 ));
             }
+        }
+    }
+    Ok(())
+}
+
+/// v1.3's checks beyond the schema: `automate_options` names options of the certificate, once each
+/// and in their order; each test's `automated` share is at most its `coverage`, its numbers are in
+/// range, and its `ucb` and `realized_band` are null exactly where the test's are.
+fn automated(c: &Certificate) -> Result<(), CertError> {
+    let auto = c.automate_options.as_deref().unwrap_or_default();
+    let mut at = c.options.iter();
+    if auto.is_empty() || !auto.iter().all(|o| at.any(|x| x == o)) {
+        return Err(CertError::Invalid(
+            "automate_options must name one or more of the options, once each and in their order"
+                .into(),
+        ));
+    }
+    let unit = |x: f64| (0.0..=1.0).contains(&x);
+    let tests = std::iter::once((
+        &c.automated,
+        c.coverage,
+        c.ucb.is_some(),
+        true, // the top level's realized_band is never null
+    ))
+    .chain(c.segments.iter().map(|s| {
+        (
+            &s.automated,
+            s.coverage,
+            s.ucb.is_some(),
+            s.realized_band.is_some(),
+        )
+    }));
+    for (a, coverage, ucb, band) in tests {
+        let Some(a) = a else { continue };
+        if !unit(a.coverage)
+            || a.coverage > coverage
+            || a.ucb.is_some_and(|u| !unit(u))
+            || a.realized_band.as_ref().is_some_and(|b| !band_ok(b))
+            || a.ucb.is_some() != ucb
+            || a.realized_band.is_some() != band
+        {
+            return Err(CertError::Invalid(
+                "automated must agree with its test: coverage at most the test's, and ucb and realized_band null exactly where the test's are".into(),
+            ));
         }
     }
     Ok(())

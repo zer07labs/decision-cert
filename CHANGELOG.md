@@ -1,9 +1,21 @@
 # Changelog
 
-All notable changes to this repository. The spec (`decision-certificate.v1`, `v1.1`, `v1.2`) is versioned
-separately and is frozen; this log covers the crate, the verifiers, the fixtures and the docs.
+All notable changes to this repository. The spec (`decision-certificate.v1`, `v1.1`, `v1.2`, frozen; `v1.3`,
+not yet frozen) is versioned separately; this log covers the crate, the verifiers, the fixtures and the docs.
 
 ## Unreleased
+
+- **Spec v1.3: C1 and P1, implemented, not frozen** (`spec/decision-certificate.v1.3.md`). Both
+  verifiers accept `decision-certificate.v1.3`, and the issuer writes it with `--spec
+  decision-certificate.v1.3`; the default stays v1.2.
+  - **C1:** `data_hash` also binds each case's `cannot_tell` value.
+  - **P1:** `automate_options` (`--automate-options`, default every option) and, for each test,
+    `automated`: the answered share and the error among the cases whose top option is automated.
+    These numbers are descriptive; the bound at `alpha` still covers every answered case.
+  - Readers: `automate_options()` and `automated_for(segment)`. A new fixture set,
+    `fixtures/v1.3/` (37 files and its mutations).
+  - v1, v1.1 and v1.2 certificates, fixtures and verdicts are byte-identical. F1, R1, K1, U1, S1
+    and M1 stay draft.
 
 - **Issuer: unlabelled rows under `--audit sample`** (#37). **Behaviour change:** a row scored for
   the decision that logs a propensity above 0 (the audit selected it) but has no label is refused,

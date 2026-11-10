@@ -1,8 +1,8 @@
 # Conformance fixtures
 
 Every verifier of decision certificates, in any language, must agree with the Rust crate (`rust/`)
-on every file here: the v1 set at the top level, the v1.1 set in [`v1.1/`](v1.1/) and the v1.2 set
-in [`v1.2/`](v1.2/). On each file
+on every file here: the v1 set at the top level, the v1.1 set in [`v1.1/`](v1.1/), the v1.2 set
+in [`v1.2/`](v1.2/) and the v1.3 set in [`v1.3/`](v1.3/). On each file
 it must agree on the canonical bytes of the signed body (`body_jcs_b64`), the
 certificate id, and the verdict (`valid`, and for an invalid certificate a substring of the error,
 `error`). `mutations/schema_invalid.json` holds signed certificates the schema rejects; every one
@@ -46,11 +46,29 @@ withheld as null) and the issuer version 0.4.0, its own `mutations/`, and the v1
 
 The v1.2 set is frozen with the spec: later changes add files and never change these.
 
+**v1.3.** [`v1.3/`](v1.3/) holds the v1.2 set again with `spec` `decision-certificate.v1.3` and
+the v1.3 fields: `automate_options` naming every option, so each `automated` block repeats its
+test's `coverage`, `ucb` and `realized_band`. Its own `mutations/`, and the v1.3 cases:
+
+- `valid_automated_subset`: approvals automated only (`automate_options` `["yes"]`), at the top
+  level, in a certified segment and in an inherited one;
+- `invalid_automate_options_unknown`, `_order`, `_repeated` and `_empty`: lists the checks of spec
+  v1.3 §2 refuse;
+- `invalid_automated_coverage_above_test`, `invalid_automated_ucb_null`,
+  `invalid_automated_ucb_under_crc` and `invalid_segment_automated_band`: `automated` blocks that
+  disagree with their test;
+- `invalid_missing_v1_3_field`, `invalid_segment_missing_automated` and
+  `invalid_v1_3_field_in_v1_2`: fields that belong to another spec;
+- `invalid_unknown_spec`: a certificate naming `decision-certificate.v1.4`.
+
+v1.3 is not frozen yet, so this set may still change until it is; `v1.2/invalid_unknown_spec.json`
+names v1.3 with v1.2's fields, and a v1.3 verifier refuses it with `spec is not` in its message.
+
 The v1 and v1.1 sets do not change. `v1.1/invalid_unknown_spec.json` names v1.2 with v1.1's fields;
 a v1.2 verifier still refuses it, because its fields are not v1.2's, and its message still contains
 `spec is not`.
 
 **Vendoring.** `FIXTURES.sha256` lists the SHA-256 of every v1 fixture file (`sha256sum -c` format);
-`v1.1/FIXTURES.sha256` and `v1.2/FIXTURES.sha256` do the same for their sets.
+`v1.1/FIXTURES.sha256`, `v1.2/FIXTURES.sha256` and `v1.3/FIXTURES.sha256` do the same for their sets.
 Consumers vendor this directory and `FIXTURES.sha256` together, record the upstream commit, and
 check their copy with `sha256sum -c FIXTURES.sha256`.

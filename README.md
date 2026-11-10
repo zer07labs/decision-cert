@@ -68,20 +68,23 @@ certificate and its expiry.
 
 | Path | What |
 |---|---|
-| [`spec/`](spec/) | [`decision-certificate.v1.2.md`](spec/decision-certificate.v1.2.md) (**frozen** 2026-11-08), [`decision-certificate.v1.1.md`](spec/decision-certificate.v1.1.md) (**frozen** 2026-11-08), [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (**frozen** 2026-10-25), and a JSON Schema for each |
+| [`spec/`](spec/) | [`decision-certificate.v1.3.md`](spec/decision-certificate.v1.3.md) (implemented, **not frozen**), [`decision-certificate.v1.2.md`](spec/decision-certificate.v1.2.md) (**frozen** 2026-11-08), [`decision-certificate.v1.1.md`](spec/decision-certificate.v1.1.md) (**frozen** 2026-11-08), [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (**frozen** 2026-10-25), and a JSON Schema for each |
 | [`rust/`](rust/) | the `decision-cert` crate: `verify`, `canonical`, `certificate_id`, `key_id`, segment thresholds, expiry, the v1.2 calibration maps (`probabilities`, `confidence`) and shift score |
 | [`python/`](python/) | a pure-Python verifier (`decision_cert`), a port of the crate that passes the same fixtures |
-| [`fixtures/`](fixtures/) | conformance fixtures: signed certificates with their canonical bytes, ids and expected verdicts, plus `mutations/schema_invalid.json`, schema-invalid certificates a verifier must reject; v1 at the top level, v1.1 in `fixtures/v1.1/`, v1.2 in `fixtures/v1.2/` |
+| [`fixtures/`](fixtures/) | conformance fixtures: signed certificates with their canonical bytes, ids and expected verdicts, plus `mutations/schema_invalid.json`, schema-invalid certificates a verifier must reject; v1 at the top level, v1.1 in `fixtures/v1.1/`, v1.2 in `fixtures/v1.2/`, v1.3 in `fixtures/v1.3/` |
 | [`docs/certificates.md`](docs/certificates.md) | how a certificate is issued, verified and applied |
 | [`docs/credit-approval.md`](docs/credit-approval.md) | a profile: one certificate per credit-approval deployment, with the label-free drift alarm and an audit sample for selective labels |
 | [`docs/model-risk.md`](docs/model-risk.md) | what a certificate gives a model validation (SR 11-7 headings), and what it does not |
 | [`plans/`](plans/) | the public roadmap |
 
-v1 and v1.1 are frozen, and verifiers accept them and v1.2. v1 and v1.1 have the same fields; v1.1
+v1, v1.1 and v1.2 are frozen, and verifiers accept them and v1.3. v1 and v1.1 have the same fields; v1.1
 changes one step of the issuing procedure (each test starts the threshold grid on its own cases) and
 clarifies the text. v1.2 keeps v1.1's procedure and adds fields under its own `spec` value: the
 confidence histogram for monitoring without labels. It also defines a second calibration map kind,
-`dr`, refitted on a few labels from a shifted population. A frozen spec's fields never change meaning, and
+`dr`, refitted on a few labels from a shifted population. v1.3, implemented but not yet frozen,
+adds to v1.2 the options a consumer decides automatically, with each test's answered share and
+error among them (descriptive: the bound still covers every answered case), and binds each case's
+`cannot_tell` value in `data_hash`. Issuers write v1.2 unless asked for v1.3. A frozen spec's fields never change meaning, and
 verifiers reject unknown fields. Corrections to frozen text go in [`spec/ERRATA.md`](spec/ERRATA.md), never in the text.
 
 From the command line, in Rust or Python (exit 0 verified and unexpired, 1 rejected or expired,

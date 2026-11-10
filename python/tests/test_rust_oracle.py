@@ -66,6 +66,7 @@ EDGE_VALUES: list[Any] = [
     "abstain",
     "decision-certificate.v1.1",
     "decision-certificate.v1.2",
+    "decision-certificate.v1.3",
     0.0,
     0.99,
     [0, 1],
@@ -82,6 +83,17 @@ EDGE_VALUES: list[Any] = [
     {"a": 1, "b0": 0, "b1": 0},
     {"a": 1, "b0": 0},
     -0.5,
+    ["yes"],
+    ["no"],
+    ["yes", "no"],
+    ["no", "yes"],
+    ["yes", "yes"],
+    ["maybe"],
+    "yes",
+    0.4116,
+    0.25,
+    {"coverage": 0.1, "ucb": None, "realized_band": None},
+    {"coverage": 0.1, "ucb": 0.05, "realized_band": {"level": 0.95, "low": 0.0, "high": 0.1}},
 ]
 
 PATHS = [
@@ -151,6 +163,31 @@ V12_PATHS = [
     "calibration_map.label_budget",
 ]
 
+V13_PATHS = [
+    "automate_options",
+    "automate_options.0",
+    "automate_options.1",
+    "automated",
+    "automated.coverage",
+    "automated.ucb",
+    "automated.realized_band",
+    "automated.realized_band.low",
+    "automated.extra",
+    "segments.0.automated",
+    "segments.0.automated.coverage",
+    "segments.0.automated.ucb",
+    "segments.0.automated.realized_band",
+    "segments.1.automated",
+    "segments.1.automated.ucb",
+    "segments.1.automated.realized_band",
+    "segments.0.coverage",
+    "segments.0.ucb",
+    "segments.1.coverage",
+    "coverage",
+    "ucb",
+    "method",
+]
+
 DR_PATHS = [
     "calibration_map.kind",
     "calibration_map.params",
@@ -200,6 +237,20 @@ def cases() -> list[tuple[str, str]]:
             add(f"v12-edit{i}-{path}", resign(c))
         except dc.Invalid:
             add(f"v12-unsigned{i}-{path}", c)
+    for i in range(300):
+        c = base(
+            rng.choice(["v1.3/valid_automated_subset", "v1.3/valid_segments_unicode", "v1.3/valid_crc_abstain_all"])
+        )
+        path = rng.choice(V13_PATHS + V12_PATHS[:6] + PATHS[:4])
+        value = rng.choice(EDGE_VALUES)
+        try:
+            c = set_path(c, path, value)
+        except (KeyError, IndexError, TypeError):
+            continue
+        try:
+            add(f"v13-edit{i}-{path}", resign(c))
+        except dc.Invalid:
+            add(f"v13-unsigned{i}-{path}", c)
     for i in range(200):
         c = base("v1.2/valid_dr_map")
         path = rng.choice([*DR_PATHS, "options", "options.0"])
