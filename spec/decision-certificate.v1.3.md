@@ -41,13 +41,14 @@ option with the largest calibrated probability; a tie goes to the earliest of th
   errors, at the test's own level `d` and at `level` 0.95. `ucb` is null for `crc`. Both are null
   for an inherited segment, which has no test of its own; its `coverage` is still reported.
 
-These numbers are **descriptive**, like v1.2 §1.2's. The threshold is chosen on all answered cases,
-so no bound at `alpha` is claimed for the automated subset: its error can be higher than the
-error of all answered cases when the errors sit in the automated option. The fields show it, and a
-deployment that needs a bound on the automated cases alone reads `automated.ucb` as a description
-of the selected threshold, never as §1's statement. Unless every option is automated, the subset
-has fewer cases than the test, so its band is usually wider (`docs/certificates.md`, "The
-arithmetic floor"), though a subset with fewer errors can have a narrower one.
+These numbers are **descriptive**, like v1.2 §1.2's. **`automated.ucb` is not a bound.** It is the
+Clopper–Pearson value at the subset's count of answers and errors, but the threshold was chosen on
+the whole test, not on the subset, so it carries no confidence statement, and it can exceed
+`alpha`. No bound at `alpha` is claimed for the automated subset: its error can be higher than the
+error of all answered cases when the errors sit in the automated option. The certified claim is §1's
+statement, about every answered case. The subset has at most as many cases as the test, so its band
+is usually as wide or wider (`docs/certificates.md`, "The arithmetic floor"), though a subset with
+fewer errors can have a narrower one.
 
 The top option is decided by the certificate's calibration map. An unscored case, or one the rule
 abstains on whatever the threshold, is never answered and so never automated.
@@ -70,6 +71,8 @@ v1.2's fields, with one change and three additions:
   is in [0, 1] when not null, `automated.realized_band` passes v1.2's band check when not null, and
   `automated.ucb` and `automated.realized_band` are null exactly where the test's `ucb` and
   `realized_band` are.
+- When `automate_options` names every option, each test's `automated` equals the test's own
+  `coverage`, `ucb` and `realized_band`: the automated cases are then the answered cases.
 
 A verifier cannot check that these numbers were computed from the cases. As with every other
 measured field, a re-run from the data does that (v1.2 §2).

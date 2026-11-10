@@ -390,7 +390,8 @@ def _check_fields_for_spec(c: Mapping[str, Any]) -> None:
 def _check_automated(c: Mapping[str, Any]) -> None:
     """v1.3's checks beyond the schema: `automate_options` names options of the certificate, once
     each and in their order; each test's `automated` share is at most its `coverage`, its numbers
-    are in range, and its `ucb` and `realized_band` are null exactly where the test's are."""
+    are in range, and its `ucb` and `realized_band` are null exactly where the test's are; with every
+    option automated, each `automated` block is its test's own numbers."""
     auto, opts = c["automate_options"], iter(c["options"])
     if not auto or not all(any(x == o for x in opts) for o in auto):
         raise Invalid("automate_options must name one or more of the options, once each and in their order")
@@ -411,6 +412,12 @@ def _check_automated(c: Mapping[str, Any]) -> None:
                 "automated must agree with its test: coverage at most the test's, and ucb and realized_band "
                 "null exactly where the test's are"
             )
+    if len(auto) == len(c["options"]):
+        for t in [c, *c["segments"]]:
+            if t["automated"] != {"coverage": t["coverage"], "ucb": t["ucb"], "realized_band": t["realized_band"]}:
+                raise Invalid(
+                    "automated must equal its test's coverage, ucb and realized_band when every option is automated"
+                )
 
 
 def _check_histograms(c: Mapping[str, Any]) -> None:

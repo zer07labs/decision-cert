@@ -34,6 +34,7 @@ import base64
 import datetime as dt
 import hashlib
 import json
+import math
 import os
 import sys
 from dataclasses import dataclass
@@ -640,6 +641,14 @@ def collect(
             raise CertError(
                 f"decision '{decision}': case {r['case_id']!r} has {len(p['raw_scores'])} scores "
                 f"for {len(options)} options"
+            )
+        ct_value = p.get("cannot_tell")
+        if ct_value is not None and (
+            isinstance(ct_value, bool) or not isinstance(ct_value, (int, float)) or not math.isfinite(ct_value)
+        ):
+            raise CertError(
+                f"decision '{decision}': case {r['case_id']!r} has cannot_tell {ct_value!r}; "
+                "it must be a number or null"
             )
         decided = r.get("decided_at")
         out.append(

@@ -846,3 +846,11 @@ def test_the_cli_takes_automate_options_with_v1_3_only(tmp_path: Path) -> None:
     ct.main([*args, "--spec", ct.SPEC_V1_3, "--out", str(out)])
     cert = json.loads(out.read_text())["approved"]["certificate"]
     assert cert["spec"] == ct.SPEC_V1_3 and cert["automate_options"] == ["yes"]
+
+
+@pytest.mark.parametrize("value", ["0.3", True, float("nan"), [0.1]])
+def test_a_cannot_tell_value_must_be_a_number_or_null(tmp_path: Path, value: Any) -> None:
+    preds, rows = cases(400)
+    preds[3]["cannot_tell"] = value
+    with pytest.raises(ct.CertError, match="must be a number or null"):
+        _issued(tmp_path, ct.SPEC_V1_2, preds, rows)
