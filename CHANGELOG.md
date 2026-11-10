@@ -5,6 +5,16 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 
 ## Unreleased
 
+- **Docs: how many labelled cases** (`docs/certificates.md`): the arithmetic floor of an `ltt` and
+  a `crc` test at `alpha` 0.05, 0.10 and 0.20 (`delta` 0.10), in labelled rows by coverage, with the
+  issuer's half split counted.
+- **Issuer: a label-budget warning.** `certify` warns when an `ltt` test has fewer threshold-split
+  cases than the fewest that can pass with no errors (`budget_notes`). It never changes the method.
+- **Docs: model validation** (`docs/model-risk.md`, new): certificate fields mapped to the headings
+  of a model validation, and what a certificate does not give.
+- **Docs: selective labels** (`docs/credit-approval.md`): an audit sample for credit, with the
+  label source, how the sample is drawn, its size, and v1.2's uniform-propensity limit.
+
 ## 0.4.0 — 2026-11-09 (tag `v0.4.0`)
 
 Spec v1.2: frozen, verified, issued. Verifiers accept v1, v1.1 and v1.2; v1 and v1.1 certificates

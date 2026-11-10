@@ -85,8 +85,61 @@ Spec v1.2 §5 applies in full. For credit approval in particular:
 - Nothing about any single applicant, or about applicants unlike the calibration cases (another
   lender, region, period or product).
 - The bound covers the population the labelled cases were sampled from. Where labels exist only for
-  approved applications, an audit sample of all applications is needed (spec §1.4); otherwise the
-  bound is about approved applications only.
+  approved applications, an audit sample of all applications is needed (spec §1.4, and
+  [below](#selective-labels-an-audit-sample)); otherwise the bound is about approved applications
+  only.
 - Nothing about fairness, legality or regulatory compliance, or the quality of the labels.
 - The drift alarm looks at confidences only. A quiet alarm does not show that the bound still
   holds; an alarm does not show that it has failed.
+
+## Selective labels: an audit sample
+
+In credit the label that matters often comes from the outcome (repaid or not), and an outcome
+exists only for applications that were approved. Certifying on approved applications alone measures
+the error on the population an earlier process chose, which is not the population the model decides.
+Spec §1.4 asks for an audit sample drawn from **all** applications instead.
+
+**What the label is.** The domain defines the correct decision for a case. Two sources work:
+
+- **A reviewer's decision.** Each audit case is decided in full by a person following the written
+  policy, blind to the model's answer. Every audited case gets a label, approved or not, so there is
+  no selection by the earlier process. The bound is then about agreement with that review.
+- **The outcome.** The label is derived from repayment over a fixed performance period. An
+  outcome exists only if the application was approved, so the audit has to approve its sample
+  whatever the earlier process would have done. That is a credit-policy decision with a cost, and the
+  deployment's, not this library's.
+
+**How the sample is drawn.**
+
+1. At decision time, for every application in the window, draw an independent coin with a fixed
+   probability `rate`, before the model's score or any earlier decision is seen. The draw must not
+   depend on the case.
+2. Label every case the coin selects, and log `rate` as the case's `propensity`. Every selected case
+   keeps its label in the data, including the ones that are slow, costly or unfavourable to label.
+   Under `--audit sample` the issuer skips a row without a label, and it cannot see a case left out
+   of the data, so dropping cases is a selection the bound does not cover and nothing flags it.
+3. With outcome labels, the window must end at least one full performance period before the
+   certificate is issued, so that every selected case has an outcome. Early outcomes only would bias
+   the sample towards early defaults. `expires_at` counts from the window's end (`window.end` +
+   `ttl_days`), so `ttl_days` must cover the performance period as well as the time the certificate
+   is meant to be used; with a 12-month period, the profile's `ttl_days: 90` expires it before it is
+   issued.
+4. Issue with `--audit sample`. The certificate records `audit.mode: sample`, `rate`, `n` and
+   `propensity_logged: true`.
+
+**How large.** The audit needs the labelled rows of the [small-n table](certificates.md#how-many-labelled-cases)
+for the `alpha` and the coverage expected, and in practice twice the simulation `n_cal` above it
+(those sizes count the threshold split only). So `rate`
+≈ rows needed / applications in the window. For example, 2,000 labelled rows from a window of
+100,000 applications is a `rate` of 0.02. Each certified segment needs its own cases, so a
+segment with a small share of applications sets the rate: a product with 5% of applications and a
+floor of 1,000 threshold-split cases needs about 2,000 of its rows labelled, which is a `rate` of 0.4
+from a window of 100,000, so about 40,000 labelled rows in all at one uniform rate.
+
+**What v1.2 does not support.** v1.2 certifies **uniform** audit samples only: every case's
+propensity must be the same, and the issuer refuses differing propensities. A design that samples
+declined applications more heavily, or one rate per segment, needs bounds weighted by inverse
+propensity, which are not exact binomial tests and are not in v1.2. Such a design is an open
+question for a later spec. Until then, use one rate for the window and raise it until the smallest
+certified segment has its cases.
+
