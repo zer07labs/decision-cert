@@ -122,6 +122,40 @@ so the label budget is twice `n_cal`. They are guidance only:
 With fewer cases, `crc` gives a weaker claim (an average, §1), or a larger `alpha` may be the honest
 choice.
 
+**The arithmetic floor.** Below these counts a test cannot pass whatever the model, because the
+exact binomial p-value (spec §1.1 step 5) cannot reach the test level. With `delta` 0.10 and no
+certified segments:
+
+- an `ltt` test needs `m` = ⌈ln `delta` / ln(1 − `alpha`)⌉ answered threshold-split cases with
+  **no** errors: 45 at `alpha` 0.05, 22 at 0.10 and 11 at 0.20;
+- the threshold split is the larger half of the labelled cases (`n_cal` = ⌈rows / 2⌉), so the
+  labelled rows needed are 2 · ⌈`m` / coverage⌉ − 1 when the test answers a share `coverage` of its
+  cases.
+
+| `ltt`, `delta` 0.10 | answered, no errors | rows at coverage 100% | 75% | 50% | 25% |
+|---|---|---|---|---|---|
+| `alpha` 0.05 | 45 | 89 | 119 | 179 | 359 |
+| `alpha` 0.10 | 22 | 43 | 59 | 87 | 175 |
+| `alpha` 0.20 | 11 | 21 | 29 | 43 | 87 |
+| `alpha` 0.05, errors at half `alpha` | 184 | 367 | 491 | 735 | 1,471 |
+| `alpha` 0.10, errors at half `alpha` | 91 | 181 | 243 | 363 | 727 |
+| `alpha` 0.20, errors at half `alpha` | 38 | 75 | 101 | 151 | 303 |
+
+"Errors at half `alpha`" counts answered cases whose error rate is half of `alpha`, with the errors
+at their expected number (rounded): the smallest count from which every larger count passes. Real
+error counts vary from draw to draw, which is why the simulation table above, which asks for
+certifying in 90% of draws, needs several times more. Each certified segment is a test of its own at
+the level `delta` / (1 + k): with no errors it needs 59 answered cases at `alpha` 0.05 for k = 1
+(72 for k = 3), 29 (36) at 0.10 and 14 (17) at 0.20.
+
+A `crc` test passes with no errors at `n_cal` ≥ 1/`alpha` − 1 (19, 9 and 4, so 37, 17 and 7 rows),
+whatever the coverage; this is the issuer's refusal floor. It bounds the average joint error, not the
+error of the answered cases (§1): at coverage 25% and `alpha` 0.10 it allows 40% error among them.
+
+The issuer warns when an `ltt` test has fewer threshold-split cases than its `m`: such a test
+abstains on everything. It never changes the method for you; `--method crc` is a separate claim to
+choose explicitly.
+
 ### Segments and a changing mix
 
 Declare as a segment any case field whose shares may change in use and whose groups may differ in

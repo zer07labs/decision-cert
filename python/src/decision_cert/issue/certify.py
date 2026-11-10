@@ -658,6 +658,28 @@ def issue(
     return cal, diags
 
 
+def budget_notes(cert: dict[str, Any]) -> list[str]:
+    """The label-budget check: for an `ltt` certificate, one note per test (the top level, each
+    certified segment) whose threshold-split cases are fewer than the fewest answered cases that can
+    pass at its level with no errors (`stats.n_min`). Such a test abstains on everything whatever the
+    model. A note never changes the method: `crc` makes a weaker claim and is the issuer's choice."""
+    if cert["method"] != "ltt":
+        return []
+    certified = [s for s in cert["segments"] if not s["inherited"]]
+    alpha, d = cert["alpha"], cert["delta"] / (1 + len(certified))
+    need = cs.n_min(alpha, d)
+    tests = [("top-level test", cert["n"])] + [(f"segment {s['value']!r}", s["n"]) for s in certified]
+    return [
+        f"{cert['decision']}: the {where} has {n} threshold-split cases, and ltt at alpha {alpha:g} "
+        f"(test level {d:.3g}) needs at least {need} answered cases with no errors, so it abstains on "
+        f"everything. The threshold split is half the labelled cases: give the test at least "
+        f"{2 * need - 1} labelled cases (more when it answers fewer than all of them or makes errors), "
+        "or choose a larger alpha; --method crc makes a weaker claim (an average), and is not chosen for you"
+        for where, n in tests
+        if n < need
+    ]
+
+
 def per_case_rows(diags: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
     """Pop the per-case diagnostics (case ids, confidences) out of `diags`, leaving only aggregates."""
     return [{"decision": dec, **c} for dec, d in diags.items() for c in d.pop("_cases")]
@@ -823,6 +845,8 @@ def main(argv: list[str] | None = None) -> None:
     report.write_text(json.dumps({"backend": a.backend, "decisions": diags}, indent=2) + "\n")
     for dec, c in cal.items():
         cert = c["certificate"]
+        for note in budget_notes(cert):
+            print(f"warning: {note}", file=sys.stderr)
         if ct_expired(cert):
             print(
                 f"warning: {dec}: certificate already expired at {cert['expires_at']} (window end + ttl_days); "

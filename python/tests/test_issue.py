@@ -190,6 +190,25 @@ def test_unscored_cases_count_as_abstentions(tmp_path: Path) -> None:
     assert diag["answered"] <= entry["certificate"]["n"] - sum(1 for c in diag["_cases"] if c["confidence"] < 0)
 
 
+def test_the_small_n_arithmetic_holds_in_the_issuer(tmp_path: Path) -> None:
+    """docs/certificates.md: at alpha 0.10, delta 0.10, ltt needs 22 answered threshold-split cases
+    with no errors, so 43 labelled rows (the threshold split is the larger half); 41 rows cannot pass."""
+    assert cs.n_min(0.10, 0.10) == 22 and cs.n_min(0.05, 0.10) == 45 and cs.n_min(0.20, 0.10) == 11
+    for n, passes in ((43, True), (41, False)):
+        preds, rows = cases(n)
+        for p, r in zip(preds, rows, strict=True):  # a model that is always right, and sure of it
+            truth = OPTIONS.index(r["labels"]["approved"])
+            p["raw_scores"] = [8.0, -8.0] if truth == 0 else [-8.0, 8.0]
+        cert = ct.issue(preds, rows, domain(tmp_path), "toy", KEY, now=NOW, alpha=0.1, audit="full-label")[0]
+        c = cert["approved"]["certificate"]
+        assert (c["abstain_below"] <= 1.0) is passes, n
+        assert bool(ct.budget_notes(c)) is not passes
+    assert "needs at least 22 answered cases" in ct.budget_notes(c)[0]
+    assert "--method crc" in ct.budget_notes(c)[0]
+    crc = ct.issue(preds, rows, domain(tmp_path), "toy", KEY, now=NOW, alpha=0.1, method="crc", audit="full-label")
+    assert ct.budget_notes(crc[0]["approved"]["certificate"]) == []
+
+
 def test_too_few_cases_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ct.TooFewCases, match="n_cal 9 < 1/alpha - 1 = 19"):
         issue(tmp_path, n=18)
