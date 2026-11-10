@@ -311,6 +311,18 @@ def fixtures(spec: str = ct.SPEC_V1) -> dict[str, dict[str, Any]]:
             False,
             "automated must agree",
         )
+        no_band = base()
+        no_band["automated"]["realized_band"] = None  # the schema allows null; the top-level test has a band
+        out["invalid_automated_band_null"] = (ct.sign(no_band, KEY), keys(KEY), False, "automated must agree")
+        segment_edits: dict[str, tuple[int, str, Any]] = {
+            "invalid_segment_automated_ucb_null": (0, "ucb", None),  # a certified segment has a ucb
+            "invalid_segment_automated_coverage_above_test": (0, "coverage", 0.26),  # its test answers 0.25
+            "invalid_segment_automated_ucb_inherited": (1, "ucb", 0.04),  # an inherited segment has none
+        }
+        for name, (i, field, value) in segment_edits.items():
+            cert = segmented()
+            cert["segments"][i]["automated"][field] = value
+            out[name] = (ct.sign(cert, KEY), keys(KEY, OTHER), False, "automated must agree")
 
         no_auto = base()
         del no_auto["automated"]  # a v1.3 certificate without a v1.3 field

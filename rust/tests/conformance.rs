@@ -55,7 +55,7 @@ fn rust_and_python_agree_on_every_v1_2_fixture() {
 
 #[test]
 fn rust_and_python_agree_on_every_v1_3_fixture() {
-    let set = fixtures("v1.3", 37);
+    let set = fixtures("v1.3", 41);
     assert!(set.iter().any(|(_, f)| f["valid"].as_bool().unwrap()
         && f["certificate"]["spec"] == "decision-certificate.v1.3"
         && f["certificate"]["automate_options"] == serde_json::json!(["yes"])));

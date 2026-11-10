@@ -55,7 +55,9 @@ test's `coverage`, `ucb` and `realized_band`. Its own `mutations/`, and the v1.3
 - `invalid_automate_options_unknown`, `_order`, `_repeated` and `_empty`: lists the checks of spec
   v1.3 §2 refuse;
 - `invalid_automated_coverage_above_test`, `invalid_automated_ucb_null`,
-  `invalid_automated_ucb_under_crc` and `invalid_segment_automated_band`: `automated` blocks that
+  `invalid_automated_ucb_under_crc`, `invalid_automated_band_null`, `invalid_segment_automated_band`,
+  `invalid_segment_automated_ucb_null`, `invalid_segment_automated_coverage_above_test` and
+  `invalid_segment_automated_ucb_inherited`: `automated` blocks that
   disagree with their test;
 - `invalid_missing_v1_3_field`, `invalid_segment_missing_automated` and
   `invalid_v1_3_field_in_v1_2`: fields that belong to another spec;

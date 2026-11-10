@@ -787,7 +787,7 @@ def test_v1_3_reports_the_automated_options_only(tmp_path: Path) -> None:
     """v1.3 (P1): with approvals automated only, each test also reports the answered cases whose
     answer is "yes": their share, and their error at the test's own level."""
     preds, rows = cases(4000)
-    out = _issued(tmp_path, ct.SPEC_V1_3, preds, rows, automate_options=["yes"])
+    out = _issued(tmp_path, ct.SPEC_V1_3, preds, rows, automate_options={"approved": ["yes"]})
     c, d = out["cert"], out["diags"]
     a = c["automated"]
     assert c["automate_options"] == ["yes"]
@@ -800,7 +800,7 @@ def test_v1_3_reports_the_automated_options_only(tmp_path: Path) -> None:
     v = dc.verify(c, {ct.key_id(KEY.public_key()): ct.b64url(ct.raw_public(KEY.public_key()))})
     assert v.automate_options() == ("yes",) and v.automated_for(None) == a
     # crc has no ucb, so neither has its automated block.
-    crc = _issued(tmp_path, ct.SPEC_V1_3, preds, rows, automate_options=["yes"], method="crc")["cert"]
+    crc = _issued(tmp_path, ct.SPEC_V1_3, preds, rows, automate_options={"approved": ["yes"]}, method="crc")["cert"]
     assert crc["automated"]["ucb"] is None and crc["automated"]["realized_band"] is not None
 
 
@@ -818,7 +818,18 @@ def test_automate_options_are_refused_unless_v1_3_options(
 ) -> None:
     preds, rows = cases(400)
     with pytest.raises(ct.CertError, match=match):
-        _issued(tmp_path, spec, preds, rows, automate_options=auto)
+        _issued(tmp_path, spec, preds, rows, automate_options={"approved": auto})
+
+
+def test_automate_options_name_decisions_with_predictions(tmp_path: Path) -> None:
+    preds, rows = cases(400)
+    with pytest.raises(ct.CertError, match=r"names decisions with no predictions: \['other'\]"):
+        _issued(tmp_path, ct.SPEC_V1_3, preds, rows, automate_options={"approved": ["yes"], "other": ["x"]})
+    # A decision not named keeps every option automated.
+    assert _issued(tmp_path, ct.SPEC_V1_3, preds, rows, automate_options={})["cert"]["automate_options"] == [
+        "yes",
+        "no",
+    ]
 
 
 def test_the_cli_takes_automate_options_with_v1_3_only(tmp_path: Path) -> None:
@@ -828,7 +839,7 @@ def test_the_cli_takes_automate_options_with_v1_3_only(tmp_path: Path) -> None:
     ct.keygen(tmp_path / "op.pem")
     args = ["certify", "--predictions", str(tmp_path / "p.jsonl"), "--data", str(tmp_path / "r.jsonl"),
             "--domain-dir", str(domain(tmp_path)), "--backend", "toy", "--key", str(tmp_path / "op.pem"),
-            "--audit", "full-label", "--automate-options", "yes"]  # fmt: skip
+            "--audit", "full-label", "--automate-options", "approved=yes"]  # fmt: skip
     with pytest.raises(SystemExit):
         ct.main(args)
     out = tmp_path / "cal.json"

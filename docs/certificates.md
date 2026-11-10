@@ -97,7 +97,8 @@ What an issuer writes, and what it refuses:
   writes the same test without the confidence histogram, for consumers that do not read v1.2 yet;
   `--spec decision-certificate.v1` issues by the v1 procedure, to reproduce an earlier certificate.
   `--spec decision-certificate.v1.3` ([spec](../spec/decision-certificate.v1.3.md), implemented,
-  not frozen) adds, with `--automate-options yes` (default every option), each test's answered
+  not frozen) adds, with `--automate-options approved=yes` (once per decision, default every
+  option), each test's answered
   share and error among the cases whose answer is an automated option. Those numbers are
   descriptive, and the bound still covers every answered case. v1.3's `data_hash` also binds each
   case's `cannot_tell` value.

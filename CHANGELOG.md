@@ -9,11 +9,11 @@ not yet frozen) is versioned separately; this log covers the crate, the verifier
   verifiers accept `decision-certificate.v1.3`, and the issuer writes it with `--spec
   decision-certificate.v1.3`; the default stays v1.2.
   - **C1:** `data_hash` also binds each case's `cannot_tell` value.
-  - **P1:** `automate_options` (`--automate-options`, default every option) and, for each test,
+  - **P1:** `automate_options` (`--automate-options DECISION=OPTION[,OPTION]`, default every option) and, for each test,
     `automated`: the answered share and the error among the cases whose top option is automated.
     These numbers are descriptive; the bound at `alpha` still covers every answered case.
   - Readers: `automate_options()` and `automated_for(segment)`. A new fixture set,
-    `fixtures/v1.3/` (37 files and its mutations).
+    `fixtures/v1.3/` (41 files and its mutations).
   - v1, v1.1 and v1.2 certificates, fixtures and verdicts are byte-identical. F1, R1, K1, U1, S1
     and M1 stay draft.
 

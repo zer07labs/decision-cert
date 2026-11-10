@@ -7,9 +7,9 @@ without the confidence histogram, and `spec="decision-certificate.v1"` issues by
         --domain-dir <domain> --backend <name> --key operator.pem [--audit sample|full-label] [--in-environment]
     python -m decision_cert.issue verify --calibration <domain>/calibration/<backend>.json --keys keys.json
 
-`--spec decision-certificate.v1.3` adds the automated options (`--automate-options yes`, default every
-option) and, per test, the share and error of the answered cases whose answer is one of them; its
-`data_hash` also covers each case's `cannot_tell` value (spec v1.3).
+`--spec decision-certificate.v1.3` adds the automated options (`--automate-options approved=yes`,
+once per decision, default every option) and, per test, the share and error of the answered cases
+whose answer is one of them; its `data_hash` also covers each case's `cannot_tell` value (spec v1.3).
 
 `--map dr --recal-data recal.jsonl --prior prior.json` (v1.2 or later) fits a `dr` calibration map on a
 recalibration set of labelled target cases, disjoint from the calibration cases, instead of the
@@ -673,11 +673,12 @@ def issue(
     spec: str = SPEC,
     recal_rows: list[dict[str, Any]] | None = None,
     prior: rc.Prior | None = None,
-    automate_options: list[str] | None = None,
+    automate_options: dict[str, list[str]] | None = None,
 ) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
     """(calibration file contents, aggregate diagnostics per decision). `spec` picks what is written:
-    v1.2 by default, v1.3 (v1.2 plus the automated options in `automate_options`, default every
-    option, and `cannot_tell` in `data_hash`), v1.1 (the same procedure, no confidence histogram), or v1
+    v1.2 by default, v1.3 (v1.2 plus the automated options in `automate_options`, keyed by decision
+    id, default every option, and `cannot_tell` in `data_hash`), v1.1 (the same procedure, no
+    confidence histogram), or v1
     (`decision-certificate.v1`) to reproduce a v1 certificate. With `recal_rows` and `prior` (v1.2),
     each decision's map is `dr`, fitted on those rows' labelled cases (`certify_decision`); `preds`
     covers them too."""
@@ -693,6 +694,8 @@ def issue(
     wanted = sorted({p["decision"] for p in preds})
     if unknown := [d for d in wanted if d not in {x.id for x in dom.decisions}]:
         raise CertError(f"predictions are for decisions the domain doesn't have: {unknown}")
+    if automate_options and (stray := sorted(set(automate_options) - set(wanted))):
+        raise CertError(f"automate_options names decisions with no predictions: {stray}")
     cal, diags = {}, {}
     for dec_id in wanted:
         options = dom.decision(dec_id).option_ids()
@@ -717,7 +720,7 @@ def issue(
             spec=spec,
             recal=recal,
             prior=prior,
-            automate_options=automate_options,
+            automate_options=None if automate_options is None else automate_options.get(dec_id),
         )
         signed = sign(cert, key)
         jsonschema.validate(signed, schema(spec))
@@ -890,13 +893,24 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--prior", type=Path, help="--map dr: the prior {mu_a, sigma_a, sigma_b}")
     ap.add_argument(
         "--automate-options",
-        help=f"comma-separated options the consumer decides automatically ({SPEC_V1_3}; default every option)",
+        action="append",
+        metavar="DECISION=OPTION[,OPTION]",
+        help=f"the options the consumer decides automatically for one decision ({SPEC_V1_3}; repeat per "
+        "decision; default every option)",
     )
     a = ap.parse_args(argv)
     if a.map == "dr" and (a.recal_data is None or a.prior is None or a.spec not in (SPEC_V1_2, SPEC_V1_3)):
         ap.error(f"--map dr needs --recal-data, --prior and --spec {SPEC_V1_2} or {SPEC_V1_3}")
     if a.automate_options is not None and a.spec != SPEC_V1_3:
         ap.error(f"--automate-options needs --spec {SPEC_V1_3}")
+    automate: dict[str, list[str]] | None = None
+    if a.automate_options is not None:
+        automate = {}
+        for item in a.automate_options:
+            dec, sep, opts = item.partition("=")
+            if not sep or not dec or dec in automate:
+                ap.error("--automate-options takes DECISION=OPTION[,OPTION], once per decision")
+            automate[dec] = opts.split(",") if opts else []
     if a.map != "dr" and (a.recal_data is not None or a.prior is not None):
         ap.error("--recal-data and --prior go with --map dr")
 
@@ -916,7 +930,7 @@ def main(argv: list[str] | None = None) -> None:
             spec=a.spec,
             recal_rows=sp.read_cases(a.recal_data) if a.recal_data else None,
             prior=load_prior(a.prior) if a.prior else None,
-            automate_options=a.automate_options.split(",") if a.automate_options is not None else None,
+            automate_options=automate,
         )
     except TooFewCases as e:
         print(f"{PROG} certify: {e}", file=sys.stderr)

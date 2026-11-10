@@ -13,7 +13,7 @@ import pytest
 import decision_cert as dc
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
-SETS = {"": 14, "v1.1": 9, "v1.2": 25, "v1.3": 37}  # each fixture set, and how many fixtures it has at least
+SETS = {"": 14, "v1.1": 9, "v1.2": 25, "v1.3": 41}  # each fixture set, and how many fixtures it has at least
 
 
 def fixtures() -> list[tuple[str, Any]]:

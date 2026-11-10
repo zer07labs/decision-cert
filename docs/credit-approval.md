@@ -86,7 +86,7 @@ error of all answered cases. A v1.3 certificate
 ([spec](../spec/decision-certificate.v1.3.md), implemented, not frozen) states both:
 
 ```bash
-python -m decision_cert.issue certify ... --spec decision-certificate.v1.3 --automate-options yes
+python -m decision_cert.issue certify ... --spec decision-certificate.v1.3 --automate-options approved=yes
 ```
 
 ```python
@@ -95,7 +95,7 @@ auto = v.automated_for(case_product)      # coverage, ucb, realized_band of the 
 ```
 
 The bound at `alpha` still covers every answered case. `automated` describes the approvals at the
-chosen threshold (descriptive, spec v1.3 §1.6) with a wider band, as it has fewer cases. Compare a
+chosen threshold (descriptive, spec v1.3 §1.6); measured on fewer cases, its band is usually wider. Compare a
 window's approval share with `automated.coverage` as well as its answered share with `coverage`.
 
 ## What this does not claim

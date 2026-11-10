@@ -31,8 +31,9 @@ the claim of §1 covers **every** answered case of a test, whatever option the a
 A consumer may decide only some options automatically, for example approvals, and send every other
 answer to a person as well as every abstention. `automate_options` names those options. For each
 test (the top level and each segment), with its chosen threshold, `automated` reports the test's
-cases that are answered **and** whose top option (the option with the largest calibrated
-probability) is in `automate_options`:
+cases that are answered **and** whose top option is in `automate_options`. The top option is the
+option with the largest calibrated probability; a tie goes to the earliest of the tied options in
+`options`, and a consumer breaks ties the same way:
 
 - `coverage`: their number divided by the test's `n`. It is at most the test's `coverage`, and equal
   to it when every option is automated.
@@ -44,8 +45,9 @@ These numbers are **descriptive**, like v1.2 §1.2's. The threshold is chosen on
 so no bound at `alpha` is claimed for the automated subset: its error can be higher than the
 error of all answered cases when the errors sit in the automated option. The fields show it, and a
 deployment that needs a bound on the automated cases alone reads `automated.ucb` as a description
-of the selected threshold, never as §1's statement. The subset has fewer cases than the test, so its
-band is wider (`docs/certificates.md`, "The arithmetic floor").
+of the selected threshold, never as §1's statement. Unless every option is automated, the subset
+has fewer cases than the test, so its band is usually wider (`docs/certificates.md`, "The
+arithmetic floor"), though a subset with fewer errors can have a narrower one.
 
 The top option is decided by the certificate's calibration map. An unscored case, or one the rule
 abstains on whatever the threshold, is never answered and so never automated.
@@ -56,7 +58,7 @@ v1.2's fields, with one change and three additions:
 
 | Field | Type | Meaning |
 |---|---|---|
-| `data_hash` | string | As v1.2, but each entry has a seventh member: `[case_id, label_index, raw_scores \| null, decided_at \| null, segment \| null, propensity \| null, cannot_tell \| null]`. `cannot_tell` is the case's value as the rule reads it (v1.2 §1), null when the case has none. (C1) |
+| `data_hash` | string | As v1.2, but each entry has a seventh member: `[case_id, label_index, raw_scores \| null, decided_at \| null, segment \| null, propensity \| null, cannot_tell \| null]`. `cannot_tell` is the case's `cannot_tell` value from its prediction (the value the rule of v1.2 §1 compares with `rule.cannot_tell_above`), null when the prediction has none; it is hashed even when `cannot_tell_above` is null. (C1) |
 | `automate_options` | string[] | The options the consumer decides automatically: one or more of `options`, each once, in the order of `options`. (P1) |
 | `automated` | `{coverage, ucb, realized_band}` | §1.6 for the remainder's test (the top-level fields). `ucb` is a number or null, `realized_band` a v1.2 band or null. |
 | `segments[].automated` | `{coverage, ucb, realized_band}` | §1.6 for the segment's test. |
