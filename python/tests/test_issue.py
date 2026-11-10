@@ -264,6 +264,55 @@ def test_a_uniform_audit_sample_is_certified_with_its_rate(tmp_path: Path) -> No
         ct.issue(preds, rows, domain(tmp_path), "toy-backend", KEY, now=NOW)
 
 
+def test_unlabelled_rows_are_counted_under_an_audit_sample(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    preds, rows = cases(2000)
+    for r in rows:
+        r["propensity"] = 0.05
+    cal, diags = ct.issue(preds, rows, domain(tmp_path), "toy-backend", KEY, now=NOW)
+    assert diags["approved"]["n_skipped_unlabelled"] == 0
+    # Rows the audit did not select: no label, no propensity. Skipped, counted, certificate unchanged.
+    extra = [{"case_id": f"x{i}", "case": {}, "labels": {}} for i in range(7)]
+    cal2, diags2 = ct.issue(preds, rows + extra, domain(tmp_path), "toy-backend", KEY, now=NOW)
+    assert diags2["approved"]["n_skipped_unlabelled"] == 7
+    assert cal2["approved"]["certificate"] == cal["approved"]["certificate"]
+    # On the command line: in certify.json and on stderr.
+    (tmp_path / "p.jsonl").write_text("".join(json.dumps(p) + "\n" for p in preds))
+    (tmp_path / "r.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows + extra))
+    ct.keygen(tmp_path / "op.pem")
+    out = tmp_path / "cal.json"
+    ct.main(["certify", "--predictions", str(tmp_path / "p.jsonl"), "--data", str(tmp_path / "r.jsonl"),
+             "--domain-dir", str(domain(tmp_path)), "--backend", "toy", "--key", str(tmp_path / "op.pem"),
+             "--out", str(out)])  # fmt: skip
+    report = json.loads(out.with_suffix(".certify.json").read_text())
+    assert report["decisions"]["approved"]["n_skipped_unlabelled"] == 7
+    assert "skipped 7 rows without a label" in capsys.readouterr().err
+
+
+def test_a_selected_row_without_a_label_is_refused(tmp_path: Path) -> None:
+    preds, rows = cases(2000)
+    for r in rows:
+        r["propensity"] = 0.05
+    for r in rows[:3]:
+        del r["labels"]["approved"]  # selected by the audit (it logs a propensity), never labelled
+    with pytest.raises(ct.CertError, match="3 rows carry an audit propensity but have no label"):
+        ct.issue(preds, rows, domain(tmp_path), "toy-backend", KEY, now=NOW)
+
+
+def test_the_issuer_regenerates_every_fixture_byte_identical() -> None:
+    """Every positive fixture, mutation file and manifest the reference issuer writes, under every
+    spec, matches the committed bytes (as `tools/gen_positive_fixtures.py --check` does in CI)."""
+    import importlib.util
+
+    path = Path(__file__).resolve().parents[1] / "tools" / "gen_positive_fixtures.py"
+    spec = importlib.util.spec_from_file_location("gen_positive_fixtures", path)
+    assert spec is not None and spec.loader is not None
+    gen = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gen)
+    files = gen.rendered()
+    assert len(files) > 40
+    assert [p for p, text in files.items() if p.read_text(encoding="utf-8") != text] == []
+
+
 def test_segment_values_must_be_quoted_strings(tmp_path: Path) -> None:
     d = domain(tmp_path)
     (d / "domain.yaml").write_text(
