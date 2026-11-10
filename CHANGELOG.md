@@ -5,8 +5,10 @@ separately and is frozen; this log covers the crate, the verifiers, the fixtures
 
 ## Unreleased
 
-- **Issuer: unlabelled rows under `--audit sample`** (#37). A row that logs a propensity but has
-  no label for the decision is refused, with the count; other rows without a label are skipped,
+- **Issuer: unlabelled rows under `--audit sample`** (#37). **Behaviour change:** a row scored for
+  the decision that logs a propensity above 0 (the audit selected it) but has no label is refused,
+  with the count, so inputs that log the rate on every row of the window, selected or not, now
+  refuse: log it only on selected rows. Other scored rows without a label are skipped as before, now
   counted in the diagnostics (`n_skipped_unlabelled`) and reported on stderr. Certificates and
   fixtures are unchanged.
 

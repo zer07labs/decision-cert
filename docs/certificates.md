@@ -85,11 +85,12 @@ What an issuer writes, and what it refuses:
   - `sample` (live data): the labelled rows must be an audit sample, every row logging the same
     propensity > 0.
   - `full-label` (public sets): every row in the window must be labelled.
-- **Refusals.** An issuer refuses when the threshold split has fewer than 1/`alpha` − 1 cases, and
-  on a missing label or prediction, mismatched options, or an unknown model version. Under
-  `--audit sample`, a row with no label for the decision is skipped unless it logs a propensity (the
-  audit selected it), which is refused; the diagnostics report the skipped rows as
-  `n_skipped_unlabelled`, and `certify` warns about them.
+- **Refusals.** An issuer refuses when the threshold split has fewer than 1/`alpha` − 1 cases; on a
+  missing label (any row under `full-label`; under `sample`, a row the audit selected, one that logs a
+  propensity above 0); on a labelled case with no prediction, mismatched options, or an unknown model
+  version. Log `propensity` only on the rows the audit selected. Under `sample`, the other rows scored
+  for the decision without a label are skipped, counted in the diagnostics as
+  `n_skipped_unlabelled`, and reported by `certify`.
 - **Threshold.** When no threshold passes, the certificate says so: `abstain_below: 1.01`, which
   abstains on every case.
 - **Spec.** The reference issuer writes `decision-certificate.v1.2`. `--spec decision-certificate.v1.1`

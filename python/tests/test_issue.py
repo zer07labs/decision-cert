@@ -272,6 +272,7 @@ def test_unlabelled_rows_are_counted_under_an_audit_sample(tmp_path: Path, capsy
     assert diags["approved"]["n_skipped_unlabelled"] == 0
     # Rows the audit did not select: no label, no propensity. Skipped, counted, certificate unchanged.
     extra = [{"case_id": f"x{i}", "case": {}, "labels": {}} for i in range(7)]
+    preds = preds + [{**preds[0], "case_id": r["case_id"]} for r in extra]  # scored, never labelled
     cal2, diags2 = ct.issue(preds, rows + extra, domain(tmp_path), "toy-backend", KEY, now=NOW)
     assert diags2["approved"]["n_skipped_unlabelled"] == 7
     assert cal2["approved"]["certificate"] == cal["approved"]["certificate"]
@@ -285,7 +286,7 @@ def test_unlabelled_rows_are_counted_under_an_audit_sample(tmp_path: Path, capsy
              "--out", str(out)])  # fmt: skip
     report = json.loads(out.with_suffix(".certify.json").read_text())
     assert report["decisions"]["approved"]["n_skipped_unlabelled"] == 7
-    assert "skipped 7 rows without a label" in capsys.readouterr().err
+    assert "skipped 7 row(s) in --data scored for this decision without a label" in capsys.readouterr().err
 
 
 def test_a_selected_row_without_a_label_is_refused(tmp_path: Path) -> None:
@@ -294,23 +295,46 @@ def test_a_selected_row_without_a_label_is_refused(tmp_path: Path) -> None:
         r["propensity"] = 0.05
     for r in rows[:3]:
         del r["labels"]["approved"]  # selected by the audit (it logs a propensity), never labelled
-    with pytest.raises(ct.CertError, match="3 rows carry an audit propensity but have no label"):
+    with pytest.raises(ct.CertError, match=r"3 row\(s\) the audit selected \(propensity above 0\) have no label"):
         ct.issue(preds, rows, domain(tmp_path), "toy-backend", KEY, now=NOW)
 
 
-def test_the_issuer_regenerates_every_fixture_byte_identical() -> None:
-    """Every positive fixture, mutation file and manifest the reference issuer writes, under every
-    spec, matches the committed bytes (as `tools/gen_positive_fixtures.py --check` does in CI)."""
-    import importlib.util
+# Certificate ids of the issuer on `main` before #37, for the same inputs: signing is deterministic,
+# so the count and refusal of unlabelled rows leave every certificate byte-identical.
+BEFORE_37 = {
+    (ct.SPEC_V1, "full-label"): "sha256:30c6bb26c81cb9cff7e18420a959a9a98c887b4370a8c6c2235b1ec734f3ffec",
+    (ct.SPEC_V1, "sample"): "sha256:8f6ec0e5dfaadc7df89b75af2e0ca994ed4e1cb077c2fc5f20bde44b57d21b31",
+    (ct.SPEC_V1_1, "full-label"): "sha256:e3596bf884e4b0365737d0df3f8ad5af927f6eb2ffd149870e9506c796327478",
+    (ct.SPEC_V1_1, "sample"): "sha256:4db25acc7a07b88aa9d3de48096f2db498f795eecb535a4706029d29b902d925",
+    (ct.SPEC_V1_2, "full-label"): "sha256:75ef442de900ba74174df4f75de90593abe50d6c54cdf31b42faac50c92d1e08",
+    (ct.SPEC_V1_2, "sample"): "sha256:dcc293792557a57a566d8406136d0348fdd2408c6b8b1879fadc2539b0272f46",
+}
 
-    path = Path(__file__).resolve().parents[1] / "tools" / "gen_positive_fixtures.py"
-    spec = importlib.util.spec_from_file_location("gen_positive_fixtures", path)
-    assert spec is not None and spec.loader is not None
-    gen = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(gen)
-    files = gen.rendered()
-    assert len(files) > 40
-    assert [p for p, text in files.items() if p.read_text(encoding="utf-8") != text] == []
+
+@pytest.mark.parametrize(("spec", "audit"), sorted(BEFORE_37))
+def test_issued_certificates_are_byte_identical_to_before(tmp_path: Path, spec: str, audit: str) -> None:
+    preds, rows = cases(2000)
+    if audit == "sample":
+        for r in rows:
+            r["propensity"] = 0.05
+    _, diags = ct.issue(preds, rows, domain(tmp_path), "toy-backend", KEY, now=NOW, audit=audit, spec=spec)
+    assert diags["approved"]["certificate_id"] == BEFORE_37[(spec, audit)]
+
+
+def test_unlabelled_rows_count_only_the_decision_s_cases(tmp_path: Path) -> None:
+    preds, rows = cases(200)
+    for r in rows:
+        r["propensity"] = 0.05
+    # A row with propensity 0 or null was not selected: skipped and counted, not refused.
+    rows += [
+        {"case_id": "z0", "case": {}, "labels": {}, "propensity": 0},
+        {"case_id": "z1", "case": {}, "labels": {}, "propensity": None},
+    ]
+    preds += [{**preds[0], "case_id": c} for c in ("z0", "z1")]
+    # A row the decision has no prediction for is not one of its cases: neither refused nor counted.
+    rows.append({"case_id": "other", "case": {}, "labels": {}, "propensity": 0.05})
+    _, diags = ct.issue(preds, rows, domain(tmp_path), "toy-backend", KEY, now=NOW)
+    assert diags["approved"]["n_skipped_unlabelled"] == 2
 
 
 def test_segment_values_must_be_quoted_strings(tmp_path: Path) -> None:

@@ -116,8 +116,9 @@ Spec §1.4 asks for an audit sample drawn from **all** applications instead.
    depend on the case.
 2. Label every case the coin selects, and log `rate` as the case's `propensity`. Every selected case
    keeps its label in the data, including the ones that are slow, costly or unfavourable to label.
-   Under `--audit sample` the issuer refuses a row that logs a propensity but has no label, and
-   counts the rows it skips for having neither (in the diagnostics and on stderr). It cannot see a
+   Log the propensity only on the cases the coin selected. Under `--audit sample` the issuer refuses
+   a row that logs a propensity above 0 but has no label, and counts the other unlabelled rows it
+   skips (in the diagnostics and on stderr). It cannot see a
    case left out of the data altogether, so dropping cases is a selection the bound does not cover.
 3. With outcome labels, the window must end at least one full performance period before the
    certificate is issued, so that every selected case has an outcome. Early outcomes only would bias
