@@ -5,6 +5,12 @@ not yet frozen) is versioned separately; this log covers the crate, the verifier
 
 ## Unreleased
 
+- **Spec v1.3 (not frozen), follow-up.** §1.6 says outright that `automated.ucb` is not a bound and
+  can exceed `alpha`. Both verifiers now refuse a certificate whose `automate_options` names every
+  option but whose `automated` blocks differ from their tests' numbers (two new fixtures in
+  `fixtures/v1.3/`). The issuer refuses a `cannot_tell` value that is not a number or null, under
+  every spec; such input had no defined meaning before.
+
 - **Spec v1.3: C1 and P1, implemented, not frozen** (`spec/decision-certificate.v1.3.md`). Both
   verifiers accept `decision-certificate.v1.3`, and the issuer writes it with `--spec
   decision-certificate.v1.3`; the default stays v1.2.

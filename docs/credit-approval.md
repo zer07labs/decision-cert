@@ -95,8 +95,10 @@ auto = v.automated_for(case_product)      # coverage, ucb, realized_band of the 
 ```
 
 The bound at `alpha` still covers every answered case. `automated` describes the approvals at the
-chosen threshold (descriptive, spec v1.3 §1.6); measured on fewer cases, its band is usually wider. Compare a
-window's approval share with `automated.coverage` as well as its answered share with `coverage`.
+chosen threshold (spec v1.3 §1.6): `automated.ucb` is not a bound and can exceed `alpha`, because
+the threshold was chosen on all answered cases. Measured on at most as many cases, its band is
+usually as wide or wider. Compare a window's approval share with `automated.coverage` as well as
+its answered share with `coverage`.
 
 ## What this does not claim
 

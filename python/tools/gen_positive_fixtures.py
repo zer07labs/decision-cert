@@ -311,6 +311,22 @@ def fixtures(spec: str = ct.SPEC_V1) -> dict[str, dict[str, Any]]:
             False,
             "automated must agree",
         )
+        differs = base()
+        differs["automated"]["coverage"] = 0.4  # at most the test's 0.4116, but every option is automated
+        out["invalid_automated_differs_from_test"] = (
+            ct.sign(differs, KEY),
+            keys(KEY),
+            False,
+            "automated must equal its test",
+        )
+        seg_differs = segmented()
+        seg_differs["segments"][0]["automated"]["ucb"] = 0.05  # the segment's test has 0.04
+        out["invalid_segment_automated_differs_from_test"] = (
+            ct.sign(seg_differs, KEY),
+            keys(KEY, OTHER),
+            False,
+            "automated must equal its test",
+        )
         no_band = base()
         no_band["automated"]["realized_band"] = None  # the schema allows null; the top-level test has a band
         out["invalid_automated_band_null"] = (ct.sign(no_band, KEY), keys(KEY), False, "automated must agree")

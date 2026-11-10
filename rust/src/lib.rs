@@ -589,6 +589,25 @@ fn automated(c: &Certificate) -> Result<(), CertError> {
             ));
         }
     }
+    // Every option automated: the automated cases are the answered cases, so each block is its
+    // test's own numbers.
+    if auto.len() == c.options.len() {
+        let same = |a: &Option<Automated>, coverage: f64, ucb: Option<f64>, band: Option<&Band>| {
+            a.as_ref().is_none_or(|a| {
+                a.coverage == coverage && a.ucb == ucb && a.realized_band.as_ref() == band
+            })
+        };
+        if !same(&c.automated, c.coverage, c.ucb, Some(&c.realized_band))
+            || !c
+                .segments
+                .iter()
+                .all(|s| same(&s.automated, s.coverage, s.ucb, s.realized_band.as_ref()))
+        {
+            return Err(CertError::Invalid(
+                "automated must equal its test's coverage, ucb and realized_band when every option is automated".into(),
+            ));
+        }
+    }
     Ok(())
 }
 

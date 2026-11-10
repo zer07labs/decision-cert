@@ -59,6 +59,8 @@ test's `coverage`, `ucb` and `realized_band`. Its own `mutations/`, and the v1.3
   `invalid_segment_automated_ucb_null`, `invalid_segment_automated_coverage_above_test` and
   `invalid_segment_automated_ucb_inherited`: `automated` blocks that
   disagree with their test;
+- `invalid_automated_differs_from_test` and `invalid_segment_automated_differs_from_test`: every
+  option automated, but an `automated` block that is not its test's own numbers;
 - `invalid_missing_v1_3_field`, `invalid_segment_missing_automated` and
   `invalid_v1_3_field_in_v1_2`: fields that belong to another spec;
 - `invalid_unknown_spec`: a certificate naming `decision-certificate.v1.4`.
