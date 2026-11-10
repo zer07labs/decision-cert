@@ -112,6 +112,15 @@ verifiers, the issuer and `fixtures/v1.2/`. The `dr` map kind followed (#24), an
 on 2026-11-08 with both. 0.4.0, which carries it, was released on 2026-11-09 (tag `v0.4.0`, on
 crates.io and PyPI).
 
+## v1.3 (draft, design only)
+
+[`spec/drafts/decision-certificate.v1.3.md`](../spec/drafts/decision-certificate.v1.3.md) collects
+candidate items with their open questions: a deployment fingerprint, dataset roles and an issuance
+ledger, key revocation and rotation, binding the per-case `cannot_tell` values, a typed uncertainty
+selector, an error bound for the automated options only, and optionally segment correction and the
+drift alarm's false-alarm rate. Nothing in it is
+approved for implementation; the owner decides each item first.
+
 ## Naming (decided 2026-11-07)
 
 The crate, the Python distribution and the repository keep the name `decision-cert` for good. It
