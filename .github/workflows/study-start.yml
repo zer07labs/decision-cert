@@ -1,0 +1,27 @@
+# One-off: runs python/tools/study_start.py on this PR and uploads its table. Removed before merge.
+name: study-start
+on:
+  pull_request:
+    paths: [python/tools/study_start.py, .github/workflows/study-start.yml]
+permissions:
+  contents: read
+jobs:
+  study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked --python 3.12
+      - run: uv run python tools/study_start.py --reps 2000 --json ../study-start.json | tee ../study-start.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: study-start
+          path: |
+            study-start.json
+            study-start.md
