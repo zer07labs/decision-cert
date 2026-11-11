@@ -5,6 +5,11 @@ not yet frozen) is versioned separately; this log covers the crate, the verifier
 
 ## Unreleased
 
+- `python/tools/study_start.py` and `spec/drafts/s1-start-study.md`: where the `ltt` fixed sequence
+  starts, on small tests (n 250–1,000, alpha = delta = 0.1). Four start rules across four synthetic
+  worlds; all are valid, and the reference issuer's argmin-p start is the most powerful. It suggests
+  keeping the start and adding `n_cal` guidance; nothing is decided and no spec or issuer changes.
+
 - **Spec v1.3 (not frozen), follow-up.** §1.6 says outright that `automated.ucb` is not a bound and
   can exceed `alpha`. Both verifiers now refuse a certificate whose `automate_options` names every
   option but whose `automated` blocks differ from their tests' numbers (two new fixtures in
