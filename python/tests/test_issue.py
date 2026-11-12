@@ -901,7 +901,10 @@ def test_v1_4_unequal_costs_issue_a_selective_cost_certificate(tmp_path: Path) -
     assert c["coverage"] > 0 and c["ucb"] <= c["alpha"]
     assert c["ucb"] == cs.hb_ucb(d["answered"], d["loss_sum"], d["test_level"])
     assert c["realized_cost"] == d["loss_sum"] / d["answered"]
-    assert c["automated"]["realized_cost"] == c["realized_cost"]  # every option automated
+    # every option automated: the block is the test's own numbers, to the last bit (the verifiers check it)
+    assert (c["automated"]["realized_cost"], c["automated"]["ucb"]) == (c["realized_cost"], c["ucb"])
+    for s in c["segments"]:
+        assert (s["automated"]["realized_cost"], s["automated"]["ucb"]) == (s["realized_cost"], s["ucb"])
     for s in c["segments"]:
         assert (s["realized_cost"] is None) == (s["inherited"] or s["coverage"] == 0)
     v = dc.verify(c, trusted())

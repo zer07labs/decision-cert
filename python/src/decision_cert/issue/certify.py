@@ -333,7 +333,10 @@ def _automated(
     if bounded:
         low, high = cs.band(k, e, BAND_LEVEL)
         if loss is not None:
-            total = float(loss[hit].sum())
+            # summed as the test sums its losses (stats.loss_sums), so that with every option automated
+            # the sum, and so ucb and realized_cost, are the test's to the last bit (spec v1.4 §2)
+            masked = np.where(auto, loss, 0.0)
+            total = float(cs.loss_sums(conf, masked, np.array([abstain_below]))[1][0]) if k else 0.0
             out["ucb"] = cs.hb_ucb(k, total, d) if d is not None else None
             out["realized_cost"] = total / k if k else None
         else:
