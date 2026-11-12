@@ -98,11 +98,12 @@ jobs:
       - name: PyPI serves the version, and a fresh install verifies the v1.4 fixtures
         run: |
           v="${GITHUB_REF_NAME#v}"; fx="$GITHUB_WORKSPACE/fixtures/v1.4"; rb="$RUNNER_TEMP/rb-py"
+          # Poll what uv installs from (the simple index), not the JSON API: the index can lag it.
+          uv venv -q "$rb"
           for i in $(seq 1 40); do
-            curl -fsS "https://pypi.org/pypi/decision-cert/$v/json" >/dev/null && break
-            [ "$i" = 40 ] && { echo "PyPI does not serve $v"; exit 1; }; sleep 15
+            uv pip install -q --python "$rb" --no-cache --refresh "decision-cert==$v" && break
+            [ "$i" = 40 ] && { echo "PyPI's index does not serve $v"; exit 1; }; sleep 15
           done
-          uv venv -q "$rb" && uv pip install -q --python "$rb" --no-cache --refresh "decision-cert==$v"
           cd "$RUNNER_TEMP" && "$rb/bin/python" -I - "$v" "$fx" <<'PY'
           import json, sys
           from pathlib import Path
