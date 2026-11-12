@@ -123,6 +123,115 @@ def crc(conf: np.ndarray, err: np.ndarray, cuts: np.ndarray, alpha: float) -> Po
     return _point(cuts, n, e, int(last), total)
 
 
+# ---- Bounded losses (the v1.4 draft's `selective_cost`, spec/drafts/cost-weighted-abstention.md §1) ----
+# Each answered case carries a normalised loss in [0, 1] instead of a 0/1 error. Nothing above changes: v1's
+# binomial p-value stays the test for 0/1 errors, and every function below is new.
+
+# A loss sum within this of an integer counts as that integer in the Hoeffding-Bentkus ceiling, so float
+# summation noise (2.0000000000000004) cannot push ⌈n·R̂⌉ up by one. It is far below any real loss step.
+_SUM_TOL = 1e-9
+
+
+def _kl(a: float, b: float) -> float:
+    """h(a, b) = a ln(a/b) + (1 - a) ln((1 - a)/(1 - b)), the Bernoulli relative entropy, for 0 ≤ a ≤ 1, 0 < b < 1."""
+    out = 0.0
+    if a > 0:
+        out += a * math.log(a / b)
+    if a < 1:
+        out += (1 - a) * math.log((1 - a) / (1 - b))
+    return out
+
+
+def hb_p_value(n: int, loss_sum: float, alpha: float) -> float:
+    """Hoeffding-Bentkus p-value for H: mean loss > alpha, given n answered cases with losses in [0, 1]
+    summing to `loss_sum` (Bates, Angelopoulos, Lei, Malik, Jordan 2021, "Distribution-Free,
+    Risk-Controlling Prediction Sets"):
+
+        p = min( exp(-n · h(min(R̂, alpha), alpha)),  e · P(Bin(n, alpha) ≤ ⌈n R̂⌉) ),   1 when n = 0.
+    """
+    if n == 0:
+        return 1.0
+    r_hat = min(max(loss_sum / n, 0.0), 1.0)
+    hoeffding = math.exp(-n * _kl(min(r_hat, alpha), alpha))
+    k = math.ceil(loss_sum - _SUM_TOL)
+    bentkus = math.e * float(stats.binom.cdf(k, n, alpha))
+    return min(1.0, hoeffding, bentkus)
+
+
+def hb_p_values(n: np.ndarray, loss_sum: np.ndarray, alpha: float) -> np.ndarray:
+    """`hb_p_value` at every cut (vectorised; the same numbers)."""
+    n = np.asarray(n, np.int64)
+    loss_sum = np.asarray(loss_sum, float)
+    safe = np.maximum(n, 1)
+    r = np.clip(loss_sum / safe, 0.0, 1.0)
+    a = np.minimum(r, alpha)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        kl = np.where(a > 0, a * np.log(np.where(a > 0, a, 1.0) / alpha), 0.0) + np.where(
+            a < 1, (1 - a) * np.log(np.where(a < 1, 1 - a, 1.0) / (1 - alpha)), 0.0
+        )
+    hoeffding = np.exp(-n * kl)
+    k = np.ceil(loss_sum - _SUM_TOL)
+    bentkus = math.e * stats.binom.cdf(k, safe, alpha)
+    return np.where(n > 0, np.minimum(1.0, np.minimum(hoeffding, bentkus)), 1.0)
+
+
+def hb_ucb(n: int, loss_sum: float, delta: float) -> float:
+    """Hoeffding-Bentkus upper bound at level 1 - delta on the mean loss: the smallest alpha the
+    p-value rejects at delta (bisection to 1e-12); 1 when nothing is answered or nothing below 1 is."""
+    if n == 0 or hb_p_value(n, loss_sum, 1.0 - 1e-12) > delta:
+        return 1.0
+    lo, hi = min(max(loss_sum / n, 0.0), 1.0), 1.0 - 1e-12  # p(lo) = 1 > delta; p(hi) <= delta
+    for _ in range(200):
+        if hi - lo <= 1e-12:
+            break
+        mid = (lo + hi) / 2
+        if hb_p_value(n, loss_sum, mid) <= delta:
+            hi = mid
+        else:
+            lo = mid
+    return hi
+
+
+@dataclass(frozen=True)
+class CostPoint:
+    abstain_below: float
+    n: int  # answered
+    loss_sum: float  # sum of the answered cases' normalised losses
+    coverage: float
+
+
+def loss_sums(conf: np.ndarray, loss: np.ndarray, cuts: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """(answered, loss sum) at each cut, answering confidence >= cut as a consumer does."""
+    conf, loss = np.asarray(conf, float), np.asarray(loss, float)
+    order = np.argsort(conf, kind="stable")
+    asc, loss_asc = conf[order], loss[order]
+    first = np.searchsorted(asc, cuts, side="left")
+    tail = np.concatenate([np.cumsum(loss_asc[::-1])[::-1], [0.0]])
+    return len(asc) - first, tail[first]
+
+
+def cost_start(cuts: np.ndarray, conf: np.ndarray, loss: np.ndarray, alpha: float) -> int:
+    """`start` with the Hoeffding-Bentkus p-value: the cut with the smallest p on the temperature split."""
+    n, s = loss_sums(conf, loss, cuts)
+    return int(np.argmin(hb_p_values(n, s, alpha)))
+
+
+def cost_grid(conf_temperature: np.ndarray, loss_temperature: np.ndarray, alpha: float) -> np.ndarray:
+    """`grid` for bounded losses: the same cuts, starting where the temperature split's losses put the start."""
+    cuts = cuts_of(conf_temperature)
+    return cuts[cost_start(cuts, np.asarray(conf_temperature, float), loss_temperature, alpha) :]
+
+
+def cost_ltt(conf: np.ndarray, loss: np.ndarray, cuts: np.ndarray, alpha: float, delta: float) -> CostPoint:
+    """Fixed-sequence Learn-then-Test down `cuts` on mean normalised loss, with Hoeffding-Bentkus p-values."""
+    n, s = loss_sums(conf, loss, cuts)
+    failed = np.flatnonzero(hb_p_values(n, s, alpha) > delta)
+    i = int((failed[0] if len(failed) else len(cuts)) - 1)
+    if i < 0:
+        return CostPoint(ABSTAIN_ALL, 0, 0.0, 0.0)
+    return CostPoint(float(cuts[i]), int(n[i]), float(s[i]), int(n[i]) / len(conf))
+
+
 MONDRIAN_MIN = 19  # a class-conditional threshold is fitted only for a class with at least this many cases
 
 
