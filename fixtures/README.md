@@ -69,26 +69,36 @@ v1.3 is not frozen yet, so this set may still change until it is; `v1.2/invalid_
 names v1.3 with v1.2's fields, and a v1.3 verifier refuses it with `spec is not` in its message.
 
 **v1.4.** [`v1.4/`](v1.4/) holds the v1.3 set again with `spec` `decision-certificate.v1.4` and
-the v1.4 fields for the error risks (`cost` and every `realized_cost` null, `pvalue` `binomial`, or
-null under `crc`). Its `mutations/` start from `valid_cost_segments`, a `selective_cost`
+the v1.4 fields for the error risks (`cost` and every `loss_sum` and `realized_cost` null, `pvalue`
+`binomial`, or null under `crc`). Its `mutations/` start from `valid_cost_segments`, a `selective_cost`
 certificate. The v1.4 cases:
 
 - `valid_cost_basic`, `valid_cost_segments`, `valid_cost_three_options` and
   `valid_cost_automated_subset`: `selective_cost` over two options (a bad approval costs 5, a missed
   one 1), with a certified and an inherited segment, over three options (`unit` null), and with
-  approvals automated only;
+  approvals automated only. Each `realized_cost` is exactly its `loss_sum` / (`c_max` · answered);
 - `invalid_cost_diagonal_not_zero`, `_c_max_not_largest`, `_entry_above_c_max`, `_not_square`,
-  `_row_short` and `_unit_empty`: matrices the checks of spec v1.4 §2 refuse;
+  `_row_short`, `_unit_empty` and `_c_max_above_limit`: matrices the checks of spec v1.4 §2 refuse;
+  `invalid_cost_fractional_entry`: a cost that is not a whole number (a type error);
   `invalid_cost_equal_off_diagonal`: equal costs under a cost risk;
 - `invalid_cost_pvalue_binomial`, `invalid_cost_risk_without_cost`,
   `invalid_cost_under_selective_error`, `invalid_hb_under_selective_error` and `invalid_crc_pvalue`:
   `cost` or `pvalue` that do not pair with `risk`;
 - `invalid_realized_cost_under_selective_error`, `_null_under_cost`, `_above_one`,
-  `_inherited_segment` and `invalid_segment_realized_cost_null`: `realized_cost` values the checks
-  refuse; `invalid_automated_realized_cost_differs`: every option automated, but an
-  `automated.realized_cost` that is not its test's;
+  `_inherited_segment`, `invalid_segment_realized_cost_null`, `invalid_loss_sum_null_under_cost`,
+  `_under_selective_error` and `invalid_segment_loss_sum_inherited`: `realized_cost` and `loss_sum`
+  values null where they must not be, or the reverse;
+- `invalid_realized_cost_one_ulp_off`, `invalid_segment_realized_cost_one_ulp_off`,
+  `invalid_realized_cost_other_loss_sum` and `invalid_loss_sum_above_c_max_answered`: a
+  `realized_cost` that is not exactly `loss_sum` / (`c_max` · answered), even by one unit in the last
+  place, as a sum taken in another float order would give; `invalid_coverage_not_whole_answered`: a
+  `coverage` that rounds to a whole number of answered cases but is not exactly `answered / n`;
+- `invalid_automated_realized_cost_differs` and `invalid_automated_loss_sum_off_by_one`: every option
+  automated, but an `automated` block (consistent in itself) whose `loss_sum` is not its test's;
 - `invalid_selective_cost_in_v1_3`, `invalid_v1_4_field_in_v1_3`, `invalid_missing_v1_4_field`,
-  `invalid_automated_missing_realized_cost` and `invalid_segment_missing_realized_cost`: a risk or
+  `invalid_automated_missing_realized_cost`, `invalid_segment_missing_realized_cost`,
+  `invalid_missing_loss_sum`, `invalid_automated_missing_loss_sum` and
+  `invalid_segment_missing_loss_sum`: a risk or
   fields that belong to another spec;
 - `invalid_unknown_spec`: a certificate naming `decision-certificate.v1.5`.
 

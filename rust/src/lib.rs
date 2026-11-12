@@ -91,19 +91,23 @@ pub struct Automated {
     pub ucb: Option<f64>,
     #[serde(deserialize_with = "nullable")]
     pub realized_band: Option<Band>,
-    /// v1.4 only (absent before v1.4): the automated cases' mean normalised cost under
+    /// v1.4 only (absent before v1.4): the automated cases' exact sum of whole costs under
     /// `selective_cost`; present and null otherwise.
+    #[serde(default, deserialize_with = "present")]
+    pub loss_sum: Option<Option<u64>>,
+    /// v1.4 only (absent before v1.4): the automated cases' mean normalised cost under
+    /// `selective_cost`, `loss_sum / (c_max * answered)`; present and null otherwise.
     #[serde(default, deserialize_with = "present")]
     pub realized_cost: Option<Option<f64>>,
 }
 
 /// A v1.4 `selective_cost` certificate's costs: `matrix[label][answered option]`, in the options'
-/// order, its largest entry `c_max`, and a free `unit` label (informational).
+/// order, whole numbers in the consumer's `unit` (informational), and its largest entry `c_max`.
 #[derive(Deserialize, Clone, Debug, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Cost {
-    pub matrix: Vec<Vec<f64>>,
-    pub c_max: f64,
+    pub matrix: Vec<Vec<u64>>,
+    pub c_max: u64,
     #[serde(deserialize_with = "nullable")]
     pub unit: Option<String>,
 }
@@ -127,6 +131,9 @@ pub struct Segment {
     /// v1.3 only: absent (None) before v1.3.
     #[serde(default, deserialize_with = "present")]
     pub automated: Option<Automated>,
+    /// v1.4 only: absent (None) before v1.4.
+    #[serde(default, deserialize_with = "present")]
+    pub loss_sum: Option<Option<u64>>,
     /// v1.4 only: absent (None) before v1.4.
     #[serde(default, deserialize_with = "present")]
     pub realized_cost: Option<Option<f64>>,
@@ -237,6 +244,9 @@ pub struct Certificate {
     /// v1.4 only: the `ltt` p-value, `binomial` or `hoeffding_bentkus`; null for `crc`.
     #[serde(default, deserialize_with = "present")]
     pub pvalue: Option<Option<String>>,
+    /// v1.4 only: the remainder's exact sum of whole costs over its answered cases.
+    #[serde(default, deserialize_with = "present")]
+    pub loss_sum: Option<Option<u64>>,
     /// v1.4 only: the remainder's mean normalised cost of its answered cases (descriptive).
     #[serde(default, deserialize_with = "present")]
     pub realized_cost: Option<Option<f64>>,
@@ -539,6 +549,7 @@ fn fields_for_spec(c: &Certificate) -> Result<(), CertError> {
         ("automated", c.automated.is_some(), v13),
         ("cost", c.cost.is_some(), v14),
         ("pvalue", c.pvalue.is_some(), v14),
+        ("loss_sum", c.loss_sum.is_some(), v14),
         ("realized_cost", c.realized_cost.is_some(), v14),
     ];
     for s in &c.segments {
@@ -548,13 +559,16 @@ fn fields_for_spec(c: &Certificate) -> Result<(), CertError> {
             v12,
         ));
         present.push(("segments[].automated", s.automated.is_some(), v13));
+        present.push(("segments[].loss_sum", s.loss_sum.is_some(), v14));
         present.push(("segments[].realized_cost", s.realized_cost.is_some(), v14));
     }
     if let Some(a) = &c.automated {
+        present.push(("automated.loss_sum", a.loss_sum.is_some(), v14));
         present.push(("automated.realized_cost", a.realized_cost.is_some(), v14));
     }
     for s in &c.segments {
         if let Some(a) = &s.automated {
+            present.push(("segments[].automated.loss_sum", a.loss_sum.is_some(), v14));
             present.push((
                 "segments[].automated.realized_cost",
                 a.realized_cost.is_some(),
@@ -658,12 +672,15 @@ fn automated(c: &Certificate) -> Result<(), CertError> {
                 a.coverage == coverage && a.ucb == ucb && a.realized_band.as_ref() == band
             })
         };
-        // v1.4: the realized costs agree too (both absent before v1.4)
-        let same_cost = |a: &Option<Automated>, rc: Option<Option<f64>>| {
-            a.as_ref().is_none_or(|a| a.realized_cost == rc)
-        };
+        // v1.4: the loss sums (whole numbers, compared exactly) and realized costs agree too (both
+        // absent before v1.4)
+        let same_cost =
+            |a: &Option<Automated>, ls: Option<Option<u64>>, rc: Option<Option<f64>>| {
+                a.as_ref()
+                    .is_none_or(|a| a.loss_sum == ls && a.realized_cost == rc)
+            };
         if !same(&c.automated, c.coverage, c.ucb, Some(&c.realized_band))
-            || !same_cost(&c.automated, c.realized_cost)
+            || !same_cost(&c.automated, c.loss_sum, c.realized_cost)
             || !c
                 .segments
                 .iter()
@@ -671,7 +688,7 @@ fn automated(c: &Certificate) -> Result<(), CertError> {
             || !c
                 .segments
                 .iter()
-                .all(|s| same_cost(&s.automated, s.realized_cost))
+                .all(|s| same_cost(&s.automated, s.loss_sum, s.realized_cost))
         {
             return Err(CertError::Invalid(
                 "automated must equal its test's coverage, ucb and realized_band when every option is automated".into(),
@@ -682,9 +699,16 @@ fn automated(c: &Certificate) -> Result<(), CertError> {
 }
 
 /// v1.4's checks beyond the schema (spec v1.4 §2): `cost` and `pvalue` pair with `risk`; the cost
-/// matrix is options x options with a zero diagonal, every entry in [0, c_max], `c_max` its largest
-/// entry and above 0, and its off-diagonal entries not all equal; `realized_cost` is in [0, 1], null
-/// for the error risks, for an inherited segment and wherever its test answered no case.
+/// matrix is options x options with a zero diagonal, whole-number entries in [0, c_max], `c_max` its
+/// largest entry, above 0 and at most 10^6, and its off-diagonal entries not all equal; `loss_sum`
+/// and `realized_cost` are null for the error risks, for an inherited segment and wherever their test
+/// answered no case, and otherwise `loss_sum` is at most c_max * k and `realized_cost` is exactly
+/// `loss_sum / (c_max * k)`, k = floor(coverage * n + 1/2) the answered cases.
+/// v1.4: the largest `c_max`.
+pub const MAX_C: u64 = 1_000_000;
+/// v1.4: the largest `c_max * answered`, 2^53, so that it and every `loss_sum` are exact in an f64.
+const SAFE_SCALE: f64 = 9_007_199_254_740_992.0;
+
 fn cost(c: &Certificate) -> Result<(), CertError> {
     let bad = |m: &str| Err(CertError::Invalid(m.to_string()));
     let cost = c.cost.clone().flatten();
@@ -703,15 +727,15 @@ fn cost(c: &Certificate) -> Result<(), CertError> {
         let all = || m.iter().flatten().copied();
         let ok = m.len() == n
             && m.iter().all(|r| r.len() == n)
-            && (0..n).all(|i| m[i][i] == 0.0)
-            && all().all(|x| (0.0..=k.c_max).contains(&x))
-            && k.c_max > 0.0
-            && all().fold(f64::NEG_INFINITY, f64::max) == k.c_max
+            && (0..n).all(|i| m[i][i] == 0)
+            && all().all(|x| x <= k.c_max)
+            && (1..=MAX_C).contains(&k.c_max)
+            && all().max() == Some(k.c_max)
             && k.unit.as_deref() != Some("");
         if !ok {
-            return bad("cost.matrix must be options x options with a zero diagonal and entries in [0, c_max], c_max its largest entry and above 0");
+            return bad("cost.matrix must be options x options with a zero diagonal and entries in [0, c_max], c_max its largest entry, above 0 and at most 10^6");
         }
-        let off: Vec<f64> = (0..n)
+        let off: Vec<u64> = (0..n)
             .flat_map(|i| (0..n).filter(move |&j| j != i).map(move |j| (i, j)))
             .map(|(i, j)| m[i][j])
             .collect();
@@ -720,27 +744,67 @@ fn cost(c: &Certificate) -> Result<(), CertError> {
         }
     }
     let unit = |x: f64| (0.0..=1.0).contains(&x);
-    let auto = |a: &Option<Automated>| {
-        a.as_ref()
-            .map(|a| (a.realized_cost.flatten(), a.coverage))
-            .unwrap_or((None, 0.0))
+    // (realized_cost, loss_sum, coverage, its test's n, own test): each test, and each test's automated
+    // cases, whose coverage is a share of the test's n
+    type Row = (Option<f64>, Option<u64>, f64, u64, bool);
+    let auto = |a: &Option<Automated>, n: u64, own: bool| -> Row {
+        a.as_ref().map_or((None, None, 0.0, n, own), |a| {
+            (
+                a.realized_cost.flatten(),
+                a.loss_sum.flatten(),
+                a.coverage,
+                n,
+                own,
+            )
+        })
     };
-    let mut tests = vec![(c.realized_cost.flatten(), c.coverage, true)];
+    let mut tests: Vec<Row> = vec![(
+        c.realized_cost.flatten(),
+        c.loss_sum.flatten(),
+        c.coverage,
+        c.n,
+        true,
+    )];
+    tests.extend(c.segments.iter().map(|s| {
+        (
+            s.realized_cost.flatten(),
+            s.loss_sum.flatten(),
+            s.coverage,
+            s.n,
+            !s.inherited,
+        )
+    }));
+    tests.push(auto(&c.automated, c.n, true));
     tests.extend(
         c.segments
             .iter()
-            .map(|s| (s.realized_cost.flatten(), s.coverage, !s.inherited)),
+            .map(|s| auto(&s.automated, s.n, !s.inherited)),
     );
-    let (rc, cov) = auto(&c.automated);
-    tests.push((rc, cov, true));
-    tests.extend(c.segments.iter().map(|s| {
-        let (rc, cov) = auto(&s.automated);
-        (rc, cov, !s.inherited)
-    }));
-    for (rc, coverage, own) in tests {
+    for (rc, ls, coverage, n, own) in tests {
         let expect = cost.is_some() && own && coverage > 0.0;
-        if rc.is_some() != expect || rc.is_some_and(|x| !unit(x)) {
-            return bad("realized_cost must be in [0, 1], and null for the error risks, an inherited segment and a test that answered no case");
+        if rc.is_some() != expect || ls.is_some() != expect || rc.is_some_and(|x| !unit(x)) {
+            return bad("realized_cost and loss_sum must be null for the error risks, an inherited segment and a test that answered no case, and only there");
+        }
+        if let (Some(rc), Some(ls), Some(k)) = (rc, ls, &cost) {
+            // whole costs: one exact division, so every verifier, in any language, gets the same
+            // number. Both operands are exact in f64 (at most 2^53).
+            let answered = (coverage * n as f64 + 0.5).floor();
+            // k can't be fudged by rounding: coverage is exactly k / n, one correctly rounded division
+            // of two exact integers, as the issuer writes it
+            if !(1..=1u64 << 53).contains(&n) || coverage != answered / n as f64 {
+                return bad(
+                    "coverage must be exactly answered / n, a whole number of answered cases",
+                );
+            }
+            let ok = (1.0..=SAFE_SCALE).contains(&answered) && {
+                let scale = u128::from(k.c_max) * answered as u128;
+                scale <= SAFE_SCALE as u128
+                    && u128::from(ls) <= scale
+                    && rc == ls as f64 / scale as f64
+            };
+            if !ok {
+                return bad("realized_cost must be loss_sum / (c_max * answered), with loss_sum at most c_max * answered");
+            }
         }
     }
     Ok(())

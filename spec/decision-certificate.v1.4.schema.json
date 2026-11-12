@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/zer07labs/decision-cert/spec/decision-certificate.v1.4.schema.json",
   "title": "decision-certificate.v1.4",
-  "description": "See decision-certificate.v1.4.md. Unknown fields are rejected. Verifiers also check what a schema cannot express (v1.2 §2, v1.3 §2, v1.4 §2): confidence_bins rise strictly and end at 1, each confidence_histogram has one count per bin and sums, with unscored, to its test's n; automate_options names options of the certificate, once each and in their order; and each automated share is at most its test's coverage, with ucb and realized_band null exactly where the test's are; cost.matrix is square in the options, with a zero diagonal and entries in [0, c_max], c_max its largest entry and above 0, and its off-diagonal entries not all equal; cost and pvalue pair with risk; and realized_cost is null for the error risks and exactly where its test answered no case.",
+  "description": "See decision-certificate.v1.4.md. Unknown fields are rejected. Verifiers also check what a schema cannot express (v1.2 §2, v1.3 §2, v1.4 §2): confidence_bins rise strictly and end at 1, each confidence_histogram has one count per bin and sums, with unscored, to its test's n; automate_options names options of the certificate, once each and in their order; and each automated share is at most its test's coverage, with ucb and realized_band null exactly where the test's are; cost.matrix is square in the options, with a zero diagonal and whole-number entries in [0, c_max], c_max its largest entry, and its off-diagonal entries not all equal; cost and pvalue pair with risk; loss_sum and realized_cost are null for the error risks and exactly where their test answered no case; and otherwise loss_sum is at most c_max times the answered cases k = floor(coverage * n + 1/2), c_max * k is at most 2^53, and realized_cost is exactly loss_sum / (c_max * k).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -41,6 +41,7 @@
     "automated",
     "cost",
     "pvalue",
+    "loss_sum",
     "realized_cost"
   ],
   "properties": {
@@ -267,6 +268,7 @@
           "inherited",
           "confidence_histogram",
           "automated",
+          "loss_sum",
           "realized_cost"
         ],
         "properties": {
@@ -376,6 +378,7 @@
               "coverage",
               "ucb",
               "realized_band",
+              "loss_sum",
               "realized_cost"
             ],
             "properties": {
@@ -429,6 +432,18 @@
                   }
                 ]
               },
+              "loss_sum": {
+                "oneOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740992
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "realized_cost": {
                 "oneOf": [
                   {
@@ -442,6 +457,18 @@
                 ]
               }
             }
+          },
+          "loss_sum": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740992
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "realized_cost": {
             "oneOf": [
@@ -608,6 +635,7 @@
         "coverage",
         "ucb",
         "realized_band",
+        "loss_sum",
         "realized_cost"
       ],
       "properties": {
@@ -661,6 +689,18 @@
             }
           ]
         },
+        "loss_sum": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740992
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "realized_cost": {
           "oneOf": [
             {
@@ -693,14 +733,16 @@
                 "type": "array",
                 "minItems": 2,
                 "items": {
-                  "type": "number",
-                  "minimum": 0
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1000000
                 }
               }
             },
             "c_max": {
-              "type": "number",
-              "exclusiveMinimum": 0
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
             },
             "unit": {
               "oneOf": [
@@ -727,6 +769,18 @@
             "binomial",
             "hoeffding_bentkus"
           ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "loss_sum": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740992
         },
         {
           "type": "null"

@@ -5,6 +5,16 @@ and `v1.4`, not yet frozen) is versioned separately; this log covers the crate, 
 
 ## Unreleased
 
+- **Spec v1.4 (not frozen): whole-number costs and `loss_sum`** (#45). Cost matrix entries and
+  `c_max` are integers (`unit` names the scale; `c_max` at most 10⁶), and each test, segment and
+  `automated` block states `loss_sum`, the exact sum of its answered cases' costs. `realized_cost` must
+  be exactly `loss_sum / (c_max · answered)`, and with every option automated the `automated` sums
+  must equal their test's as integers. Before, those equalities compared float sums whose last bit
+  depended on summation order, so a correct issuer summing differently from ours would have written
+  certificates every verifier refused (found when #44's first CI run caught our own issuer doing it).
+  The statistics are unchanged. The v1.4 fixtures are regenerated with 14 new cases (84 files); v1
+  to v1.3 are byte-identical.
+
 - **Spec v1.4: the cost risk `selective_cost`, implemented, not frozen**
   (`spec/decision-certificate.v1.4.md`). Both verifiers accept `decision-certificate.v1.4`, and the
   issuer writes it with `--spec decision-certificate.v1.4`; the default stays v1.2.

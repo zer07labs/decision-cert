@@ -73,7 +73,7 @@ value, never a re-serialised typed struct.
 | `v1.2/invalid_unknown_spec` | a later `spec` (v1.3) is refused |
 | `v1.4/valid_cost_*` | `selective_cost` certificates over two and three options, with segments and an automated subset |
 | `v1.4/invalid_cost_*`, `v1.4/invalid_hb_under_selective_error`, `v1.4/invalid_crc_pvalue` | the cost matrix, the equal-cost refusal and the `cost`/`pvalue`/`risk` pairing (spec v1.4 §2) |
-| `v1.4/invalid_*realized_cost*` | `realized_cost` in [0, 1], and null for the error risks, an inherited segment and a test that answered no case |
+| `v1.4/invalid_*realized_cost*`, `v1.4/invalid_*loss_sum*` | `loss_sum` and `realized_cost` null exactly for the error risks, an inherited segment and a test that answered no case; otherwise `realized_cost` exactly `loss_sum / (c_max · answered)`, and an all-automated block's `loss_sum` its test's |
 
 ## 4. Beyond the fixtures
 

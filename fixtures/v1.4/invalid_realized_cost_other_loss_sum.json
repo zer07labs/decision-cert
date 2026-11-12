@@ -1,0 +1,126 @@
+{
+  "name": "invalid_realized_cost_other_loss_sum",
+  "certificate": {
+    "spec": "decision-certificate.v1.4",
+    "domain": "hmda-approval",
+    "decision": "approved",
+    "options": [
+      "yes",
+      "no"
+    ],
+    "model_id": "b1/lightgbm@lgbm-4.7.0-seed7",
+    "manifest_hash": "sha256:abababababababababababababababababababababababababababababababab",
+    "data_hash": "sha256:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+    "n_cal": 2500,
+    "n_temperature": 2500,
+    "split": {
+      "method": "seeded",
+      "seed": 7
+    },
+    "calibration_map": {
+      "kind": "temperature",
+      "params": {
+        "temperature": 1.3173913043478263
+      },
+      "label_budget": null
+    },
+    "rule": {
+      "cannot_tell_above": null,
+      "unscored": "abstain"
+    },
+    "alpha": 0.05,
+    "delta": 0.1,
+    "method": "ltt",
+    "risk": "selective_cost",
+    "n": 2500,
+    "abstain_below": 0.8829170572757721,
+    "coverage": 0.4116,
+    "ucb": 0.032977066870911,
+    "realized_band": {
+      "level": 0.95,
+      "low": 0.0011834410146505043,
+      "high": 0.04314473389094683
+    },
+    "segments": [],
+    "window": null,
+    "fitted_at": "2026-10-25T12:00:00Z",
+    "expires_at": "2027-01-23T12:00:00Z",
+    "audit": {
+      "mode": "full-label",
+      "rate": 1,
+      "n": 5000,
+      "propensity_logged": false
+    },
+    "issuer": {
+      "tool": "decision-cert",
+      "version": "0.4.0"
+    },
+    "confidence_bins": [
+      0,
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.85,
+      0.9,
+      0.95,
+      0.99,
+      1
+    ],
+    "confidence_histogram": {
+      "counts": [
+        0,
+        310,
+        320,
+        330,
+        280,
+        300,
+        340,
+        420,
+        150
+      ],
+      "unscored": 50
+    },
+    "automate_options": [
+      "yes",
+      "no"
+    ],
+    "cost": {
+      "matrix": [
+        [
+          0,
+          1
+        ],
+        [
+          5,
+          0
+        ]
+      ],
+      "c_max": 5,
+      "unit": "usd"
+    },
+    "pvalue": "hoeffding_bentkus",
+    "loss_sum": 37,
+    "realized_cost": 0.006997084548104956,
+    "automated": {
+      "coverage": 0.4116,
+      "ucb": 0.032977066870911,
+      "realized_band": {
+        "level": 0.95,
+        "low": 0.0011834410146505043,
+        "high": 0.04314473389094683
+      },
+      "loss_sum": 37,
+      "realized_cost": 0.006997084548104956
+    },
+    "signer_key_id": "ed25519:56475aa75463474c",
+    "signature": "e57F3CrEo011pMJkWB-kbpaHGjDITQn9g3wC651FS7sIRi4rsrKy3_RUleYNa4UUh1sgOZMtC3lU5bOlH1x-AA"
+  },
+  "keys": {
+    "ed25519:56475aa75463474c": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg"
+  },
+  "body_jcs_b64": "eyJhYnN0YWluX2JlbG93IjowLjg4MjkxNzA1NzI3NTc3MjEsImFscGhhIjowLjA1LCJhdWRpdCI6eyJtb2RlIjoiZnVsbC1sYWJlbCIsIm4iOjUwMDAsInByb3BlbnNpdHlfbG9nZ2VkIjpmYWxzZSwicmF0ZSI6MX0sImF1dG9tYXRlX29wdGlvbnMiOlsieWVzIiwibm8iXSwiYXV0b21hdGVkIjp7ImNvdmVyYWdlIjowLjQxMTYsImxvc3Nfc3VtIjozNywicmVhbGl6ZWRfYmFuZCI6eyJoaWdoIjowLjA0MzE0NDczMzg5MDk0NjgzLCJsZXZlbCI6MC45NSwibG93IjowLjAwMTE4MzQ0MTAxNDY1MDUwNDN9LCJyZWFsaXplZF9jb3N0IjowLjAwNjk5NzA4NDU0ODEwNDk1NiwidWNiIjowLjAzMjk3NzA2Njg3MDkxMX0sImNhbGlicmF0aW9uX21hcCI6eyJraW5kIjoidGVtcGVyYXR1cmUiLCJsYWJlbF9idWRnZXQiOm51bGwsInBhcmFtcyI6eyJ0ZW1wZXJhdHVyZSI6MS4zMTczOTEzMDQzNDc4MjYzfX0sImNvbmZpZGVuY2VfYmlucyI6WzAsMC41LDAuNiwwLjcsMC44LDAuODUsMC45LDAuOTUsMC45OSwxXSwiY29uZmlkZW5jZV9oaXN0b2dyYW0iOnsiY291bnRzIjpbMCwzMTAsMzIwLDMzMCwyODAsMzAwLDM0MCw0MjAsMTUwXSwidW5zY29yZWQiOjUwfSwiY29zdCI6eyJjX21heCI6NSwibWF0cml4IjpbWzAsMV0sWzUsMF1dLCJ1bml0IjoidXNkIn0sImNvdmVyYWdlIjowLjQxMTYsImRhdGFfaGFzaCI6InNoYTI1NjowZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmIiwiZGVjaXNpb24iOiJhcHByb3ZlZCIsImRlbHRhIjowLjEsImRvbWFpbiI6ImhtZGEtYXBwcm92YWwiLCJleHBpcmVzX2F0IjoiMjAyNy0wMS0yM1QxMjowMDowMFoiLCJmaXR0ZWRfYXQiOiIyMDI2LTEwLTI1VDEyOjAwOjAwWiIsImlzc3VlciI6eyJ0b29sIjoiZGVjaXNpb24tY2VydCIsInZlcnNpb24iOiIwLjQuMCJ9LCJsb3NzX3N1bSI6MzcsIm1hbmlmZXN0X2hhc2giOiJzaGEyNTY6YWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsIm1ldGhvZCI6Imx0dCIsIm1vZGVsX2lkIjoiYjEvbGlnaHRnYm1AbGdibS00LjcuMC1zZWVkNyIsIm4iOjI1MDAsIm5fY2FsIjoyNTAwLCJuX3RlbXBlcmF0dXJlIjoyNTAwLCJvcHRpb25zIjpbInllcyIsIm5vIl0sInB2YWx1ZSI6ImhvZWZmZGluZ19iZW50a3VzIiwicmVhbGl6ZWRfYmFuZCI6eyJoaWdoIjowLjA0MzE0NDczMzg5MDk0NjgzLCJsZXZlbCI6MC45NSwibG93IjowLjAwMTE4MzQ0MTAxNDY1MDUwNDN9LCJyZWFsaXplZF9jb3N0IjowLjAwNjk5NzA4NDU0ODEwNDk1NiwicmlzayI6InNlbGVjdGl2ZV9jb3N0IiwicnVsZSI6eyJjYW5ub3RfdGVsbF9hYm92ZSI6bnVsbCwidW5zY29yZWQiOiJhYnN0YWluIn0sInNlZ21lbnRzIjpbXSwic2lnbmVyX2tleV9pZCI6ImVkMjU1MTk6NTY0NzVhYTc1NDYzNDc0YyIsInNwZWMiOiJkZWNpc2lvbi1jZXJ0aWZpY2F0ZS52MS40Iiwic3BsaXQiOnsibWV0aG9kIjoic2VlZGVkIiwic2VlZCI6N30sInVjYiI6MC4wMzI5NzcwNjY4NzA5MTEsIndpbmRvdyI6bnVsbH0=",
+  "certificate_id": "sha256:6c01780d0dcfe5ec7fb81e09071d4f6575f587ded86572e322c7505f4d49ebc7",
+  "valid": false,
+  "error": "realized_cost must be loss_sum / (c_max * answered)"
+}
