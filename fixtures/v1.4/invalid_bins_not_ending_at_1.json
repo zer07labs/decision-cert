@@ -1,0 +1,111 @@
+{
+  "name": "invalid_bins_not_ending_at_1",
+  "certificate": {
+    "spec": "decision-certificate.v1.4",
+    "domain": "hmda-approval",
+    "decision": "approved",
+    "options": [
+      "yes",
+      "no"
+    ],
+    "model_id": "b1/lightgbm@lgbm-4.7.0-seed7",
+    "manifest_hash": "sha256:abababababababababababababababababababababababababababababababab",
+    "data_hash": "sha256:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+    "n_cal": 2500,
+    "n_temperature": 2500,
+    "split": {
+      "method": "seeded",
+      "seed": 7
+    },
+    "calibration_map": {
+      "kind": "temperature",
+      "params": {
+        "temperature": 1.3173913043478263
+      },
+      "label_budget": null
+    },
+    "rule": {
+      "cannot_tell_above": null,
+      "unscored": "abstain"
+    },
+    "alpha": 0.05,
+    "delta": 0.1,
+    "method": "ltt",
+    "risk": "selective_error",
+    "n": 2500,
+    "abstain_below": 0.8829170572757721,
+    "coverage": 0.4116,
+    "ucb": 0.032977066870911,
+    "realized_band": {
+      "level": 0.95,
+      "low": 0.0011834410146505043,
+      "high": 0.04314473389094683
+    },
+    "segments": [],
+    "window": null,
+    "fitted_at": "2026-10-25T12:00:00Z",
+    "expires_at": "2027-01-23T12:00:00Z",
+    "audit": {
+      "mode": "full-label",
+      "rate": 1,
+      "n": 5000,
+      "propensity_logged": false
+    },
+    "issuer": {
+      "tool": "decision-cert",
+      "version": "0.4.0"
+    },
+    "confidence_bins": [
+      0,
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.85,
+      0.9,
+      0.95,
+      0.99,
+      0.999
+    ],
+    "confidence_histogram": {
+      "counts": [
+        0,
+        310,
+        320,
+        330,
+        280,
+        300,
+        340,
+        420,
+        150
+      ],
+      "unscored": 50
+    },
+    "automate_options": [
+      "yes",
+      "no"
+    ],
+    "cost": null,
+    "pvalue": "binomial",
+    "realized_cost": null,
+    "automated": {
+      "coverage": 0.4116,
+      "ucb": 0.032977066870911,
+      "realized_band": {
+        "level": 0.95,
+        "low": 0.0011834410146505043,
+        "high": 0.04314473389094683
+      },
+      "realized_cost": null
+    },
+    "signer_key_id": "ed25519:56475aa75463474c",
+    "signature": "ZNvGW4hPHUeS3TvoVNBmLdgOpPtBFenMYPNhMzZGKO0ag69oG76wZfzQyJHFARoz3JZqM9x36wNGWQLTnns_CA"
+  },
+  "keys": {
+    "ed25519:56475aa75463474c": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg"
+  },
+  "body_jcs_b64": "eyJhYnN0YWluX2JlbG93IjowLjg4MjkxNzA1NzI3NTc3MjEsImFscGhhIjowLjA1LCJhdWRpdCI6eyJtb2RlIjoiZnVsbC1sYWJlbCIsIm4iOjUwMDAsInByb3BlbnNpdHlfbG9nZ2VkIjpmYWxzZSwicmF0ZSI6MX0sImF1dG9tYXRlX29wdGlvbnMiOlsieWVzIiwibm8iXSwiYXV0b21hdGVkIjp7ImNvdmVyYWdlIjowLjQxMTYsInJlYWxpemVkX2JhbmQiOnsiaGlnaCI6MC4wNDMxNDQ3MzM4OTA5NDY4MywibGV2ZWwiOjAuOTUsImxvdyI6MC4wMDExODM0NDEwMTQ2NTA1MDQzfSwicmVhbGl6ZWRfY29zdCI6bnVsbCwidWNiIjowLjAzMjk3NzA2Njg3MDkxMX0sImNhbGlicmF0aW9uX21hcCI6eyJraW5kIjoidGVtcGVyYXR1cmUiLCJsYWJlbF9idWRnZXQiOm51bGwsInBhcmFtcyI6eyJ0ZW1wZXJhdHVyZSI6MS4zMTczOTEzMDQzNDc4MjYzfX0sImNvbmZpZGVuY2VfYmlucyI6WzAsMC41LDAuNiwwLjcsMC44LDAuODUsMC45LDAuOTUsMC45OSwwLjk5OV0sImNvbmZpZGVuY2VfaGlzdG9ncmFtIjp7ImNvdW50cyI6WzAsMzEwLDMyMCwzMzAsMjgwLDMwMCwzNDAsNDIwLDE1MF0sInVuc2NvcmVkIjo1MH0sImNvc3QiOm51bGwsImNvdmVyYWdlIjowLjQxMTYsImRhdGFfaGFzaCI6InNoYTI1NjowZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmIiwiZGVjaXNpb24iOiJhcHByb3ZlZCIsImRlbHRhIjowLjEsImRvbWFpbiI6ImhtZGEtYXBwcm92YWwiLCJleHBpcmVzX2F0IjoiMjAyNy0wMS0yM1QxMjowMDowMFoiLCJmaXR0ZWRfYXQiOiIyMDI2LTEwLTI1VDEyOjAwOjAwWiIsImlzc3VlciI6eyJ0b29sIjoiZGVjaXNpb24tY2VydCIsInZlcnNpb24iOiIwLjQuMCJ9LCJtYW5pZmVzdF9oYXNoIjoic2hhMjU2OmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIiLCJtZXRob2QiOiJsdHQiLCJtb2RlbF9pZCI6ImIxL2xpZ2h0Z2JtQGxnYm0tNC43LjAtc2VlZDciLCJuIjoyNTAwLCJuX2NhbCI6MjUwMCwibl90ZW1wZXJhdHVyZSI6MjUwMCwib3B0aW9ucyI6WyJ5ZXMiLCJubyJdLCJwdmFsdWUiOiJiaW5vbWlhbCIsInJlYWxpemVkX2JhbmQiOnsiaGlnaCI6MC4wNDMxNDQ3MzM4OTA5NDY4MywibGV2ZWwiOjAuOTUsImxvdyI6MC4wMDExODM0NDEwMTQ2NTA1MDQzfSwicmVhbGl6ZWRfY29zdCI6bnVsbCwicmlzayI6InNlbGVjdGl2ZV9lcnJvciIsInJ1bGUiOnsiY2Fubm90X3RlbGxfYWJvdmUiOm51bGwsInVuc2NvcmVkIjoiYWJzdGFpbiJ9LCJzZWdtZW50cyI6W10sInNpZ25lcl9rZXlfaWQiOiJlZDI1NTE5OjU2NDc1YWE3NTQ2MzQ3NGMiLCJzcGVjIjoiZGVjaXNpb24tY2VydGlmaWNhdGUudjEuNCIsInNwbGl0Ijp7Im1ldGhvZCI6InNlZWRlZCIsInNlZWQiOjd9LCJ1Y2IiOjAuMDMyOTc3MDY2ODcwOTExLCJ3aW5kb3ciOm51bGx9",
+  "certificate_id": "sha256:e396d8056474a959bba5b8e27ee1267550eb30b908e72411acd7659ebdd00e92",
+  "valid": false,
+  "error": "confidence_bins must rise"
+}

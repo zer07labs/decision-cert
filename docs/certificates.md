@@ -168,6 +168,39 @@ The issuer warns when an `ltt` test has fewer threshold-split cases than its `m`
 abstains on everything. It never changes the method for you; `--method crc` is a separate claim to
 choose explicitly.
 
+**A certificate that issues at a small `n_cal` is weak evidence.** The statement is over the
+calibration draw, not conditional on a certificate issuing. At small `n_cal` few draws certify, and
+over only the draws that did, the mean risk at the chosen threshold can be above `alpha`: up to
+2.5 × at `n_cal` 100 in the cost study, where one or two draws in 1,000 certified. Prefer the sizes
+in the table above. Whether to set a minimum is an open question
+([v1.1 draft, O4](../spec/drafts/decision-certificate.v1.1.md); spec v1.4 §1.7).
+
+### Cost-weighted abstention (v1.4)
+
+`--spec decision-certificate.v1.4 --cost approved=costs.json` (once per decision) certifies the
+expected cost of the answered cases instead of their error rate
+([spec v1.4](../spec/decision-certificate.v1.4.md), implemented, not frozen). The file is
+`{"matrix": [[...]], "unit": "usd" | null}`, row = label, column = answered option, in the order of
+the options, with a zero diagonal. The bound is `alpha` · `c_max` per answered case, in `unit`.
+`--method crc` cannot take a cost.
+
+**When a cost matrix pays** ([cost study](../spec/drafts/cost-study.md), `delta` 0.1, the same
+synthetic model as the table above):
+
+- **Cheap errors dominate** (most errors are the cheap kind, the ratio 5:1 or more): fewer labels
+  and more coverage than the error certificate. At `alpha` 0.05 and a strong model, about 500
+  threshold-split cases instead of 1,000.
+- **Equal costs**: the cost test would need up to twice the labels for the same claim, and gives
+  nothing. The issuer writes the error certificate instead, byte-identical to the one issued
+  without a cost.
+- **Expensive errors dominate**: about the equal-cost count, so up to twice the error
+  certificate's labels for little gain. Keep the error certificate unless the cost bound itself is
+  what the consumer needs.
+
+O4's guidance above (about 1,000 threshold-split cases at `alpha` 0.05 for a strong model) stands
+for the error certificate; a cost certificate needs more when expensive errors dominate. The study
+found every cell valid (the largest violation rate 0.050 against `delta` 0.1).
+
 ### Segments and a changing mix
 
 Declare as a segment any case field whose shares may change in use and whose groups may differ in

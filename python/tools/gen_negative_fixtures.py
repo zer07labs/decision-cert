@@ -7,7 +7,7 @@ running the Rust crate (the reference verifier).
 Each fixture is `valid_basic.json`'s certificate, edited and re-signed with a throwaway key (seed
 `[7] * 32`, public and deterministic). The positive fixtures and `mutations/` are generated
 elsewhere and copied here unchanged; this script never touches them. It rewrites
-`fixtures/FIXTURES.sha256` over every v1 fixture file (`fixtures/v1.1/` and `fixtures/v1.2/` have their
+`fixtures/FIXTURES.sha256` over every v1 fixture file (`fixtures/v1.1/` to `fixtures/v1.4/` have their
 own manifests).
 """
 
@@ -134,7 +134,7 @@ def rust_verdicts(paths: list[Path]) -> dict[str, dict[str, Any]]:
 
 def manifest() -> str:
     files = sorted(
-        p for p in FIXTURES.rglob("*.json") if not {"v1.1", "v1.2", "v1.3"} & set(p.relative_to(FIXTURES).parts)
+        p for p in FIXTURES.rglob("*.json") if not {"v1.1", "v1.2", "v1.3", "v1.4"} & set(p.relative_to(FIXTURES).parts)
     )
     lines = [f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.relative_to(FIXTURES).as_posix()}" for p in files]
     return "\n".join(lines) + "\n"

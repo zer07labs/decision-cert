@@ -1,0 +1,908 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/zer07labs/decision-cert/spec/decision-certificate.v1.4.schema.json",
+  "title": "decision-certificate.v1.4",
+  "description": "See decision-certificate.v1.4.md. Unknown fields are rejected. Verifiers also check what a schema cannot express (v1.2 §2, v1.3 §2, v1.4 §2): confidence_bins rise strictly and end at 1, each confidence_histogram has one count per bin and sums, with unscored, to its test's n; automate_options names options of the certificate, once each and in their order; and each automated share is at most its test's coverage, with ucb and realized_band null exactly where the test's are; cost.matrix is square in the options, with a zero diagonal and entries in [0, c_max], c_max its largest entry and above 0, and its off-diagonal entries not all equal; cost and pvalue pair with risk; and realized_cost is null for the error risks and exactly where its test answered no case.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "spec",
+    "domain",
+    "decision",
+    "options",
+    "model_id",
+    "manifest_hash",
+    "data_hash",
+    "n_cal",
+    "n_temperature",
+    "split",
+    "calibration_map",
+    "rule",
+    "alpha",
+    "delta",
+    "method",
+    "risk",
+    "n",
+    "abstain_below",
+    "coverage",
+    "ucb",
+    "realized_band",
+    "segments",
+    "window",
+    "fitted_at",
+    "expires_at",
+    "audit",
+    "issuer",
+    "signer_key_id",
+    "signature",
+    "confidence_bins",
+    "confidence_histogram",
+    "automate_options",
+    "automated",
+    "cost",
+    "pvalue",
+    "realized_cost"
+  ],
+  "properties": {
+    "spec": {
+      "const": "decision-certificate.v1.4"
+    },
+    "domain": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "options": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "model_id": {
+      "type": "string",
+      "pattern": "^[^/]+/.+@.+$",
+      "not": {
+        "pattern": "@\\?$"
+      }
+    },
+    "manifest_hash": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "data_hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "n_cal": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "n_temperature": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "split": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "seed"
+      ],
+      "properties": {
+        "method": {
+          "enum": [
+            "time",
+            "seeded"
+          ]
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      }
+    },
+    "calibration_map": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "params",
+        "label_budget"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "label_budget": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cannot_tell_above",
+        "unscored"
+      ],
+      "properties": {
+        "cannot_tell_above": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unscored": {
+          "const": "abstain"
+        }
+      }
+    },
+    "alpha": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "exclusiveMaximum": 1
+    },
+    "delta": {
+      "oneOf": [
+        {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "method": {
+      "enum": [
+        "ltt",
+        "crc"
+      ]
+    },
+    "risk": {
+      "enum": [
+        "selective_error",
+        "joint_error",
+        "selective_cost"
+      ]
+    },
+    "n": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "abstain_below": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1.01
+    },
+    "coverage": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "ucb": {
+      "oneOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "realized_band": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "low",
+        "high"
+      ],
+      "properties": {
+        "level": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 1
+        },
+        "low": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "high": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "field",
+          "value",
+          "n",
+          "abstain_below",
+          "coverage",
+          "ucb",
+          "realized_band",
+          "inherited",
+          "confidence_histogram",
+          "automated",
+          "realized_cost"
+        ],
+        "properties": {
+          "field": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value": {
+            "type": "string"
+          },
+          "n": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "abstain_below": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1.01
+          },
+          "coverage": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "ucb": {
+            "oneOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "realized_band": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "level",
+                  "low",
+                  "high"
+                ],
+                "properties": {
+                  "level": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "exclusiveMaximum": 1
+                  },
+                  "low": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "high": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inherited": {
+            "type": "boolean"
+          },
+          "confidence_histogram": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "counts",
+                  "unscored"
+                ],
+                "properties": {
+                  "counts": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "unscored": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "automated": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "coverage",
+              "ucb",
+              "realized_band",
+              "realized_cost"
+            ],
+            "properties": {
+              "coverage": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "ucb": {
+                "oneOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "realized_band": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "level",
+                      "low",
+                      "high"
+                    ],
+                    "properties": {
+                      "level": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "exclusiveMaximum": 1
+                      },
+                      "low": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "high": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "realized_cost": {
+                "oneOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "realized_cost": {
+            "oneOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "window": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end"
+          ],
+          "properties": {
+            "start": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+            },
+            "end": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+            }
+          }
+        }
+      ]
+    },
+    "fitted_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "expires_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "rate",
+        "n",
+        "propensity_logged"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "sample",
+            "full-label"
+          ]
+        },
+        "rate": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "propensity_logged": {
+          "type": "boolean"
+        }
+      }
+    },
+    "issuer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "version"
+      ],
+      "properties": {
+        "tool": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "signer_key_id": {
+      "type": "string",
+      "pattern": "^ed25519:[0-9a-f]{16}$"
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{86}$"
+    },
+    "confidence_bins": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 101,
+      "prefixItems": [
+        {
+          "const": 0
+        }
+      ],
+      "items": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "confidence_histogram": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "counts",
+            "unscored"
+          ],
+          "properties": {
+            "counts": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 100,
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "unscored": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "automate_options": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "automated": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "coverage",
+        "ucb",
+        "realized_band",
+        "realized_cost"
+      ],
+      "properties": {
+        "coverage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "ucb": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "realized_band": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "level",
+                "low",
+                "high"
+              ],
+              "properties": {
+                "level": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "exclusiveMaximum": 1
+                },
+                "low": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "high": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "realized_cost": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "cost": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "matrix",
+            "c_max",
+            "unit"
+          ],
+          "properties": {
+            "matrix": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "array",
+                "minItems": 2,
+                "items": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            },
+            "c_max": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "unit": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "pvalue": {
+      "oneOf": [
+        {
+          "enum": [
+            "binomial",
+            "hoeffding_bentkus"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "realized_cost": {
+      "oneOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "method": {
+            "const": "ltt"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "risk": {
+            "enum": [
+              "selective_error",
+              "selective_cost"
+            ]
+          },
+          "delta": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "exclusiveMaximum": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "method": {
+            "const": "crc"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "risk": {
+            "const": "joint_error"
+          },
+          "delta": {
+            "type": "null"
+          },
+          "ucb": {
+            "type": "null"
+          },
+          "pvalue": {
+            "type": "null"
+          },
+          "cost": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "split": {
+            "properties": {
+              "method": {
+                "const": "seeded"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "split": {
+            "properties": {
+              "seed": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "split": {
+            "properties": {
+              "method": {
+                "const": "time"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "split": {
+            "properties": {
+              "seed": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "risk": {
+            "const": "selective_error"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "pvalue": {
+            "const": "binomial"
+          },
+          "cost": {
+            "type": "null"
+          },
+          "realized_cost": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "risk": {
+            "const": "joint_error"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "realized_cost": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "risk": {
+            "const": "selective_cost"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "pvalue": {
+            "const": "hoeffding_bentkus"
+          },
+          "cost": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ]
+}

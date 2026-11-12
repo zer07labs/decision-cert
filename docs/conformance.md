@@ -71,6 +71,9 @@ value, never a re-serialised typed struct.
 | `v1.2/valid_dr_map`, `v1.2/valid_other_map_kind` | a `dr` calibration map, and a kind v1.2 does not define (verifies; a consumer that does not apply it refuses it) |
 | `v1.2/invalid_dr_*`, `v1.2/invalid_temperature_*` | map parameters that do not fit their kind (spec v1.2 §2) |
 | `v1.2/invalid_unknown_spec` | a later `spec` (v1.3) is refused |
+| `v1.4/valid_cost_*` | `selective_cost` certificates over two and three options, with segments and an automated subset |
+| `v1.4/invalid_cost_*`, `v1.4/invalid_hb_under_selective_error`, `v1.4/invalid_crc_pvalue` | the cost matrix, the equal-cost refusal and the `cost`/`pvalue`/`risk` pairing (spec v1.4 §2) |
+| `v1.4/invalid_*realized_cost*` | `realized_cost` in [0, 1], and null for the error risks, an inherited segment and a test that answered no case |
 
 ## 4. Beyond the fixtures
 
