@@ -54,7 +54,7 @@ binomial p-value when every off-diagonal cost is equal. It refuses `selective_co
 Hoeffding–Bentkus is more conservative than the exact binomial on a 0/1 loss, and the consumer would
 pay in labels for nothing.
 
-**`joint_cost`** (with `crc`):
+**`joint_cost`** (with `crc`). *Out of v1.4 (owner, 2026-11-12); recorded here for a later version if a consumer asks.*
 - `E[1{answered} · L]` is non-increasing as `λ` rises and is bounded by 1.
 - So conformal risk control applies with loss bound `B = 1` (Angelopoulos, Bates, Fisch, Lei,
   Schuster, 2022, "Conformal Risk Control", its main theorem). The chosen cut is the last one before
@@ -63,15 +63,15 @@ pay in labels for nothing.
 
 ## 2. Spec and verifier changes (a new spec value; frozen specs unchanged)
 
-A new spec value. v1.3 is implemented but not frozen; this would be a later version, for example
-`decision-certificate.v1.4`, so no consumer of v1.3 sees new fields. Every addition is a new field or
-a new enum value.
+A new spec value, `decision-certificate.v1.4` (owner, 2026-11-12). v1.3 is in use and stays as it is, so no consumer of
+v1.3 sees new fields. Every addition is a new field or a new enum value. v1.4 adds `selective_cost` only; `joint_cost` is
+not in it.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `risk` | adds `"selective_cost"` (with `ltt`), `"joint_cost"` (with `crc`) | §1 |
+| `risk` | adds `"selective_cost"` (with `ltt`) | §1 |
 | `cost` | `{matrix, c_max, unit}` \| null | `matrix`: number[][], options × options, row = label, column = answered option, in `options` order. `c_max`: its largest entry. `unit`: a free label such as `"USD"` or null; informational only. Null for the error risks. |
-| `pvalue` | `"binomial"` \| `"hoeffding_bentkus"` \| null | The `ltt` p-value used. `binomial` for `selective_error`, `hoeffding_bentkus` for `selective_cost`, null for `crc`. |
+| `pvalue` | `"binomial"` \| `"hoeffding_bentkus"` \| null | The `ltt` p-value used. `binomial` for `selective_error`, `hoeffding_bentkus` for `selective_cost`, null for `crc`. A betting p-value would be a later, separately versioned value. |
 | `realized_cost` | number \| null | Each test's mean normalised loss of its answered cases at the chosen threshold. Descriptive, like `realized_band`. Null for the error risks. |
 
 - **`ucb`:** for `selective_cost`, the Hoeffding–Bentkus upper bound at level `1 − d`, on the mean
@@ -99,9 +99,12 @@ a new enum value.
 - It reports `alpha · c_max` in its own units when it shows the bound.
 
 **Fixtures:** new positive fixtures from the reference issuer (`gen_positive_fixtures.py`). They
-cover a two-option and a three-option matrix, one segment, and `crc`. New negatives cover a bad
-diagonal, an entry above `c_max`, a wrong `c_max`, equal costs under a cost risk, and a pairing
-mismatch.
+cover a two-option and a three-option matrix and one segment. New negatives cover a bad diagonal, an
+entry above `c_max`, a wrong `c_max`, equal costs under a cost risk, and a pairing mismatch.
+
+**Equal-cost test (required).** With every off-diagonal cost equal, the issuer must write `selective_error` and choose
+exactly v1's threshold with v1's `ucb`, byte for byte, on the existing positive fixtures' inputs. It must refuse
+`selective_cost` there.
 
 ## 3. How many labels (to be measured; design of the study)
 
@@ -156,8 +159,10 @@ Two effects move the label count at a fixed `alpha` and `delta`:
 - Abstained cases carry no cost here. Total expected cost, including review cost, is a different
   objective that this scope does not cover.
 
-## Open questions for the owner
+## Owner answers (2026-11-12)
 
-1. Spec value: a later minor (`v1.4`), or fold into v1.3 before it freezes?
-2. Hoeffding–Bentkus first, betting later: accepted?
-3. Should `crc`'s `joint_cost` ship in the same version, or wait?
+1. **Version:** a new `v1.4`, not folded into v1.3, which is in use.
+2. **p-value:** Hoeffding–Bentkus first. Betting is a later, separately versioned option. v1's exact binomial stays
+   whenever costs are equal, proved by the equal-cost test in §2.
+3. **`joint_cost`:** out of v1.4. `selective_cost` ships alone; `crc` may follow if a consumer asks.
+4. **Status:** a draft. No code until the founder's go.
