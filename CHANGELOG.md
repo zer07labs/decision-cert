@@ -1,9 +1,22 @@
 # Changelog
 
-All notable changes to this repository. The spec (`decision-certificate.v1`, `v1.1`, `v1.2`, frozen; `v1.3`,
-not yet frozen) is versioned separately; this log covers the crate, the verifiers, the fixtures and the docs.
+All notable changes to this repository. The spec (`decision-certificate.v1`, `v1.1`, `v1.2`, frozen; `v1.3`
+and `v1.4`, not yet frozen) is versioned separately; this log covers the crate, the verifiers, the fixtures and the docs.
 
 ## Unreleased
+
+- **Spec v1.4: the cost risk `selective_cost`, implemented, not frozen**
+  (`spec/decision-certificate.v1.4.md`). Both verifiers accept `decision-certificate.v1.4`, and the
+  issuer writes it with `--spec decision-certificate.v1.4`; the default stays v1.2.
+  - `--cost DECISION=COSTS.json` certifies the mean normalised cost of the answered cases with
+    Hoeffding-Bentkus Learn-then-Test. Equal off-diagonal costs give `selective_error`, byte-identical
+    to the certificate issued without a cost (a required test).
+  - New fields `cost`, `pvalue` and `realized_cost` (per test and per `automated` block), with
+    their checks in both verifiers. Reader: `cost()`.
+  - A new fixture set, `fixtures/v1.4/` (70 files and its mutations); v1 to v1.3 certificates,
+    fixtures and verdicts are byte-identical. `joint_cost` and a betting p-value stay draft.
+  - `spec/drafts/cost-study.md`: the label study (648 cells, valid everywhere), and
+    `docs/certificates.md` guidance on when a cost matrix pays and on small-`n_cal` certificates.
 
 - `python/tools/study_start.py` and `spec/drafts/s1-start-study.md`: where the `ltt` fixed sequence
   starts, on small tests (n 250–1,000, alpha = delta = 0.1). Four start rules across four synthetic

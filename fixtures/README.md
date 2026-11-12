@@ -2,7 +2,7 @@
 
 Every verifier of decision certificates, in any language, must agree with the Rust crate (`rust/`)
 on every file here: the v1 set at the top level, the v1.1 set in [`v1.1/`](v1.1/), the v1.2 set
-in [`v1.2/`](v1.2/) and the v1.3 set in [`v1.3/`](v1.3/). On each file
+in [`v1.2/`](v1.2/), the v1.3 set in [`v1.3/`](v1.3/) and the v1.4 set in [`v1.4/`](v1.4/). On each file
 it must agree on the canonical bytes of the signed body (`body_jcs_b64`), the
 certificate id, and the verdict (`valid`, and for an invalid certificate a substring of the error,
 `error`). `mutations/schema_invalid.json` holds signed certificates the schema rejects; every one
@@ -68,11 +68,38 @@ test's `coverage`, `ucb` and `realized_band`. Its own `mutations/`, and the v1.3
 v1.3 is not frozen yet, so this set may still change until it is; `v1.2/invalid_unknown_spec.json`
 names v1.3 with v1.2's fields, and a v1.3 verifier refuses it with `spec is not` in its message.
 
+**v1.4.** [`v1.4/`](v1.4/) holds the v1.3 set again with `spec` `decision-certificate.v1.4` and
+the v1.4 fields for the error risks (`cost` and every `realized_cost` null, `pvalue` `binomial`, or
+null under `crc`). Its `mutations/` start from `valid_cost_segments`, a `selective_cost`
+certificate. The v1.4 cases:
+
+- `valid_cost_basic`, `valid_cost_segments`, `valid_cost_three_options` and
+  `valid_cost_automated_subset`: `selective_cost` over two options (a bad approval costs 5, a missed
+  one 1), with a certified and an inherited segment, over three options (`unit` null), and with
+  approvals automated only;
+- `invalid_cost_diagonal_not_zero`, `_c_max_not_largest`, `_entry_above_c_max`, `_not_square`,
+  `_row_short` and `_unit_empty`: matrices the checks of spec v1.4 §2 refuse;
+  `invalid_cost_equal_off_diagonal`: equal costs under a cost risk;
+- `invalid_cost_pvalue_binomial`, `invalid_cost_risk_without_cost`,
+  `invalid_cost_under_selective_error`, `invalid_hb_under_selective_error` and `invalid_crc_pvalue`:
+  `cost` or `pvalue` that do not pair with `risk`;
+- `invalid_realized_cost_under_selective_error`, `_null_under_cost`, `_above_one`,
+  `_inherited_segment` and `invalid_segment_realized_cost_null`: `realized_cost` values the checks
+  refuse; `invalid_automated_realized_cost_differs`: every option automated, but an
+  `automated.realized_cost` that is not its test's;
+- `invalid_selective_cost_in_v1_3`, `invalid_v1_4_field_in_v1_3`, `invalid_missing_v1_4_field`,
+  `invalid_automated_missing_realized_cost` and `invalid_segment_missing_realized_cost`: a risk or
+  fields that belong to another spec;
+- `invalid_unknown_spec`: a certificate naming `decision-certificate.v1.5`.
+
+v1.4 is not frozen yet, so this set may still change until it is; `v1.3/invalid_unknown_spec.json`
+names v1.4 with v1.3's fields, and a v1.4 verifier refuses it with `spec is not` in its message.
+
 The v1 and v1.1 sets do not change. `v1.1/invalid_unknown_spec.json` names v1.2 with v1.1's fields;
 a v1.2 verifier still refuses it, because its fields are not v1.2's, and its message still contains
 `spec is not`.
 
 **Vendoring.** `FIXTURES.sha256` lists the SHA-256 of every v1 fixture file (`sha256sum -c` format);
-`v1.1/FIXTURES.sha256`, `v1.2/FIXTURES.sha256` and `v1.3/FIXTURES.sha256` do the same for their sets.
+`v1.1/FIXTURES.sha256` to `v1.4/FIXTURES.sha256` do the same for their sets.
 Consumers vendor this directory and `FIXTURES.sha256` together, record the upstream commit, and
 check their copy with `sha256sum -c FIXTURES.sha256`.

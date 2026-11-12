@@ -1,5 +1,6 @@
-> Design draft. It scopes a possible addition; the owner decides. Nothing here is implemented, and no
-> spec, schema, verifier or fixture changes with it.
+> Design draft, now **implemented as [spec v1.4](../decision-certificate.v1.4.md)** (2026-11-12):
+> `selective_cost` with Hoeffding-Bentkus only, per the owner answers below. The study of §3 is
+> [cost-study.md](cost-study.md). `joint_cost` and a betting p-value stay draft.
 
 # Cost-weighted abstention: scope (2026-11-12)
 
