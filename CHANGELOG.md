@@ -21,6 +21,8 @@ fixtures and verdicts are byte-identical, and the issuer's default stays v1.2.
 - **The HB statistics** (`stats.py`: `cost_start`, `cost_ltt`, the Hoeffding-Bentkus p-value) and the
   **cost study** (`spec/drafts/cost-study.md`, 648 cells, valid everywhere).
 - The README, CLAUDE.md, roadmap and docs reference the frozen v1.3 and v1.4 specs and 0.5.0.
+- **Release readback** (`release.yml`, job `readback`): after both publishes, a fresh install from PyPI
+  and a fresh build from crates.io each check all 84 `fixtures/v1.4/` files against their verdicts.
 
 The entries below, from 0.4.0 to this release, give the detail.
 
