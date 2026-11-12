@@ -41,7 +41,7 @@ def test_on_zero_one_losses_hb_is_never_below_the_exact_binomial() -> None:
 
 
 def test_float_noise_in_the_loss_sum_does_not_move_the_ceiling() -> None:
-    noisy = sum([0.1] * 20)  # 2.0000000000000004
+    noisy = float(np.nextafter(2.0, 3.0))  # 2.0000000000000004, as float summation can give
     assert noisy != 2.0
     assert cs.hb_p_value(200, noisy, 0.05) == cs.hb_p_value(200, 2.0, 0.05)
     assert math.ceil(2.5 - 1e-9) == 3  # a real fractional part still rounds up
@@ -82,13 +82,16 @@ def test_loss_sums_reduce_to_counts_on_zero_one_losses() -> None:
 
 def test_cost_ltt_on_zero_one_losses_is_never_looser_than_v1_ltt() -> None:
     rng = np.random.default_rng(11)
+    certified = 0
     for _ in range(50):
-        conf = rng.uniform(0.5, 1.0, 600)
-        err = rng.random(600) < 0.4 * (1 - conf)
-        cuts = cs.cuts_of(conf)
-        v1 = cs.ltt(conf, err, cuts, 0.05, 0.1)
-        hb = cs.cost_ltt(conf, err.astype(float), cuts, 0.05, 0.1)
+        conf = rng.uniform(0.5, 1.0, 1200)
+        err = rng.random(1200) < 0.4 * (1 - conf)
+        cuts = cs.grid(conf[:600], err[:600], 0.05)  # the same cuts for both, from v1's start
+        v1 = cs.ltt(conf[600:], err[600:], cuts, 0.05, 0.1)
+        hb = cs.cost_ltt(conf[600:], err[600:].astype(float), cuts, 0.05, 0.1)
         assert hb.abstain_below >= v1.abstain_below
+        certified += v1.abstain_below < cs.ABSTAIN_ALL
+    assert certified > 10  # not vacuous
 
 
 def test_cost_ltt_stops_at_the_first_cut_that_is_not_rejected() -> None:
@@ -105,7 +108,8 @@ def test_cheap_errors_certify_more_than_their_error_rate_would() -> None:
     rng = np.random.default_rng(5)
     conf = rng.uniform(0.5, 1.0, 4000)
     err = rng.random(4000) < 0.6 * (1 - conf)
-    cuts = cs.cuts_of(conf[:2000])
-    v1 = cs.ltt(conf[2000:], err[2000:], cuts, 0.05, 0.1)
-    cheap = cs.cost_ltt(conf[2000:], err[2000:] * 0.2, cuts, 0.05, 0.1)
+    ct, et = conf[:2000], err[:2000]
+    v1 = cs.ltt(conf[2000:], err[2000:], cs.grid(ct, et, 0.05), 0.05, 0.1)
+    cheap = cs.cost_ltt(conf[2000:], err[2000:] * 0.2, cs.cost_grid(ct, et * 0.2, 0.05), 0.05, 0.1)
+    assert v1.coverage > 0
     assert cheap.coverage > v1.coverage
