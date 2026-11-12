@@ -789,6 +789,13 @@ fn cost(c: &Certificate) -> Result<(), CertError> {
             // whole costs: one exact division, so every verifier, in any language, gets the same
             // number. Both operands are exact in f64 (at most 2^53).
             let answered = (coverage * n as f64 + 0.5).floor();
+            // k can't be fudged by rounding: coverage is exactly k / n, one correctly rounded division
+            // of two exact integers, as the issuer writes it
+            if !(1..=1u64 << 53).contains(&n) || coverage != answered / n as f64 {
+                return bad(
+                    "coverage must be exactly answered / n, a whole number of answered cases",
+                );
+            }
             let ok = (1.0..=SAFE_SCALE).contains(&answered) && {
                 let scale = u128::from(k.c_max) * answered as u128;
                 scale <= SAFE_SCALE as u128

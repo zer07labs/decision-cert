@@ -12,7 +12,7 @@ and `v1.4`, not yet frozen) is versioned separately; this log covers the crate, 
   must equal their test's as integers. Before, those equalities compared float sums whose last bit
   depended on summation order, so a correct issuer summing differently from ours would have written
   certificates every verifier refused (found when #44's first CI run caught our own issuer doing it).
-  The statistics are unchanged. The v1.4 fixtures are regenerated with 13 new cases (83 files); v1
+  The statistics are unchanged. The v1.4 fixtures are regenerated with 14 new cases (84 files); v1
   to v1.3 are byte-identical.
 
 - **Spec v1.4: the cost risk `selective_cost`, implemented, not frozen**

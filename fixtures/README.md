@@ -91,7 +91,8 @@ certificate. The v1.4 cases:
 - `invalid_realized_cost_one_ulp_off`, `invalid_segment_realized_cost_one_ulp_off`,
   `invalid_realized_cost_other_loss_sum` and `invalid_loss_sum_above_c_max_answered`: a
   `realized_cost` that is not exactly `loss_sum` / (`c_max` · answered), even by one unit in the last
-  place, as a sum taken in another float order would give;
+  place, as a sum taken in another float order would give; `invalid_coverage_not_whole_answered`: a
+  `coverage` that rounds to a whole number of answered cases but is not exactly `answered / n`;
 - `invalid_automated_realized_cost_differs` and `invalid_automated_loss_sum_off_by_one`: every option
   automated, but an `automated` block (consistent in itself) whose `loss_sum` is not its test's;
 - `invalid_selective_cost_in_v1_3`, `invalid_v1_4_field_in_v1_3`, `invalid_missing_v1_4_field`,

@@ -528,6 +528,14 @@ def _cost_cases(out: Out, base: Any, segmented: Any) -> None:
     for name, cert in inexact.items():
         trusted = keys(KEY, OTHER) if cert["segments"] else keys(KEY)
         out[name] = (ct.sign(cert, KEY), trusted, False, exact_msg)
+    fudged = two()  # coverage (1029 + 0.4) / 2500 rounds to 1029 answered, but it is not 1029 / 2500
+    fudged["coverage"] = fudged["automated"]["coverage"] = (1029 + 0.4) / 2500
+    out["invalid_coverage_not_whole_answered"] = (
+        ct.sign(fudged, KEY),
+        keys(KEY),
+        False,
+        "coverage must be exactly answered / n",
+    )
     for name, (ls, why) in {
         "invalid_automated_realized_cost_differs": (31, "a different automated mean"),
         "invalid_automated_loss_sum_off_by_one": (38, "one cost unit off"),

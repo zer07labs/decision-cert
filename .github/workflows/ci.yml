@@ -54,7 +54,7 @@ jobs:
           test "$(find ../fixtures/v1.1 -maxdepth 1 -name '*.json' | wc -l)" -ge 9
           test "$(find ../fixtures/v1.2 -maxdepth 1 -name '*.json' | wc -l)" -ge 25
           test "$(find ../fixtures/v1.3 -maxdepth 1 -name '*.json' | wc -l)" -ge 43
-          test "$(find ../fixtures/v1.4 -maxdepth 1 -name '*.json' | wc -l)" -ge 83
+          test "$(find ../fixtures/v1.4 -maxdepth 1 -name '*.json' | wc -l)" -ge 84
           cargo test --locked --test conformance -- --exact rust_and_python_agree_on_every_fixture every_schema_invalid_mutation_is_rejected rust_and_python_agree_on_every_v1_1_fixture every_v1_1_schema_invalid_mutation_is_rejected rust_and_python_agree_on_every_v1_2_fixture every_v1_2_schema_invalid_mutation_is_rejected rust_and_python_agree_on_every_v1_3_fixture every_v1_3_schema_invalid_mutation_is_rejected rust_and_python_agree_on_every_v1_4_fixture every_v1_4_schema_invalid_mutation_is_rejected
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:

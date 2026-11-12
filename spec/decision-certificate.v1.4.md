@@ -133,7 +133,8 @@ v1.3's fields, with one new `risk` value and five additions:
 - Every `loss_sum` and `realized_cost` is null for the error risks, for an inherited segment, and
   wherever its test (or its automated cases) answered no case, and only there.
 - Otherwise, with `k` = ⌊`coverage` · `n` + ½⌋ the answered cases (for an `automated` block,
-  its `coverage` times its test's `n`): `c_max` · `k` is at most 2⁵³, `loss_sum` is at most
+  its `coverage` times its test's `n`): `coverage` is exactly `k / n` (one double division, as an
+  issuer writes it, so `k` cannot be moved by rounding; `n` at most 2⁵³), `c_max` · `k` is at most 2⁵³, `loss_sum` is at most
   `c_max` · `k`, and `realized_cost` equals `loss_sum / (c_max · k)` exactly, computed as one
   double division. Every language gets the same bits, so verifiers agree.
 - When `automate_options` names every option, each `automated.loss_sum` and

@@ -501,7 +501,10 @@ def _check_cost(c: Mapping[str, Any]) -> None:
             )
         if ls is not None:
             # whole costs: one exact division, so every verifier, in any language, gets the same number
-            scale = cost["c_max"] * math.floor(t["coverage"] * n + 0.5)
+            k = math.floor(t["coverage"] * n + 0.5)
+            if not (0 < n <= _SAFE_INT + 1 and t["coverage"] == k / n):
+                raise Invalid("coverage must be exactly answered / n, a whole number of answered cases")
+            scale = cost["c_max"] * k
             if not (0 < scale <= _SAFE_INT + 1 and ls <= scale and rc == ls / scale):
                 raise Invalid(
                     "realized_cost must be loss_sum / (c_max * answered), with loss_sum at most c_max * answered"
