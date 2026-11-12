@@ -1,6 +1,6 @@
 # decision-cert
 
-The open `decision-certificate.v1`, `v1.1` and `v1.2` specs (frozen) and `v1.3` and `v1.4` (implemented, not frozen), the Rust verifier crate (`rust/`), the Python verifier
+The open `decision-certificate.v1`, `v1.1`, `v1.2`, `v1.3` and `v1.4` specs (frozen), the Rust verifier crate (`rust/`), the Python verifier
 (`python/`), and the conformance fixtures. See [`README.md`](README.md).
 
 decision-cert depends on nothing else of ours. Consumers pin a released version (crates.io and

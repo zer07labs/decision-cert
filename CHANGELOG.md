@@ -1,9 +1,30 @@
 # Changelog
 
-All notable changes to this repository. The spec (`decision-certificate.v1`, `v1.1`, `v1.2`, frozen; `v1.3`
-and `v1.4`, not yet frozen) is versioned separately; this log covers the crate, the verifiers, the fixtures and the docs.
+All notable changes to this repository. The spec (`decision-certificate.v1`, `v1.1`, `v1.2`, `v1.3` and `v1.4`, all
+frozen) is versioned separately; this log covers the crate, the verifiers, the fixtures and the docs.
 
 ## Unreleased
+
+## 0.5.0 — unreleased (tag `v0.5.0` on the merge commit)
+
+Specs v1.3 and v1.4: frozen, verified, issued. Verifiers accept v1 to v1.4; v1 to v1.2 certificates,
+fixtures and verdicts are byte-identical, and the issuer's default stays v1.2.
+
+- **Specs v1.3 and v1.4 frozen** (2026-11-12, founder go). Their status lines, the fixture notes and
+  the docs no longer say "not frozen"; corrections now go in `spec/ERRATA.md`.
+- **v1.4, the cost risk `selective_cost`** (#44): Hoeffding-Bentkus Learn-then-Test on the mean
+  normalised cost of the answered cases; equal costs are byte-identical to the error test.
+- **Whole-number costs and `loss_sum`** (#45, #46): exact integer checks replace float comparisons.
+- **The exact coverage check** (#46): every v1.4 test's `coverage` must equal `answered / n` exactly,
+  with `answered` recovered as the nearest whole number (n at most 2⁵³), so `realized_cost` is
+  checked against `loss_sum` with no tolerance.
+- **The HB statistics** (`stats.py`: `cost_start`, `cost_ltt`, the Hoeffding-Bentkus p-value) and the
+  **cost study** (`spec/drafts/cost-study.md`, 648 cells, valid everywhere).
+- The README, CLAUDE.md, roadmap and docs reference the frozen v1.3 and v1.4 specs and 0.5.0.
+- **Release readback** (`release.yml`, job `readback`): after both publishes, a fresh install from PyPI
+  and a fresh build from crates.io each check all 84 `fixtures/v1.4/` files against their verdicts.
+
+The entries below, from 0.4.0 to this release, give the detail.
 
 - **Spec v1.4 (not frozen): whole-number costs and `loss_sum`** (#45). Cost matrix entries and
   `c_max` are integers (`unit` names the scale; `c_max` at most 10⁶), and each test, segment and

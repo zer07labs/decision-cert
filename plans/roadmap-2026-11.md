@@ -112,14 +112,23 @@ verifiers, the issuer and `fixtures/v1.2/`. The `dr` map kind followed (#24), an
 on 2026-11-08 with both. 0.4.0, which carries it, was released on 2026-11-09 (tag `v0.4.0`, on
 crates.io and PyPI).
 
-## v1.3 (draft, design only)
+## Phase 6 — specs v1.3 and v1.4
+
+v1.3 adds, under its own `spec` value, the options a consumer automates with each test's answered share and error
+among them (P1), and binds each case's `cannot_tell` value in `data_hash` (C1). v1.4 adds the cost risk
+`selective_cost`: from a consumer's whole-number cost matrix, Hoeffding-Bentkus Learn-then-Test bounds the expected
+cost of the answered cases ([design](../spec/drafts/cost-weighted-abstention.md),
+[study](../spec/drafts/cost-study.md)). Both were frozen on 2026-11-12 (founder go) and ship in 0.5.0; v1 to v1.2
+and their fixtures are unchanged, and issuers still write v1.2 unless asked.
+
+## v1.3 draft items (design only)
 
 [`spec/drafts/decision-certificate.v1.3.md`](../spec/drafts/decision-certificate.v1.3.md) collects
 candidate items with their open questions: a deployment fingerprint, dataset roles and an issuance
 ledger, key revocation and rotation, binding the per-case `cannot_tell` values, a typed uncertainty
 selector, an error bound for the automated options only, and optionally segment correction and the
-drift alarm's false-alarm rate. Nothing in it is
-approved for implementation; the owner decides each item first.
+drift alarm's false-alarm rate. C1 and P1 became v1.3; nothing else in it is approved for implementation,
+and the owner decides each item first.
 
 ## Naming (decided 2026-11-07)
 

@@ -83,3 +83,75 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: python/dist
+
+  readback:
+    # After both publishes: install the tagged version fresh from PyPI and crates.io, with no repository
+    # source on the path, and check every fixture of the newest spec against its recorded verdict.
+    needs: [crates-io, pypi]
+    if: github.event_name == 'push'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: PyPI serves the version, and a fresh install verifies the v1.4 fixtures
+        run: |
+          v="${GITHUB_REF_NAME#v}"; fx="$GITHUB_WORKSPACE/fixtures/v1.4"; rb="$RUNNER_TEMP/rb-py"
+          for i in $(seq 1 40); do
+            curl -fsS "https://pypi.org/pypi/decision-cert/$v/json" >/dev/null && break
+            [ "$i" = 40 ] && { echo "PyPI does not serve $v"; exit 1; }; sleep 15
+          done
+          uv venv -q "$rb" && uv pip install -q --python "$rb" --no-cache --refresh "decision-cert==$v"
+          cd "$RUNNER_TEMP" && "$rb/bin/python" -I - "$v" "$fx" <<'PY'
+          import json, sys
+          from pathlib import Path
+          import decision_cert as dc
+          v, fx = sys.argv[1], Path(sys.argv[2])
+          assert dc.__version__ == v, (dc.__version__, v)
+          assert "site-packages" in dc.__file__, dc.__file__
+          n = 0
+          for p in sorted(fx.glob("*.json")):
+              f = json.loads(p.read_text())
+              try:
+                  got = dc.verify(f["certificate"], f["keys"]).id
+              except Exception:
+                  got = None
+              if f["valid"]:
+                  assert got == f["certificate_id"], p.name
+              else:
+                  assert got is None, p.name
+              n += 1
+          assert n >= 84, n
+          print(f"decision-cert {v} from PyPI: {n} v1.4 fixtures agree with their verdicts")
+          PY
+      - name: crates.io serves the version, and a fresh build verifies the v1.4 fixtures
+        run: |
+          v="${GITHUB_REF_NAME#v}"; rb="$RUNNER_TEMP/rb-rs"
+          cargo new -q --bin "$rb"
+          cat >> "$rb/Cargo.toml" <<TOML
+          decision-cert = "=$v"
+          serde_json = "1"
+          TOML
+          cat > "$rb/src/main.rs" <<'RS'
+          use std::collections::BTreeMap;
+          fn main() {
+              let mut n = 0;
+              for path in std::env::args().skip(1) {
+                  let f: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+                  let keys: BTreeMap<String, String> = serde_json::from_value(f["keys"].clone()).unwrap();
+                  let got = decision_cert::verify(&f["certificate"], &keys).ok().map(|x| x.id);
+                  let want = f["valid"].as_bool().unwrap().then(|| f["certificate_id"].as_str().unwrap().to_string());
+                  assert_eq!(got, want, "{path}");
+                  n += 1;
+              }
+              assert!(n >= 84, "{n}");
+              println!("decision-cert from crates.io: {n} v1.4 fixtures agree with their verdicts");
+          }
+          RS
+          for i in $(seq 1 40); do
+            (cd "$rb" && cargo update -q 2>/dev/null) && break
+            [ "$i" = 40 ] && { echo "crates.io does not serve $v"; exit 1; }; sleep 15
+          done
+          grep -A1 'name = "decision-cert"' "$rb/Cargo.lock"
+          (cd "$rb" && cargo run -q --release -- "$GITHUB_WORKSPACE"/fixtures/v1.4/*.json)
