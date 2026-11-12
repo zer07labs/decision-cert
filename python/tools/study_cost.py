@@ -24,7 +24,9 @@ Reported per cell and test:
 - coverage / k\\*: the mean true coverage as a share of the error test's best possible, k\\*. The cost test's
   own best possible is min(1, k\\* / w), also reported;
 - violations: the share of draws whose true risk at the chosen threshold (the error for `selective_error`,
-  the mean loss for `selective_cost`) is above alpha; it must be <= delta within Monte Carlo error.
+  the mean loss for `selective_cost`) is above alpha; it must be <= delta within Monte Carlo error;
+- the true risk at the chosen threshold over the certified draws: its mean, its 90th percentile and its worst
+  draw, so that no cell can look fine on average while its worst draw is above alpha (as in the S1 study).
 
 r = 1 is the equal-cost case. There the issuer refuses `selective_cost` (§1); its row shows what the
 Hoeffding-Bentkus p-value alone costs against the exact binomial.
@@ -88,6 +90,10 @@ def summarise(cell: Cell, reps: int) -> dict[str, Any]:
         row[f"{name}_certified"] = float(answered.mean())
         row[f"{name}_coverage_share"] = float(cov.mean() / best)
         row[f"{name}_violations"] = float(np.mean(risk > alpha))
+        cert = risk[answered]
+        row[f"{name}_risk_mean"] = float(cert.mean()) if len(cert) else None
+        row[f"{name}_risk_q90"] = float(np.quantile(cert, 0.9)) if len(cert) else None
+        row[f"{name}_risk_worst"] = float(cert.max()) if len(cert) else None
     return row
 
 
@@ -116,6 +122,38 @@ def table(rows: list[dict[str, Any]]) -> str:
                     cells_ = " | ".join(f"{x['cost_certified']:.2f} / {x['cost_coverage_share']:.2f}" for x in line)
                     worst = max(x["cost_violations"] for x in line)
                     out.append(f"| cost | {r} | {s} | {cells_} | {worst:.3f} |")
+    return "\n".join(out) + "\n"
+
+
+def _r(x: float | None) -> str:
+    return "-" if x is None else f"{x:.3f}"
+
+
+def risk_table(rows: list[dict[str, Any]]) -> str:
+    """Per cell: the true risk at the chosen threshold over the certified draws, mean / worst, and the
+    worst draw's ratio to alpha. '-' where no draw certified."""
+    out = []
+    for alpha in ALPHAS:
+        for best in BEST:
+            out.append(
+                f"\n**alpha {alpha}, k\\* {best}**: true risk at the chosen threshold, certified draws only,"
+                " mean / worst\n"
+            )
+            out.append("| test | r | s | " + " | ".join(f"n_cal {n}" for n in SIZES) + " | worst / alpha |")
+            out.append("|---" * (len(SIZES) + 4) + "|")
+            rs = [x for x in rows if x["alpha"] == alpha and x["best_coverage"] == best]
+            lines: list[tuple[str, str, str, list[dict[str, Any]]]] = [
+                ("error", "", "", [x for x in rs if x["ratio"] == RATIOS[0] and x["mix"] == MIXES[0]])
+            ]
+            lines += [
+                ("cost", str(r), str(s), [x for x in rs if x["ratio"] == r and x["mix"] == s])
+                for r in RATIOS
+                for s in MIXES
+            ]
+            for name, r_, s_, line in lines:
+                cells_ = " | ".join(f"{_r(x[f'{name}_risk_mean'])} / {_r(x[f'{name}_risk_worst'])}" for x in line)
+                ws = [x[f"{name}_risk_worst"] for x in line if x[f"{name}_risk_worst"] is not None]
+                out.append(f"| {name} | {r_} | {s_} | {cells_} | {(max(ws) / alpha if ws else 0):.2f} |")
     return "\n".join(out) + "\n"
 
 
@@ -148,6 +186,8 @@ def main() -> int:
             print(json.dumps(x))
     else:
         print(table(rows), end="")
+        print("\n## True risk at the chosen threshold\n")
+        print(risk_table(rows), end="")
     if args.json:
         with open(args.json, "w", encoding="utf-8") as f:
             json.dump({"delta": DELTA, "reps": args.reps, "seed": SEED, "rows": rows}, f, indent=1)
