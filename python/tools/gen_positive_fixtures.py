@@ -19,10 +19,11 @@ v1.2 set with `spec` `decision-certificate.v1.3` and the v1.3 fields (every opti
 `automated` block repeats its test's numbers), plus the v1.3 cases: a subset of options automated,
 `automate_options` a verifier must refuse, `automated` blocks that disagree with their test, and
 fields that belong to another spec. The v1.4 set is the v1.3 set with `spec` `decision-certificate.v1.4`
-and the v1.4 fields (the error risks: `cost` and every `realized_cost` null, `pvalue` `binomial`, or null
-under `crc`), plus the v1.4 cases: `selective_cost` certificates over two and three options, cost
-matrices and pairings a verifier must refuse, `realized_cost` values a verifier must refuse, and fields
-that belong to another spec. Its schema mutations start from a `selective_cost` certificate.
+and the v1.4 fields (the error risks: `cost` and every `loss_sum` and `realized_cost` null, `pvalue`
+`binomial`, or null under `crc`), plus the v1.4 cases: `selective_cost` certificates over two and three
+options (whole-number costs, each `realized_cost` exactly its `loss_sum` / (c_max · answered)), cost
+matrices and pairings a verifier must refuse, `loss_sum` and `realized_cost` values a verifier must refuse,
+and fields that belong to another spec. Its schema mutations start from a `selective_cost` certificate.
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ import base64
 import copy
 import hashlib
 import json
+import math
 import sys
 from collections.abc import Iterator
 from pathlib import Path
@@ -73,22 +75,33 @@ def make_base(spec: str = ct.SPEC_V1) -> dict[str, Any]:
     if spec in FROM_V1_3:
         out["automate_options"] = list(out["options"])
     if spec == ct.SPEC_V1_4:
-        out.update(cost=None, pvalue="binomial", realized_cost=None)
+        out.update(cost=None, pvalue="binomial", loss_sum=None, realized_cost=None)
     sync(out)
     return out
 
 
 def _same_as(test: dict[str, Any]) -> dict[str, Any]:
     out = {"coverage": test["coverage"], "ucb": test["ucb"], "realized_band": copy.deepcopy(test["realized_band"])}
-    if "realized_cost" in test:
-        out["realized_cost"] = test["realized_cost"]
+    for k in ("loss_sum", "realized_cost"):
+        if k in test:
+            out[k] = test[k]
     return out
 
 
-def auto_block(spec: str, coverage: float, ucb: float | None, band: Any, cost: float | None = None) -> dict[str, Any]:
-    """An `automated` block; v1.4 adds its realized_cost."""
+def auto_block(
+    spec: str, coverage: float, ucb: float | None, band: Any, cost: tuple[int, float] | None = None
+) -> dict[str, Any]:
+    """An `automated` block; v1.4 adds its loss_sum and realized_cost (`cost`, or both null)."""
     out = {"coverage": coverage, "ucb": ucb, "realized_band": band}
-    return {**out, "realized_cost": cost} if spec == ct.SPEC_V1_4 else out
+    if spec != ct.SPEC_V1_4:
+        return out
+    return {**out, "loss_sum": cost[0] if cost else None, "realized_cost": cost[1] if cost else None}
+
+
+def realized_of(loss_sum: int, c_max: int, coverage: float, n: int) -> tuple[int, float]:
+    """(loss_sum, realized_cost) for a test of `n` cases answering a `coverage` share: realized_cost is
+    loss_sum / (c_max · answered), one exact division (spec v1.4 §2)."""
+    return loss_sum, loss_sum / (c_max * math.floor(coverage * n + 0.5))
 
 
 def sync(cert: dict[str, Any]) -> dict[str, Any]:
@@ -96,6 +109,7 @@ def sync(cert: dict[str, Any]) -> dict[str, Any]:
     segment has its realized_cost (null unless set)."""
     if cert["spec"] == ct.SPEC_V1_4:
         for s in cert["segments"]:
+            s.setdefault("loss_sum", None)
             s.setdefault("realized_cost", None)
     if cert["spec"] in FROM_V1_3:
         cert["automated"] = _same_as(cert)
@@ -398,12 +412,18 @@ def fixtures(spec: str = ct.SPEC_V1) -> dict[str, dict[str, Any]]:
     return result
 
 
-def costed(cert: dict[str, Any], cost: dict[str, Any], realized: float, segment: float | None = None) -> dict[str, Any]:
-    """A `selective_cost` certificate: the cost risk, its p-value, the costs and the realized costs (the
-    first segment's, if any; an inherited segment has none), every option automated."""
-    cert.update(risk="selective_cost", pvalue="hoeffding_bentkus", cost=copy.deepcopy(cost), realized_cost=realized)
+def costed(cert: dict[str, Any], cost: dict[str, Any], loss: int, segment: int | None = None) -> dict[str, Any]:
+    """A `selective_cost` certificate: the cost risk, its p-value, the costs, and each test's loss sum (the
+    first segment's, if any; an inherited segment has none) and realized cost, every option automated."""
+    ls, rc = realized_of(loss, cost["c_max"], cert["coverage"], cert["n"])
+    cert.update(
+        risk="selective_cost", pvalue="hoeffding_bentkus", cost=copy.deepcopy(cost), loss_sum=ls, realized_cost=rc
+    )
     for s in cert["segments"]:
-        s["realized_cost"] = None if s["inherited"] else segment
+        own = segment is not None and not s["inherited"]
+        s["loss_sum"], s["realized_cost"] = (
+            realized_of(segment, cost["c_max"], s["coverage"], s["n"]) if segment is not None and own else (None, None)
+        )
     return sync(cert)
 
 
@@ -415,13 +435,14 @@ def _cost_cases(out: Out, base: Any, segmented: Any) -> None:
     spec = ct.SPEC_V1_4
     matrix_msg = "cost.matrix must be options x options"
     pair_msg = "cost, pvalue and risk disagree"
-    real_msg = "realized_cost must be in [0, 1]"
+    real_msg = "realized_cost and loss_sum must be null"
+    exact_msg = "realized_cost must be loss_sum / (c_max * answered)"
 
     def two() -> dict[str, Any]:
-        return costed(base(), COST, 0.0071)
+        return costed(base(), COST, 37)  # 37 / (5 · 1029)
 
     def seg() -> dict[str, Any]:
-        return costed(segmented(), COST, 0.0071, 0.0094)
+        return costed(segmented(), COST, 37, 7)  # the segment: 7 / (5 · 150)
 
     out["valid_cost_basic"] = (ct.sign(two(), KEY), keys(KEY), True, None)
     out["valid_cost_segments"] = (ct.sign(seg(), KEY), keys(KEY, OTHER), True, None)
@@ -430,28 +451,32 @@ def _cost_cases(out: Out, base: Any, segmented: Any) -> None:
     three["options"] = ["yes", "no", "refer"]
     three["automate_options"] = ["yes", "no", "refer"]
     three["calibration_map"] = {"kind": "temperature", "params": {"temperature": 1.25}, "label_budget": None}
-    cost3 = {"matrix": [[0, 1, 0.5], [8, 0, 2], [3, 1.5, 0]], "c_max": 8, "unit": None}
-    out["valid_cost_three_options"] = (ct.sign(costed(three, cost3, 0.0123), KEY), keys(KEY), True, None)
+    cost3 = {"matrix": [[0, 2, 1], [16, 0, 4], [6, 3, 0]], "c_max": 16, "unit": None}
+    out["valid_cost_three_options"] = (ct.sign(costed(three, cost3, 203), KEY), keys(KEY), True, None)
 
-    sub = costed(segmented(), COST, 0.0071, 0.0094)
+    sub = costed(segmented(), COST, 37, 7)
     band = {"level": 0.95, "low": 0.0019, "high": 0.0571}
     sub["automate_options"] = ["yes"]  # approvals automated; their realized cost is the approvals' own
-    sub["automated"] = auto_block(spec, 0.3, 0.0447, band, 0.0102)
-    sub["segments"][0]["automated"] = auto_block(spec, 0.2, 0.0513, band, 0.0133)
+    sub["automated"] = auto_block(spec, 0.3, 0.0447, band, realized_of(38, 5, 0.3, 2500))
+    sub["segments"][0]["automated"] = auto_block(spec, 0.2, 0.0513, band, realized_of(8, 5, 0.2, 600))
     sub["segments"][1]["automated"] = auto_block(spec, 0.15, None, None, None)  # inherited
     out["valid_cost_automated_subset"] = (ct.sign(sub, KEY), keys(KEY, OTHER), True, None)
 
     matrices: dict[str, dict[str, Any]] = {
-        "invalid_cost_diagonal_not_zero": {**COST, "matrix": [[0.5, 1], [5, 0]]},
+        "invalid_cost_diagonal_not_zero": {**COST, "matrix": [[1, 1], [5, 0]]},
         "invalid_cost_c_max_not_largest": {**COST, "c_max": 6},
         "invalid_cost_entry_above_c_max": {**COST, "matrix": [[0, 1], [6, 0]]},
         "invalid_cost_not_square": {**COST, "matrix": [[0, 1], [5, 0], [1, 1]]},
         "invalid_cost_row_short": {**COST, "matrix": [[0, 1, 2], [5, 0]]},
         "invalid_cost_unit_empty": {**COST, "unit": ""},
+        "invalid_cost_c_max_above_limit": {"matrix": [[0, 1], [2_000_000, 0]], "c_max": 2_000_000, "unit": None},
     }
     for name, m in matrices.items():
-        out[name] = (ct.sign(costed(base(), m, 0.0071), KEY), keys(KEY), False, matrix_msg)
-    equal = costed(base(), {**COST, "matrix": [[0, 5], [5, 0]]}, 0.0071)
+        out[name] = (ct.sign(costed(base(), m, 37), KEY), keys(KEY), False, matrix_msg)
+    fractional = costed(base(), COST, 37)
+    fractional["cost"]["matrix"][0][1] = 1.5  # costs are whole numbers in `unit`
+    out["invalid_cost_fractional_entry"] = (ct.sign(fractional, KEY), keys(KEY), False, "invalid type: floating point")
+    equal = costed(base(), {**COST, "matrix": [[0, 5], [5, 0]]}, 37)
     out["invalid_cost_equal_off_diagonal"] = (ct.sign(equal, KEY), keys(KEY), False, "a cost risk needs unequal")
 
     binomial = two()
@@ -471,10 +496,12 @@ def _cost_cases(out: Out, base: Any, segmented: Any) -> None:
     crc["pvalue"] = "binomial"  # crc has no p-value
     out["invalid_crc_pvalue"] = (ct.sign(crc, KEY), keys(KEY), False, pair_msg)
 
-    def realized(cert: dict[str, Any], value: float | None, where: int | None = None) -> dict[str, Any]:
+    def realized(
+        cert: dict[str, Any], value: float | None, where: int | None = None, field: str = "realized_cost"
+    ) -> dict[str, Any]:
         t = cert if where is None else cert["segments"][where]
-        t["realized_cost"] = value
-        t["automated"]["realized_cost"] = value  # every option automated: the block repeats its test
+        t[field] = value
+        t["automated"][field] = value  # every option automated: the block repeats its test
         return cert
 
     bad_realized: dict[str, dict[str, Any]] = {
@@ -483,29 +510,48 @@ def _cost_cases(out: Out, base: Any, segmented: Any) -> None:
         "invalid_realized_cost_above_one": realized(two(), 1.5),
         "invalid_realized_cost_inherited_segment": realized(seg(), 0.0094, 1),
         "invalid_segment_realized_cost_null": realized(seg(), None, 0),
+        "invalid_loss_sum_null_under_cost": realized(two(), None, field="loss_sum"),
+        "invalid_loss_sum_under_selective_error": realized(base(), 3, field="loss_sum"),
+        "invalid_segment_loss_sum_inherited": realized(seg(), 7, 1, field="loss_sum"),
     }
     for name, cert in bad_realized.items():
         trusted = keys(KEY, OTHER) if cert["segments"] else keys(KEY)
         out[name] = (ct.sign(cert, KEY), trusted, False, real_msg)
-    differs = two()
-    differs["automated"]["realized_cost"] = 0.006  # every option is automated: it must be the test's 0.0071
-    out["invalid_automated_realized_cost_differs"] = (
-        ct.sign(differs, KEY),
-        keys(KEY),
-        False,
-        "automated must equal its test",
-    )
+    rc = 37 / 5145
+    inexact: dict[str, dict[str, Any]] = {
+        # the same mean summed another way, one ulp off: a verifier refuses it, whatever its own float order
+        "invalid_realized_cost_one_ulp_off": realized(two(), math.nextafter(rc, 1.0)),
+        "invalid_segment_realized_cost_one_ulp_off": realized(seg(), math.nextafter(7 / 750, 0.0), 0),
+        "invalid_loss_sum_above_c_max_answered": realized(realized(two(), 5146, field="loss_sum"), 1.0),
+        "invalid_realized_cost_other_loss_sum": realized(two(), 36 / 5145),
+    }
+    for name, cert in inexact.items():
+        trusted = keys(KEY, OTHER) if cert["segments"] else keys(KEY)
+        out[name] = (ct.sign(cert, KEY), trusted, False, exact_msg)
+    for name, (ls, why) in {
+        "invalid_automated_realized_cost_differs": (31, "a different automated mean"),
+        "invalid_automated_loss_sum_off_by_one": (38, "one cost unit off"),
+    }.items():
+        differs = two()  # every option is automated: the block must be its test's 37 and 37 / 5145
+        differs["automated"]["loss_sum"], differs["automated"]["realized_cost"] = realized_of(ls, 5, 0.4116, 2500)
+        assert why
+        out[name] = (ct.sign(differs, KEY), keys(KEY), False, "automated must equal its test")
 
     in_v13 = make_base(ct.SPEC_V1_3)
     in_v13["risk"] = "selective_cost"  # v1.3 has no cost risk
     out["invalid_selective_cost_in_v1_3"] = (ct.sign(in_v13, KEY), keys(KEY), False, "method, risk, delta and ucb")
     field_v13 = make_base(ct.SPEC_V1_3)
-    field_v13.update(cost=None, pvalue="binomial", realized_cost=None)  # a v1.3 certificate with v1.4 fields
+    field_v13.update(
+        cost=None, pvalue="binomial", loss_sum=None, realized_cost=None
+    )  # a v1.3 certificate with v1.4 fields
     out["invalid_v1_4_field_in_v1_3"] = (ct.sign(field_v13, KEY), keys(KEY), False, "unknown field")
     for name, where in [
         ("invalid_missing_v1_4_field", ("pvalue",)),
         ("invalid_automated_missing_realized_cost", ("automated", "realized_cost")),
         ("invalid_segment_missing_realized_cost", ("segments", 0, "realized_cost")),
+        ("invalid_missing_loss_sum", ("loss_sum",)),
+        ("invalid_automated_missing_loss_sum", ("automated", "loss_sum")),
+        ("invalid_segment_missing_loss_sum", ("segments", 0, "loss_sum")),
     ]:
         cert = seg()
         parent: Any = cert

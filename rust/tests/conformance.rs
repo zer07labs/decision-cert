@@ -93,8 +93,8 @@ fn costs_are_read_from_v1_4_cost_certificates_only() {
     }
     let v = read("v1.4", "valid_cost_three_options");
     let c = v.cost().unwrap();
-    assert_eq!(c.c_max, 8.0);
-    assert_eq!(c.matrix[1][0], 8.0);
+    assert_eq!(c.c_max, 16);
+    assert_eq!(c.matrix[1][0], 16);
     assert!(c.unit.is_none());
     assert_eq!(
         read("v1.4", "valid_cost_basic")

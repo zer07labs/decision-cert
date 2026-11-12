@@ -48,7 +48,12 @@ V1_2_FIELDS = (("confidence_bins", "confidence_histogram"), ("confidence_histogr
 V1_3_FIELDS = (("automate_options", "automated"), ("automated",))
 #: The fields a v1.4 certificate has and an earlier one must not: top level, per segment, and in every
 #: `automated` block.
-V1_4_FIELDS = (("cost", "pvalue", "realized_cost"), ("realized_cost",), ("realized_cost",))
+V1_4_FIELDS = (
+    ("cost", "pvalue", "loss_sum", "realized_cost"),
+    ("loss_sum", "realized_cost"),
+    ("loss_sum", "realized_cost"),
+)
+MAX_C = 10**6  # v1.4: the largest c_max
 #: Most bins a `confidence_bins` may define.
 MAX_BINS = 100
 #: `abstain_below` that abstains on every case.
@@ -204,10 +209,16 @@ _band = _struct("Band", {"level": _f64, "low": _f64, "high": _f64})
 _histogram = _nullable(_struct("Histogram", {"counts": _seq(_u64), "unscored": _u64}))
 _automated = _struct(
     "Automated",
-    {"coverage": _f64, "ucb": _nullable(_f64), "realized_band": _nullable(_band), "realized_cost": _nullable(_f64)},
+    {
+        "coverage": _f64,
+        "ucb": _nullable(_f64),
+        "realized_band": _nullable(_band),
+        "loss_sum": _nullable(_u64),
+        "realized_cost": _nullable(_f64),
+    },
     optional=V1_4_FIELDS[2],
 )
-_cost = _nullable(_struct("Cost", {"matrix": _seq(_seq(_f64)), "c_max": _f64, "unit": _nullable(_string)}))
+_cost = _nullable(_struct("Cost", {"matrix": _seq(_seq(_u64)), "c_max": _u64, "unit": _nullable(_string)}))
 _segment = _struct(
     "Segment",
     {
@@ -221,6 +232,7 @@ _segment = _struct(
         "inherited": _boolean,
         "confidence_histogram": _histogram,
         "automated": _automated,
+        "loss_sum": _nullable(_u64),
         "realized_cost": _nullable(_f64),
     },
     optional=V1_2_FIELDS[1] + V1_3_FIELDS[1] + V1_4_FIELDS[1],
@@ -265,6 +277,7 @@ _certificate = _struct(
         "automated": _automated,
         "cost": _cost,
         "pvalue": _nullable(_string),
+        "loss_sum": _nullable(_u64),
         "realized_cost": _nullable(_f64),
     },
     optional=V1_2_FIELDS[0] + V1_3_FIELDS[0] + V1_4_FIELDS[0],
@@ -438,7 +451,7 @@ def _check_automated(c: Mapping[str, Any]) -> None:
                 "null exactly where the test's are"
             )
     if len(auto) == len(c["options"]):
-        names = ("coverage", "ucb", "realized_band", "realized_cost")
+        names = ("coverage", "ucb", "realized_band", "loss_sum", "realized_cost")
         for t in [c, *c["segments"]]:
             if t["automated"] != {k: t[k] for k in names if k in t["automated"]}:
                 raise Invalid(
@@ -448,9 +461,11 @@ def _check_automated(c: Mapping[str, Any]) -> None:
 
 def _check_cost(c: Mapping[str, Any]) -> None:
     """v1.4's checks beyond the schema (spec v1.4 §2): `cost` and `pvalue` pair with `risk`; the cost
-    matrix is options x options with a zero diagonal, every entry in [0, c_max], `c_max` its largest
-    entry and above 0, and its off-diagonal entries not all equal; `realized_cost` is in [0, 1], null
-    for the error risks, for an inherited segment and wherever its test answered no case."""
+    matrix is options x options with a zero diagonal, whole-number entries in [0, c_max], `c_max` its
+    largest entry, above 0 and at most 10^6, and its off-diagonal entries not all equal; `loss_sum` and
+    `realized_cost` are null for the error risks, for an inherited segment and wherever their test
+    answered no case, and otherwise `loss_sum` is at most c_max · k and `realized_cost` is exactly
+    loss_sum / (c_max · k), k = ⌊coverage · n + ½⌋ the answered cases (spec v1.4 §2)."""
     risk, cost, pvalue = c["risk"], c["cost"], c["pvalue"]
     want = {"selective_error": "binomial", "selective_cost": "hoeffding_bentkus", "joint_error": None}[risk]
     if (cost is not None) != (risk == "selective_cost") or pvalue != want:
@@ -460,31 +475,37 @@ def _check_cost(c: Mapping[str, Any]) -> None:
         if not (
             len(m) == k
             and all(len(r) == k for r in m)
-            and all(m[i][i] == 0.0 for i in range(k))
-            and all(0.0 <= x <= cmax for r in m for x in r)
-            and cmax > 0.0
+            and all(m[i][i] == 0 for i in range(k))
+            and all(0 <= x <= cmax for r in m for x in r)
+            and 0 < cmax <= MAX_C
             and max(x for r in m for x in r) == cmax
             and (cost["unit"] is None or cost["unit"] != "")
         ):
             raise Invalid(
                 "cost.matrix must be options x options with a zero diagonal and entries in [0, c_max], "
-                "c_max its largest entry and above 0"
+                "c_max its largest entry, above 0 and at most 10^6"
             )
         if len({m[i][j] for i in range(k) for j in range(k) if i != j}) == 1:
             raise Invalid("a cost risk needs unequal off-diagonal costs; with equal costs it is selective_error")
-    tests = [
-        (c["realized_cost"], c["coverage"], True),
-        *((s["realized_cost"], s["coverage"], not s["inherited"]) for s in c["segments"]),
-    ]
-    tests += [(c["automated"]["realized_cost"], c["automated"]["coverage"], True)]
-    tests += [(s["automated"]["realized_cost"], s["automated"]["coverage"], not s["inherited"]) for s in c["segments"]]
-    for rc, coverage, own in tests:
-        expect = cost is not None and own and coverage > 0.0
-        if (rc is not None) != expect or (rc is not None and not _unit(rc)):
+    # (block, its test's n, own test): each test, and each test's automated cases (a share of the test's n)
+    tests = [(c, c["n"], True), *((s, s["n"], not s["inherited"]) for s in c["segments"])]
+    tests += [(c["automated"], c["n"], True)]
+    tests += [(s["automated"], s["n"], not s["inherited"]) for s in c["segments"]]
+    for t, n, own in tests:
+        rc, ls = t["realized_cost"], t["loss_sum"]
+        expect = cost is not None and own and t["coverage"] > 0.0
+        if (rc is not None) != expect or (ls is not None) != expect or (rc is not None and not _unit(rc)):
             raise Invalid(
-                "realized_cost must be in [0, 1], and null for the error risks, an inherited segment and a test "
-                "that answered no case"
+                "realized_cost and loss_sum must be null for the error risks, an inherited segment and a test "
+                "that answered no case, and only there"
             )
+        if ls is not None:
+            # whole costs: one exact division, so every verifier, in any language, gets the same number
+            scale = cost["c_max"] * math.floor(t["coverage"] * n + 0.5)
+            if not (0 < scale <= _SAFE_INT + 1 and ls <= scale and rc == ls / scale):
+                raise Invalid(
+                    "realized_cost must be loss_sum / (c_max * answered), with loss_sum at most c_max * answered"
+                )
 
 
 def _check_histograms(c: Mapping[str, Any]) -> None:

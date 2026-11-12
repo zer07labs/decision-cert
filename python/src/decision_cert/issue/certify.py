@@ -12,7 +12,8 @@ once per decision, default every option) and, per test, the share and error of t
 whose answer is one of them; its `data_hash` also covers each case's `cannot_tell` value (spec v1.3).
 
 `--spec decision-certificate.v1.4` adds a cost risk (`--cost approved=costs.json`, once per decision): the file is
-`{"matrix": [[...]], "unit": "USD" | null}`, row = label, column = answered option, in the options' order. The
+`{"matrix": [[...]], "unit": "usd_cents" | null}`, whole-number costs (in `unit`; c_max at most 10^6), row = label,
+column = answered option, in the options' order. The
 certificate then bounds the mean normalised cost of the answered cases (`risk: selective_cost`, Hoeffding-Bentkus
 p-values). With every off-diagonal cost equal it writes `selective_error` with v1's binomial test instead, the same
 certificate as without `--cost` (spec v1.4 §1).
@@ -319,26 +320,28 @@ def _automated(
     d: float | None,
     bounded: bool,
     loss: np.ndarray | None = None,
+    c_max: int = 1,
 ) -> dict[str, Any]:
     """v1.3 (P1): one test's answered cases whose answer is an automated option. Their share of the
     test's cases, and `ucb` (ltt only) and `realized_band` of their error, computed as the test's own
     are (descriptive, spec v1.2 §1.2); both null for an inherited segment, which has no test. With
-    `loss` (v1.4 `selective_cost`), `ucb` is the Hoeffding-Bentkus bound on their mean normalised
-    loss, and `realized_cost` that mean (null when none is answered); both descriptive."""
+    `loss` (v1.4 `selective_cost`, whole costs), `loss_sum` is their exact cost sum, `ucb` the
+    Hoeffding-Bentkus bound on their mean normalised loss and `realized_cost` that mean, loss_sum /
+    (c_max · answered); all null when none is answered, and descriptive."""
     hit = (conf >= abstain_below) & auto
     k, e = int(hit.sum()), int(err[hit].sum())
     out: dict[str, Any] = {"coverage": k / len(conf) if len(conf) else 0.0, "ucb": None, "realized_band": None}
     if loss is not None:
-        out["realized_cost"] = None
+        out.update(NO_COST)
     if bounded:
         low, high = cs.band(k, e, BAND_LEVEL)
         if loss is not None:
-            # summed as the test sums its losses (stats.loss_sums), so that with every option automated
-            # the sum, and so ucb and realized_cost, are the test's to the last bit (spec v1.4 §2)
-            masked = np.where(auto, loss, 0.0)
-            total = float(cs.loss_sums(conf, masked, np.array([abstain_below]))[1][0]) if k else 0.0
-            out["ucb"] = cs.hb_ucb(k, total, d) if d is not None else None
-            out["realized_cost"] = total / k if k else None
+            # whole costs: the sum is exact in any order, so with every option automated it is the test's
+            # (spec v1.4 §2), and so are ucb and realized_cost, computed from it as the test's are
+            raw = int(cs.loss_sums(conf, np.where(auto, loss, 0.0), np.array([abstain_below]))[1][0]) if k else 0
+            out["ucb"] = cs.hb_ucb(k, raw / c_max, d) if d is not None else None
+            if k:
+                out.update(loss_sum=raw, realized_cost=raw / (c_max * k))
         else:
             out["ucb"] = cs.ucb(k, e, d) if d is not None else None
         out["realized_band"] = {"level": BAND_LEVEL, "low": low, "high": high}
@@ -361,12 +364,14 @@ def _test(conf: np.ndarray, err: np.ndarray, cuts: np.ndarray, alpha: float, d: 
 
 
 def _cost_test(
-    conf: np.ndarray, err: np.ndarray, loss: np.ndarray, cuts: np.ndarray, alpha: float, d: float
+    conf: np.ndarray, err: np.ndarray, loss: np.ndarray, cuts: np.ndarray, alpha: float, d: float, c_max: int
 ) -> dict[str, Any]:
     """One `selective_cost` test (spec v1.4 §1): ltt at level d on the mean normalised loss, with
     Hoeffding-Bentkus p-values. `ucb` is that bound at the chosen threshold, `realized_band` stays the
-    Clopper-Pearson band on the answered cases' error count, and `realized_cost` is their mean loss."""
-    pt = cs.cost_ltt(conf, loss, cuts, alpha, d)
+    Clopper-Pearson band on the answered cases' error count, `loss_sum` their exact sum of whole costs, and
+    `realized_cost` their mean normalised loss, loss_sum / (c_max · answered), one exact division."""
+    pt = cs.cost_ltt(conf, loss, cuts, alpha, d, c_max)
+    raw = int(pt.raw_sum)
     e = int(err[conf >= pt.abstain_below].sum()) if pt.n else 0
     low, high = cs.band(pt.n, e, BAND_LEVEL)
     return {
@@ -375,17 +380,22 @@ def _cost_test(
         "coverage": pt.n / len(conf) if len(conf) else 0.0,
         "ucb": cs.hb_ucb(pt.n, pt.loss_sum, d),
         "realized_band": {"level": BAND_LEVEL, "low": low, "high": high},
-        "realized_cost": pt.loss_sum / pt.n if pt.n else None,
+        "loss_sum": raw if pt.n else None,
+        "realized_cost": raw / (c_max * pt.n) if pt.n else None,
         "_answered": pt.n,
         "_errors": e,
         "_loss": pt.loss_sum,
     }
 
 
-def check_cost(cost: dict[str, Any], options: list[str], decision: str) -> tuple[np.ndarray, float, bool]:
-    """(matrix, c_max, equal) for a v1.4 cost input: options x options, diagonal 0, entries finite and
-    >= 0, largest > 0. `equal` is True when every off-diagonal entry is the same, the case v1.4 writes
-    as `selective_error` (spec v1.4 §1)."""
+NO_COST = {"loss_sum": None, "realized_cost": None}  # v1.4's cost fields where there is no cost
+MAX_C = 10**6  # the largest c_max (spec v1.4 §1.7): whole costs up to a million, in the consumer's `unit`
+
+
+def check_cost(cost: dict[str, Any], options: list[str], decision: str) -> tuple[np.ndarray, int, bool]:
+    """(matrix, c_max, equal) for a v1.4 cost input: options x options, diagonal 0, whole-number entries
+    >= 0 (spec v1.4 §1.7: integer costs, so every loss sum is exact), largest > 0 and at most MAX_C.
+    `equal` is True when every off-diagonal entry is the same, the case v1.4 writes as `selective_error`."""
     unknown = sorted(set(cost) - {"matrix", "unit"})
     if unknown or "matrix" not in cost:
         raise CertError(f"decision '{decision}': a cost is {{matrix, unit}}; got {sorted(cost)}")
@@ -395,17 +405,15 @@ def check_cost(cost: dict[str, Any], options: list[str], decision: str) -> tuple
     k = len(options)
     m = cost["matrix"]
     ok = isinstance(m, list) and len(m) == k and all(isinstance(r, list) and len(r) == k for r in m)
-    ok = ok and all(
-        isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x) and x >= 0 for r in m for x in r
-    )
+    ok = ok and all(isinstance(x, int) and not isinstance(x, bool) and 0 <= x <= MAX_C for r in m for x in r)
     a = np.array(m, float) if ok else np.zeros((0, 0))
     if not ok or any(a[i, i] != 0 for i in range(k)) or a.max() <= 0:
         raise CertError(
             f"decision '{decision}': cost.matrix must be {k} x {k} (row = label, column = answered option), "
-            "with a zero diagonal and finite entries >= 0, the largest above 0"
+            f"with a zero diagonal and whole-number entries from 0 to {MAX_C}, the largest above 0"
         )
     off = [float(a[i, j]) for i in range(k) for j in range(k) if i != j]
-    return a, float(a.max()), len(set(off)) == 1
+    return a, int(a.max()), len(set(off)) == 1
 
 
 def certify_decision(
@@ -447,7 +455,7 @@ def certify_decision(
     if automate_options is not None and not v13:
         raise CertError(f"decision '{decision}': automate_options needs {SPEC_V1_3} or later")
     matrix: np.ndarray | None = None  # set only for a selective_cost certificate
-    c_max = 0.0
+    c_max = 0
     if cost is not None:
         if not v14:
             raise CertError(f"decision '{decision}': a cost needs {SPEC_V1_4}")
@@ -471,6 +479,8 @@ def certify_decision(
     else:
         t_idx, a_idx = sp.split_halves(len(cases), seed)
     n_cal = len(a_idx)
+    if c_max * len(cases) > 2**53:  # every loss sum and c_max · answered stay exact integers (spec v1.4 §1.7)
+        raise CertError(f"decision '{decision}': c_max {c_max} x {len(cases)} cases is above 2^53; use a coarser unit")
     if n_cal < 1 / alpha - 1:
         raise TooFewCases(f"decision '{decision}': n_cal {n_cal} < 1/alpha - 1 = {1 / alpha - 1:g}; add labelled cases")
 
@@ -493,10 +503,11 @@ def certify_decision(
         )
 
     def losses(idx: np.ndarray, conf: np.ndarray, top: np.ndarray) -> np.ndarray:
-        """Each case's normalised loss C[label][answer] / c_max; 0 where the rule abstains whatever the cut."""
+        """Each case's cost C[label][answer], a whole number (normalised by c_max only after summing, so that
+        every sum is exact in any order, spec v1.4 §1.7); 0 where the rule abstains whatever the cut."""
         assert matrix is not None
         lab = np.array([cases[i].label_index for i in idx], int).reshape(-1)
-        return np.where(conf >= 0, matrix[lab, np.maximum(top, 0)] / c_max, 0.0) if len(idx) else np.zeros(0)
+        return np.where(conf >= 0, matrix[lab, np.maximum(top, 0)], 0.0) if len(idx) else np.zeros(0)
 
     conf_t, err_t, top_t = conf_err(t_idx)
     loss_t = losses(t_idx, conf_t, top_t) if matrix is not None else None
@@ -529,20 +540,20 @@ def certify_decision(
         if spec == SPEC_V1 or not mask_t.any():
             return all_cuts[pooled_start:]
         if loss_t is not None:  # v1.4 selective_cost: the start by the Hoeffding-Bentkus p-value on the losses
-            return all_cuts[cs.cost_start(all_cuts, conf_t[mask_t], loss_t[mask_t], alpha) :]
+            return all_cuts[cs.cost_start(all_cuts, conf_t[mask_t], loss_t[mask_t], alpha, c_max) :]
         return all_cuts[cs.start(all_cuts, conf_t[mask_t], err_t[mask_t], alpha) :]
 
     def run(m: np.ndarray, mask_t: np.ndarray) -> dict[str, Any]:
         """The test of the threshold-split cases `m` on their grid: v1's, or v1.4's cost test."""
         if loss_a is not None and d is not None:
-            return _cost_test(conf_a[m], err_a[m], loss_a[m], cuts_for(mask_t), alpha, d)
+            return _cost_test(conf_a[m], err_a[m], loss_a[m], cuts_for(mask_t), alpha, d, c_max)
         r = _test(conf_a[m], err_a[m], cuts_for(mask_t), alpha, d)
-        return {**r, "realized_cost": None} if v14 else r
+        return {**r, **NO_COST} if v14 else r
 
     def auto_of(m: np.ndarray, abstain_below: float, bounded: bool) -> dict[str, Any]:
         lo = None if loss_a is None else loss_a[m]
-        a = _automated(conf_a[m], err_a[m], automated_a[m], abstain_below, d, bounded, lo)
-        return {**a, "realized_cost": None} if v14 and lo is None else a
+        a = _automated(conf_a[m], err_a[m], automated_a[m], abstain_below, d, bounded, lo, c_max)
+        return {**a, **NO_COST} if v14 and lo is None else a
 
     v12 = spec in V1_2_ON
     bins = cs.bins_of(conf_t, HISTOGRAM_BINS) if v12 else []
@@ -567,7 +578,7 @@ def certify_decision(
                 "coverage": int(hit.sum()) / int(m.sum()),
                 "ucb": None,
                 "realized_band": None,
-                **({"realized_cost": None} if v14 else {}),
+                **(NO_COST if v14 else {}),
                 "_answered": int(hit.sum()),
                 "_errors": int(err_a[hit].sum()),
             }
@@ -632,7 +643,7 @@ def certify_decision(
         cert["cost"] = (
             None
             if matrix is None or cost is None
-            else {"matrix": [[float(x) for x in row] for row in matrix], "c_max": c_max, "unit": cost.get("unit")}
+            else {"matrix": [[int(x) for x in row] for row in matrix], "c_max": c_max, "unit": cost.get("unit")}
         )
         cert["pvalue"] = ("hoeffding_bentkus" if matrix is not None else "binomial") if method == "ltt" else None
     diag = {

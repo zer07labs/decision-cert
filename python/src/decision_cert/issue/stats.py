@@ -198,6 +198,7 @@ class CostPoint:
     n: int  # answered
     loss_sum: float  # sum of the answered cases' normalised losses
     coverage: float
+    raw_sum: float = 0.0  # the same sum before dividing by `scale` (v1.4: exact, in whole cost units)
 
 
 def loss_sums(conf: np.ndarray, loss: np.ndarray, cuts: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -210,10 +211,11 @@ def loss_sums(conf: np.ndarray, loss: np.ndarray, cuts: np.ndarray) -> tuple[np.
     return len(asc) - first, tail[first]
 
 
-def cost_start(cuts: np.ndarray, conf: np.ndarray, loss: np.ndarray, alpha: float) -> int:
-    """`start` with the Hoeffding-Bentkus p-value: the cut with the smallest p on the temperature split."""
+def cost_start(cuts: np.ndarray, conf: np.ndarray, loss: np.ndarray, alpha: float, scale: float = 1.0) -> int:
+    """`start` with the Hoeffding-Bentkus p-value: the cut with the smallest p on the temperature split. With
+    `scale`, `loss` is in cost units and each sum is divided by it once (spec v1.4: whole costs, summed exactly)."""
     n, s = loss_sums(conf, loss, cuts)
-    return int(np.argmin(hb_p_values(n, s, alpha)))
+    return int(np.argmin(hb_p_values(n, s / scale, alpha)))
 
 
 def cost_grid(conf_temperature: np.ndarray, loss_temperature: np.ndarray, alpha: float) -> np.ndarray:
@@ -222,14 +224,18 @@ def cost_grid(conf_temperature: np.ndarray, loss_temperature: np.ndarray, alpha:
     return cuts[cost_start(cuts, np.asarray(conf_temperature, float), loss_temperature, alpha) :]
 
 
-def cost_ltt(conf: np.ndarray, loss: np.ndarray, cuts: np.ndarray, alpha: float, delta: float) -> CostPoint:
-    """Fixed-sequence Learn-then-Test down `cuts` on mean normalised loss, with Hoeffding-Bentkus p-values."""
-    n, s = loss_sums(conf, loss, cuts)
+def cost_ltt(
+    conf: np.ndarray, loss: np.ndarray, cuts: np.ndarray, alpha: float, delta: float, scale: float = 1.0
+) -> CostPoint:
+    """Fixed-sequence Learn-then-Test down `cuts` on mean normalised loss, with Hoeffding-Bentkus p-values. With
+    `scale`, `loss` is in cost units and each sum is divided by it once."""
+    n, raw = loss_sums(conf, loss, cuts)
+    s = raw / scale
     failed = np.flatnonzero(hb_p_values(n, s, alpha) > delta)
     i = int((failed[0] if len(failed) else len(cuts)) - 1)
     if i < 0:
         return CostPoint(ABSTAIN_ALL, 0, 0.0, 0.0)
-    return CostPoint(float(cuts[i]), int(n[i]), float(s[i]), int(n[i]) / len(conf))
+    return CostPoint(float(cuts[i]), int(n[i]), float(s[i]), int(n[i]) / len(conf), float(raw[i]))
 
 
 MONDRIAN_MIN = 19  # a class-conditional threshold is fitted only for a class with at least this many cases

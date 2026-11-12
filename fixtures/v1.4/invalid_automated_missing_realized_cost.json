@@ -69,7 +69,8 @@
           ],
           "unscored": 10
         },
-        "realized_cost": 0.0094,
+        "loss_sum": 7,
+        "realized_cost": 0.009333333333333334,
         "automated": {
           "coverage": 0.25,
           "ucb": 0.04,
@@ -78,7 +79,8 @@
             "low": 0.0011834410146505043,
             "high": 0.04314473389094683
           },
-          "realized_cost": 0.0094
+          "loss_sum": 7,
+          "realized_cost": 0.009333333333333334
         }
       },
       {
@@ -91,11 +93,13 @@
         "value": "zürich ☃",
         "inherited": true,
         "confidence_histogram": null,
+        "loss_sum": null,
         "realized_cost": null,
         "automated": {
           "coverage": 0.25,
           "ucb": null,
           "realized_band": null,
+          "loss_sum": null,
           "realized_cost": null
         }
       }
@@ -161,7 +165,8 @@
       "unit": "usd"
     },
     "pvalue": "hoeffding_bentkus",
-    "realized_cost": 0.0071,
+    "loss_sum": 37,
+    "realized_cost": 0.007191448007774538,
     "automated": {
       "coverage": 0.4116,
       "ucb": 0.032977066870911,
@@ -169,17 +174,18 @@
         "level": 0.95,
         "low": 0.0011834410146505043,
         "high": 0.04314473389094683
-      }
+      },
+      "loss_sum": 37
     },
     "signer_key_id": "ed25519:56475aa75463474c",
-    "signature": "gQxdbLiHI0RhyIM3ViNeec-nmaeW4NAi9_Hj8zRYI5sVrsVUKCNQI_RvXgka8x0qol6SKILrt2hWWB1KpVQICA"
+    "signature": "xLTRzTKJ25fsdkHGmIg8XQtS71i9QUPUGKVwCES4yFNrxgXoFMIb-6itLKzxSDzL_lMTJlcNYwlXkzQ_yvuUCg"
   },
   "keys": {
     "ed25519:56475aa75463474c": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg",
     "ed25519:24f6ed6acbfe1009": "Kay64UG8yvCyLhqU000LxzYeUm0L_hLIl5S8kyKWbdc"
   },
-  "body_jcs_b64": "eyJhYnN0YWluX2JlbG93IjowLjg4MjkxNzA1NzI3NTc3MjEsImFscGhhIjowLjA1LCJhdWRpdCI6eyJtb2RlIjoic2FtcGxlIiwibiI6NTAwMCwicHJvcGVuc2l0eV9sb2dnZWQiOnRydWUsInJhdGUiOjAuMDV9LCJhdXRvbWF0ZV9vcHRpb25zIjpbInllcyIsIm5vIl0sImF1dG9tYXRlZCI6eyJjb3ZlcmFnZSI6MC40MTE2LCJyZWFsaXplZF9iYW5kIjp7ImhpZ2giOjAuMDQzMTQ0NzMzODkwOTQ2ODMsImxldmVsIjowLjk1LCJsb3ciOjAuMDAxMTgzNDQxMDE0NjUwNTA0M30sInVjYiI6MC4wMzI5NzcwNjY4NzA5MTF9LCJjYWxpYnJhdGlvbl9tYXAiOnsia2luZCI6InRlbXBlcmF0dXJlIiwibGFiZWxfYnVkZ2V0IjpudWxsLCJwYXJhbXMiOnsidGVtcGVyYXR1cmUiOjEuMzE3MzkxMzA0MzQ3ODI2M319LCJjb25maWRlbmNlX2JpbnMiOlswLDAuNSwwLjYsMC43LDAuOCwwLjg1LDAuOSwwLjk1LDAuOTksMV0sImNvbmZpZGVuY2VfaGlzdG9ncmFtIjp7ImNvdW50cyI6WzAsMzEwLDMyMCwzMzAsMjgwLDMwMCwzNDAsNDIwLDE1MF0sInVuc2NvcmVkIjo1MH0sImNvc3QiOnsiY19tYXgiOjUsIm1hdHJpeCI6W1swLDFdLFs1LDBdXSwidW5pdCI6InVzZCJ9LCJjb3ZlcmFnZSI6MC40MTE2LCJkYXRhX2hhc2giOiJzaGEyNTY6MGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZiIsImRlY2lzaW9uIjoiYXBwcm92ZWQiLCJkZWx0YSI6MC4xLCJkb21haW4iOiJobWRhLWFwcHJvdmFsIiwiZXhwaXJlc19hdCI6IjIwMjctMDEtMjNUMTI6MDA6MDBaIiwiZml0dGVkX2F0IjoiMjAyNi0xMC0yNVQxMjowMDowMFoiLCJpc3N1ZXIiOnsidG9vbCI6ImRlY2lzaW9uLWNlcnQiLCJ2ZXJzaW9uIjoiMC40LjAifSwibWFuaWZlc3RfaGFzaCI6InNoYTI1NjphYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwibWV0aG9kIjoibHR0IiwibW9kZWxfaWQiOiJiMS9saWdodGdibUBsZ2JtLTQuNy4wLXNlZWQ3IiwibiI6MjUwMCwibl9jYWwiOjI1MDAsIm5fdGVtcGVyYXR1cmUiOjI1MDAsIm9wdGlvbnMiOlsieWVzIiwibm8iXSwicHZhbHVlIjoiaG9lZmZkaW5nX2JlbnRrdXMiLCJyZWFsaXplZF9iYW5kIjp7ImhpZ2giOjAuMDQzMTQ0NzMzODkwOTQ2ODMsImxldmVsIjowLjk1LCJsb3ciOjAuMDAxMTgzNDQxMDE0NjUwNTA0M30sInJlYWxpemVkX2Nvc3QiOjAuMDA3MSwicmlzayI6InNlbGVjdGl2ZV9jb3N0IiwicnVsZSI6eyJjYW5ub3RfdGVsbF9hYm92ZSI6MC41LCJ1bnNjb3JlZCI6ImFic3RhaW4ifSwic2VnbWVudHMiOlt7ImFic3RhaW5fYmVsb3ciOjAuOSwiYXV0b21hdGVkIjp7ImNvdmVyYWdlIjowLjI1LCJyZWFsaXplZF9iYW5kIjp7ImhpZ2giOjAuMDQzMTQ0NzMzODkwOTQ2ODMsImxldmVsIjowLjk1LCJsb3ciOjAuMDAxMTgzNDQxMDE0NjUwNTA0M30sInJlYWxpemVkX2Nvc3QiOjAuMDA5NCwidWNiIjowLjA0fSwiY29uZmlkZW5jZV9oaXN0b2dyYW0iOnsiY291bnRzIjpbMCw2MCw3MCw4MCw3MCw4MCw5MCwxMDAsNDBdLCJ1bnNjb3JlZCI6MTB9LCJjb3ZlcmFnZSI6MC4yNSwiZmllbGQiOiJyZWdpb24iLCJpbmhlcml0ZWQiOmZhbHNlLCJuIjo2MDAsInJlYWxpemVkX2JhbmQiOnsiaGlnaCI6MC4wNDMxNDQ3MzM4OTA5NDY4MywibGV2ZWwiOjAuOTUsImxvdyI6MC4wMDExODM0NDEwMTQ2NTA1MDQzfSwicmVhbGl6ZWRfY29zdCI6MC4wMDk0LCJ1Y2IiOjAuMDQsInZhbHVlIjoiZWFzdCJ9LHsiYWJzdGFpbl9iZWxvdyI6MC44ODI5MTcwNTcyNzU3NzIxLCJhdXRvbWF0ZWQiOnsiY292ZXJhZ2UiOjAuMjUsInJlYWxpemVkX2JhbmQiOm51bGwsInJlYWxpemVkX2Nvc3QiOm51bGwsInVjYiI6bnVsbH0sImNvbmZpZGVuY2VfaGlzdG9ncmFtIjpudWxsLCJjb3ZlcmFnZSI6MC4yNSwiZmllbGQiOiJyZWdpb24iLCJpbmhlcml0ZWQiOnRydWUsIm4iOjYwMCwicmVhbGl6ZWRfYmFuZCI6bnVsbCwicmVhbGl6ZWRfY29zdCI6bnVsbCwidWNiIjpudWxsLCJ2YWx1ZSI6InrDvHJpY2gg4piDIn1dLCJzaWduZXJfa2V5X2lkIjoiZWQyNTUxOTo1NjQ3NWFhNzU0NjM0NzRjIiwic3BlYyI6ImRlY2lzaW9uLWNlcnRpZmljYXRlLnYxLjQiLCJzcGxpdCI6eyJtZXRob2QiOiJ0aW1lIiwic2VlZCI6bnVsbH0sInVjYiI6MC4wMzI5NzcwNjY4NzA5MTEsIndpbmRvdyI6eyJlbmQiOiIyMDIzLTEyLTI5VDIzOjU5OjU5WiIsInN0YXJ0IjoiMjAyMy0wMS0wMlQwMDowMDowMFoifX0=",
-  "certificate_id": "sha256:fd7892836af6ab07706ca9ee33492f3787e6a8b54a0e1c9e5e76cade5b8c1b2b",
+  "body_jcs_b64": "eyJhYnN0YWluX2JlbG93IjowLjg4MjkxNzA1NzI3NTc3MjEsImFscGhhIjowLjA1LCJhdWRpdCI6eyJtb2RlIjoic2FtcGxlIiwibiI6NTAwMCwicHJvcGVuc2l0eV9sb2dnZWQiOnRydWUsInJhdGUiOjAuMDV9LCJhdXRvbWF0ZV9vcHRpb25zIjpbInllcyIsIm5vIl0sImF1dG9tYXRlZCI6eyJjb3ZlcmFnZSI6MC40MTE2LCJsb3NzX3N1bSI6MzcsInJlYWxpemVkX2JhbmQiOnsiaGlnaCI6MC4wNDMxNDQ3MzM4OTA5NDY4MywibGV2ZWwiOjAuOTUsImxvdyI6MC4wMDExODM0NDEwMTQ2NTA1MDQzfSwidWNiIjowLjAzMjk3NzA2Njg3MDkxMX0sImNhbGlicmF0aW9uX21hcCI6eyJraW5kIjoidGVtcGVyYXR1cmUiLCJsYWJlbF9idWRnZXQiOm51bGwsInBhcmFtcyI6eyJ0ZW1wZXJhdHVyZSI6MS4zMTczOTEzMDQzNDc4MjYzfX0sImNvbmZpZGVuY2VfYmlucyI6WzAsMC41LDAuNiwwLjcsMC44LDAuODUsMC45LDAuOTUsMC45OSwxXSwiY29uZmlkZW5jZV9oaXN0b2dyYW0iOnsiY291bnRzIjpbMCwzMTAsMzIwLDMzMCwyODAsMzAwLDM0MCw0MjAsMTUwXSwidW5zY29yZWQiOjUwfSwiY29zdCI6eyJjX21heCI6NSwibWF0cml4IjpbWzAsMV0sWzUsMF1dLCJ1bml0IjoidXNkIn0sImNvdmVyYWdlIjowLjQxMTYsImRhdGFfaGFzaCI6InNoYTI1NjowZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmIiwiZGVjaXNpb24iOiJhcHByb3ZlZCIsImRlbHRhIjowLjEsImRvbWFpbiI6ImhtZGEtYXBwcm92YWwiLCJleHBpcmVzX2F0IjoiMjAyNy0wMS0yM1QxMjowMDowMFoiLCJmaXR0ZWRfYXQiOiIyMDI2LTEwLTI1VDEyOjAwOjAwWiIsImlzc3VlciI6eyJ0b29sIjoiZGVjaXNpb24tY2VydCIsInZlcnNpb24iOiIwLjQuMCJ9LCJsb3NzX3N1bSI6MzcsIm1hbmlmZXN0X2hhc2giOiJzaGEyNTY6YWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsIm1ldGhvZCI6Imx0dCIsIm1vZGVsX2lkIjoiYjEvbGlnaHRnYm1AbGdibS00LjcuMC1zZWVkNyIsIm4iOjI1MDAsIm5fY2FsIjoyNTAwLCJuX3RlbXBlcmF0dXJlIjoyNTAwLCJvcHRpb25zIjpbInllcyIsIm5vIl0sInB2YWx1ZSI6ImhvZWZmZGluZ19iZW50a3VzIiwicmVhbGl6ZWRfYmFuZCI6eyJoaWdoIjowLjA0MzE0NDczMzg5MDk0NjgzLCJsZXZlbCI6MC45NSwibG93IjowLjAwMTE4MzQ0MTAxNDY1MDUwNDN9LCJyZWFsaXplZF9jb3N0IjowLjAwNzE5MTQ0ODAwNzc3NDUzOCwicmlzayI6InNlbGVjdGl2ZV9jb3N0IiwicnVsZSI6eyJjYW5ub3RfdGVsbF9hYm92ZSI6MC41LCJ1bnNjb3JlZCI6ImFic3RhaW4ifSwic2VnbWVudHMiOlt7ImFic3RhaW5fYmVsb3ciOjAuOSwiYXV0b21hdGVkIjp7ImNvdmVyYWdlIjowLjI1LCJsb3NzX3N1bSI6NywicmVhbGl6ZWRfYmFuZCI6eyJoaWdoIjowLjA0MzE0NDczMzg5MDk0NjgzLCJsZXZlbCI6MC45NSwibG93IjowLjAwMTE4MzQ0MTAxNDY1MDUwNDN9LCJyZWFsaXplZF9jb3N0IjowLjAwOTMzMzMzMzMzMzMzMzMzNCwidWNiIjowLjA0fSwiY29uZmlkZW5jZV9oaXN0b2dyYW0iOnsiY291bnRzIjpbMCw2MCw3MCw4MCw3MCw4MCw5MCwxMDAsNDBdLCJ1bnNjb3JlZCI6MTB9LCJjb3ZlcmFnZSI6MC4yNSwiZmllbGQiOiJyZWdpb24iLCJpbmhlcml0ZWQiOmZhbHNlLCJsb3NzX3N1bSI6NywibiI6NjAwLCJyZWFsaXplZF9iYW5kIjp7ImhpZ2giOjAuMDQzMTQ0NzMzODkwOTQ2ODMsImxldmVsIjowLjk1LCJsb3ciOjAuMDAxMTgzNDQxMDE0NjUwNTA0M30sInJlYWxpemVkX2Nvc3QiOjAuMDA5MzMzMzMzMzMzMzMzMzM0LCJ1Y2IiOjAuMDQsInZhbHVlIjoiZWFzdCJ9LHsiYWJzdGFpbl9iZWxvdyI6MC44ODI5MTcwNTcyNzU3NzIxLCJhdXRvbWF0ZWQiOnsiY292ZXJhZ2UiOjAuMjUsImxvc3Nfc3VtIjpudWxsLCJyZWFsaXplZF9iYW5kIjpudWxsLCJyZWFsaXplZF9jb3N0IjpudWxsLCJ1Y2IiOm51bGx9LCJjb25maWRlbmNlX2hpc3RvZ3JhbSI6bnVsbCwiY292ZXJhZ2UiOjAuMjUsImZpZWxkIjoicmVnaW9uIiwiaW5oZXJpdGVkIjp0cnVlLCJsb3NzX3N1bSI6bnVsbCwibiI6NjAwLCJyZWFsaXplZF9iYW5kIjpudWxsLCJyZWFsaXplZF9jb3N0IjpudWxsLCJ1Y2IiOm51bGwsInZhbHVlIjoiesO8cmljaCDimIMifV0sInNpZ25lcl9rZXlfaWQiOiJlZDI1NTE5OjU2NDc1YWE3NTQ2MzQ3NGMiLCJzcGVjIjoiZGVjaXNpb24tY2VydGlmaWNhdGUudjEuNCIsInNwbGl0Ijp7Im1ldGhvZCI6InRpbWUiLCJzZWVkIjpudWxsfSwidWNiIjowLjAzMjk3NzA2Njg3MDkxMSwid2luZG93Ijp7ImVuZCI6IjIwMjMtMTItMjlUMjM6NTk6NTlaIiwic3RhcnQiOiIyMDIzLTAxLTAyVDAwOjAwOjAwWiJ9fQ==",
+  "certificate_id": "sha256:63333374a41d60b5804b051ca0e6e25c5bb5bb397db023e128a3c5da4f399e64",
   "valid": false,
   "error": "spec is not consistent"
 }

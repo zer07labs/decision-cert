@@ -72,8 +72,8 @@ def test_costs_are_read_from_v1_4_cost_certificates_only() -> None:
     for name in ("v1.3/valid_basic", "v1.4/valid_basic", "v1.4/valid_crc_abstain_all"):
         assert read(name).cost() is None, name
     assert read("v1.4/valid_cost_three_options").cost() == {
-        "matrix": [[0, 1, 0.5], [8, 0, 2], [3, 1.5, 0]],
-        "c_max": 8,
+        "matrix": [[0, 2, 1], [16, 0, 4], [6, 3, 0]],
+        "c_max": 16,
         "unit": None,
     }
     assert read("v1.4/valid_cost_basic").cost()["unit"] == "usd"

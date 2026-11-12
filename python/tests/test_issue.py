@@ -856,7 +856,7 @@ def test_a_cannot_tell_value_must_be_a_number_or_null(tmp_path: Path, value: Any
         _issued(tmp_path, ct.SPEC_V1_2, preds, rows)
 
 
-V14_FIELDS = ("cost", "pvalue", "realized_cost")
+V14_FIELDS = ("cost", "pvalue", "loss_sum", "realized_cost")
 
 
 @pytest.mark.parametrize("auto", [None, {"approved": ["yes"]}], ids=["all-automated", "approvals-only"])
@@ -882,10 +882,11 @@ def test_v1_4_equal_costs_give_the_certificate_issued_without_a_cost(
     v13 = _issued(tmp_path, ct.SPEC_V1_3, preds, rows, **kw)["cert"]
     tested = ("abstain_below", "coverage", "ucb", "realized_band", "n", "automated")
     for a, b in [(plain, v13), *zip(plain["segments"], v13["segments"], strict=True)]:
-        auto_a = {k: v for k, v in a["automated"].items() if k != "realized_cost"}
+        auto_a = {k: v for k, v in a["automated"].items() if k not in ("loss_sum", "realized_cost")}
         assert {k: a[k] for k in tested if k != "automated"} == {k: b[k] for k in tested if k != "automated"}
         assert auto_a == b["automated"]
         assert a["automated"]["realized_cost"] is None and a["realized_cost"] is None
+        assert a["automated"]["loss_sum"] is None and a["loss_sum"] is None
     rest = ("spec", "signature", "signer_key_id", "segments", "automated", *V14_FIELDS)
     assert {k: v for k, v in plain.items() if k not in rest} == {k: v for k, v in v13.items() if k not in rest}
 
@@ -897,16 +898,19 @@ def test_v1_4_unequal_costs_issue_a_selective_cost_certificate(tmp_path: Path) -
     out = _issued(tmp_path, ct.SPEC_V1_4, preds, rows, dom=dom, costs={"approved": cost})
     c, d = out["cert"], out["diags"]
     assert (c["risk"], c["pvalue"]) == ("selective_cost", "hoeffding_bentkus")
-    assert c["cost"] == {"matrix": [[0.0, 1.0], [5.0, 0.0]], "c_max": 5.0, "unit": "usd"}
+    assert c["cost"] == {"matrix": [[0, 1], [5, 0]], "c_max": 5, "unit": "usd"}
+    assert all(type(x) is int for r in c["cost"]["matrix"] for x in r) and type(c["cost"]["c_max"]) is int
     assert c["coverage"] > 0 and c["ucb"] <= c["alpha"]
+    assert type(c["loss_sum"]) is int and c["loss_sum"] / 5 == d["loss_sum"]
     assert c["ucb"] == cs.hb_ucb(d["answered"], d["loss_sum"], d["test_level"])
-    assert c["realized_cost"] == d["loss_sum"] / d["answered"]
+    assert c["realized_cost"] == c["loss_sum"] / (5 * d["answered"])  # one exact division (spec v1.4 §2)
     # every option automated: the block is the test's own numbers, to the last bit (the verifiers check it)
-    assert (c["automated"]["realized_cost"], c["automated"]["ucb"]) == (c["realized_cost"], c["ucb"])
+    pick = ("loss_sum", "realized_cost", "ucb")
+    assert [c["automated"][k] for k in pick] == [c[k] for k in pick]
     for s in c["segments"]:
-        assert (s["automated"]["realized_cost"], s["automated"]["ucb"]) == (s["realized_cost"], s["ucb"])
+        assert [s["automated"][k] for k in pick] == [s[k] for k in pick]
     for s in c["segments"]:
-        assert (s["realized_cost"] is None) == (s["inherited"] or s["coverage"] == 0)
+        assert (s["realized_cost"] is None) == (s["loss_sum"] is None) == (s["inherited"] or s["coverage"] == 0)
     v = dc.verify(c, trusted())
     assert v.cost() == c["cost"]
     sub = _issued(
@@ -928,6 +932,9 @@ def test_v1_4_unequal_costs_issue_a_selective_cost_certificate(tmp_path: Path) -
         (ct.SPEC_V1_4, {"matrix": [[0, -1], [5, 0]]}, "cost.matrix must be 2 x 2"),
         (ct.SPEC_V1_4, {"matrix": [[0, 1, 2], [5, 0, 1]]}, "cost.matrix must be 2 x 2"),
         (ct.SPEC_V1_4, {"matrix": [[0, True], [5, 0]]}, "cost.matrix must be 2 x 2"),
+        (ct.SPEC_V1_4, {"matrix": [[0, 1.5], [5, 0]]}, "whole-number entries"),
+        (ct.SPEC_V1_4, {"matrix": [[0, 1.0], [5, 0]]}, "whole-number entries"),
+        (ct.SPEC_V1_4, {"matrix": [[0, 1], [10**6 + 1, 0]]}, "from 0 to 1000000"),
         (ct.SPEC_V1_4, {"unit": ""}, "cost.unit is a non-empty string"),
         (ct.SPEC_V1_4, {"extra": 1}, "a cost is {matrix, unit}"),
     ],

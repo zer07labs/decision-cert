@@ -180,8 +180,10 @@ in the table above. Whether to set a minimum is an open question
 `--spec decision-certificate.v1.4 --cost approved=costs.json` (once per decision) certifies the
 expected cost of the answered cases instead of their error rate
 ([spec v1.4](../spec/decision-certificate.v1.4.md), implemented, not frozen). The file is
-`{"matrix": [[...]], "unit": "usd" | null}`, row = label, column = answered option, in the order of
-the options, with a zero diagonal. The bound is `alpha` · `c_max` per answered case, in `unit`.
+`{"matrix": [[...]], "unit": "usd_cents" | null}`, row = label, column = answered option, in the order of
+the options, with a zero diagonal. Costs are whole numbers in `unit`, up to 10⁶: pick the unit that
+makes them whole (a cost of 2.5 is 25 in tenths, or 250 in cents). Only the ratios matter to the test.
+The bound is `alpha` · `c_max` per answered case, in `unit`.
 `--method crc` cannot take a cost.
 
 **When a cost matrix pays** ([cost study](../spec/drafts/cost-study.md), `delta` 0.1, the same
