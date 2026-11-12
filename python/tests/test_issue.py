@@ -300,7 +300,9 @@ def test_a_selected_row_without_a_label_is_refused(tmp_path: Path) -> None:
 
 
 # Certificate ids of the issuer on `main` before #37, for the same inputs: signing is deterministic,
-# so the count and refusal of unlabelled rows leave every certificate byte-identical.
+# so the count and refusal of unlabelled rows leave every certificate byte-identical. The ids were
+# recorded by the 0.4.0 issuer, and `issuer.version` is signed, so the test issues as 0.4.0: a
+# release's version bump is the only change it allows.
 BEFORE_37 = {
     (ct.SPEC_V1, "full-label"): "sha256:30c6bb26c81cb9cff7e18420a959a9a98c887b4370a8c6c2235b1ec734f3ffec",
     (ct.SPEC_V1, "sample"): "sha256:8f6ec0e5dfaadc7df89b75af2e0ca994ed4e1cb077c2fc5f20bde44b57d21b31",
@@ -312,7 +314,10 @@ BEFORE_37 = {
 
 
 @pytest.mark.parametrize(("spec", "audit"), sorted(BEFORE_37))
-def test_issued_certificates_are_byte_identical_to_before(tmp_path: Path, spec: str, audit: str) -> None:
+def test_issued_certificates_are_byte_identical_to_before(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, spec: str, audit: str
+) -> None:
+    monkeypatch.setattr(ct, "ISSUER", {"tool": "decision-cert", "version": "0.4.0"})
     preds, rows = cases(2000)
     if audit == "sample":
         for r in rows:
