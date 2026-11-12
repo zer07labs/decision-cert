@@ -854,3 +854,108 @@ def test_a_cannot_tell_value_must_be_a_number_or_null(tmp_path: Path, value: Any
     preds[3]["cannot_tell"] = value
     with pytest.raises(ct.CertError, match="must be a number or null"):
         _issued(tmp_path, ct.SPEC_V1_2, preds, rows)
+
+
+V14_FIELDS = ("cost", "pvalue", "realized_cost")
+
+
+@pytest.mark.parametrize("auto", [None, {"approved": ["yes"]}], ids=["all-automated", "approvals-only"])
+@pytest.mark.parametrize("equal", [[[0, 3], [3, 0]], [[0, 1], [1, 0]]], ids=["3:3", "1:1"])
+def test_v1_4_equal_costs_give_the_certificate_issued_without_a_cost(
+    tmp_path: Path, equal: list[list[int]], auto: dict[str, list[str]] | None
+) -> None:
+    """Spec v1.4 §1 (required): equal off-diagonal costs are `selective_error`, and the certificate is
+    byte-identical to the one issued without a cost; its test is v1.3's, number for number."""
+    preds, rows = cases(4000, regions=["east", "north", "east", "south"])
+    dom = domain(tmp_path, segments={"field": "region", "values": ["east", "north", "south"], "floor": 700})
+    kw: dict[str, Any] = {"dom": dom, "automate_options": auto}
+    plain = _issued(tmp_path, ct.SPEC_V1_4, preds, rows, **kw)["cert"]
+    costed = _issued(tmp_path, ct.SPEC_V1_4, preds, rows, costs={"approved": {"matrix": equal, "unit": "usd"}}, **kw)
+    assert ct.canonical(costed["cert"]) == ct.canonical(plain)  # signature included
+    assert costed["cert"] == plain
+    assert (plain["risk"], plain["pvalue"], plain["cost"], plain["realized_cost"]) == (
+        "selective_error",
+        "binomial",
+        None,
+        None,
+    )
+    v13 = _issued(tmp_path, ct.SPEC_V1_3, preds, rows, **kw)["cert"]
+    tested = ("abstain_below", "coverage", "ucb", "realized_band", "n", "automated")
+    for a, b in [(plain, v13), *zip(plain["segments"], v13["segments"], strict=True)]:
+        auto_a = {k: v for k, v in a["automated"].items() if k != "realized_cost"}
+        assert {k: a[k] for k in tested if k != "automated"} == {k: b[k] for k in tested if k != "automated"}
+        assert auto_a == b["automated"]
+        assert a["automated"]["realized_cost"] is None and a["realized_cost"] is None
+    rest = ("spec", "signature", "signer_key_id", "segments", "automated", *V14_FIELDS)
+    assert {k: v for k, v in plain.items() if k not in rest} == {k: v for k, v in v13.items() if k not in rest}
+
+
+def test_v1_4_unequal_costs_issue_a_selective_cost_certificate(tmp_path: Path) -> None:
+    preds, rows = cases(4000, regions=["east", "north", "east", "south"])
+    dom = domain(tmp_path, segments={"field": "region", "values": ["east", "north", "south"], "floor": 700})
+    cost = {"matrix": [[0, 1], [5, 0]], "unit": "usd"}
+    out = _issued(tmp_path, ct.SPEC_V1_4, preds, rows, dom=dom, costs={"approved": cost})
+    c, d = out["cert"], out["diags"]
+    assert (c["risk"], c["pvalue"]) == ("selective_cost", "hoeffding_bentkus")
+    assert c["cost"] == {"matrix": [[0.0, 1.0], [5.0, 0.0]], "c_max": 5.0, "unit": "usd"}
+    assert c["coverage"] > 0 and c["ucb"] <= c["alpha"]
+    assert c["ucb"] == cs.hb_ucb(d["answered"], d["loss_sum"], d["test_level"])
+    assert c["realized_cost"] == d["loss_sum"] / d["answered"]
+    assert c["automated"]["realized_cost"] == c["realized_cost"]  # every option automated
+    for s in c["segments"]:
+        assert (s["realized_cost"] is None) == (s["inherited"] or s["coverage"] == 0)
+    v = dc.verify(c, trusted())
+    assert v.cost() == c["cost"]
+    sub = _issued(
+        tmp_path, ct.SPEC_V1_4, preds, rows, dom=dom, costs={"approved": cost}, automate_options={"approved": ["yes"]}
+    )["cert"]
+    assert 0 < sub["automated"]["coverage"] < sub["coverage"] and sub["automated"]["realized_cost"] is not None
+    assert dc.verify(sub, trusted()).id
+    if shutil.which("cargo"):
+        assert all(r["valid"] for r in rust_verdicts(tmp_path, [c, sub]))
+
+
+@pytest.mark.parametrize(
+    ("spec", "kw", "match"),
+    [
+        (ct.SPEC_V1_3, {}, "a cost needs decision-certificate.v1.4"),
+        (ct.SPEC_V1_4, {"method": "crc"}, "certified with ltt"),
+        (ct.SPEC_V1_4, {"matrix": [[1, 1], [5, 0]]}, "cost.matrix must be 2 x 2"),
+        (ct.SPEC_V1_4, {"matrix": [[0, 0], [0, 0]]}, "cost.matrix must be 2 x 2"),
+        (ct.SPEC_V1_4, {"matrix": [[0, -1], [5, 0]]}, "cost.matrix must be 2 x 2"),
+        (ct.SPEC_V1_4, {"matrix": [[0, 1, 2], [5, 0, 1]]}, "cost.matrix must be 2 x 2"),
+        (ct.SPEC_V1_4, {"matrix": [[0, True], [5, 0]]}, "cost.matrix must be 2 x 2"),
+        (ct.SPEC_V1_4, {"unit": ""}, "cost.unit is a non-empty string"),
+        (ct.SPEC_V1_4, {"extra": 1}, "a cost is {matrix, unit}"),
+    ],
+)
+def test_v1_4_cost_refusals(tmp_path: Path, spec: str, kw: dict[str, Any], match: str) -> None:
+    preds, rows = cases(400)
+    method = kw.pop("method", "ltt")
+    cost = {"matrix": [[0, 1], [5, 0]], "unit": None, **kw}
+    with pytest.raises(ct.CertError, match=match):
+        _issued(tmp_path, spec, preds, rows, costs={"approved": cost}, method=method)
+
+
+def test_v1_4_costs_name_decisions_with_predictions(tmp_path: Path) -> None:
+    preds, rows = cases(400)
+    with pytest.raises(ct.CertError, match=r"costs names decisions with no predictions: \['other'\]"):
+        _issued(tmp_path, ct.SPEC_V1_4, preds, rows, costs={"other": {"matrix": [[0, 1], [5, 0]], "unit": None}})
+
+
+def test_the_cli_takes_a_cost_with_v1_4_only(tmp_path: Path) -> None:
+    preds, rows = cases(2000)
+    (tmp_path / "p.jsonl").write_text("".join(json.dumps(p) + "\n" for p in preds))
+    (tmp_path / "r.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    (tmp_path / "costs.json").write_text(json.dumps({"matrix": [[0, 1], [5, 0]], "unit": "usd"}))
+    ct.keygen(tmp_path / "op.pem")
+    args = ["certify", "--predictions", str(tmp_path / "p.jsonl"), "--data", str(tmp_path / "r.jsonl"),
+            "--domain-dir", str(domain(tmp_path)), "--backend", "toy", "--key", str(tmp_path / "op.pem"),
+            "--audit", "full-label", "--cost", f"approved={tmp_path / 'costs.json'}"]  # fmt: skip
+    for bad in [[], ["--spec", ct.SPEC_V1_3]]:
+        with pytest.raises(SystemExit):
+            ct.main([*args, *bad])
+    out = tmp_path / "cal.json"
+    ct.main([*args, "--spec", ct.SPEC_V1_4, "--out", str(out)])
+    cert = json.loads(out.read_text())["approved"]["certificate"]
+    assert cert["risk"] == "selective_cost" and cert["cost"]["c_max"] == 5.0

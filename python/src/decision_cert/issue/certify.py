@@ -11,6 +11,12 @@ without the confidence histogram, and `spec="decision-certificate.v1"` issues by
 once per decision, default every option) and, per test, the share and error of the answered cases
 whose answer is one of them; its `data_hash` also covers each case's `cannot_tell` value (spec v1.3).
 
+`--spec decision-certificate.v1.4` adds a cost risk (`--cost approved=costs.json`, once per decision): the file is
+`{"matrix": [[...]], "unit": "USD" | null}`, row = label, column = answered option, in the options' order. The
+certificate then bounds the mean normalised cost of the answered cases (`risk: selective_cost`, Hoeffding-Bentkus
+p-values). With every off-diagonal cost equal it writes `selective_error` with v1's binomial test instead, the same
+certificate as without `--cost` (spec v1.4 §1).
+
 `--map dr --recal-data recal.jsonl --prior prior.json` (v1.2 or later) fits a `dr` calibration map on a
 recalibration set of labelled target cases, disjoint from the calibration cases, instead of the
 temperature (spec v1.2 §1.1 step 2). The predictions file covers those cases too. The prior is
@@ -61,8 +67,11 @@ SPEC_V1 = "decision-certificate.v1"
 SPEC_V1_1 = "decision-certificate.v1.1"
 SPEC_V1_2 = "decision-certificate.v1.2"
 SPEC_V1_3 = "decision-certificate.v1.3"  # v1.2 + the automated options (P1) and cannot_tell hashed (C1)
+SPEC_V1_4 = "decision-certificate.v1.4"  # v1.3 + the cost risk `selective_cost` (Hoeffding-Bentkus)
 SPEC = SPEC_V1_2  # what this issuer writes by default
-SPECS = (SPEC_V1, SPEC_V1_1, SPEC_V1_2, SPEC_V1_3)
+SPECS = (SPEC_V1, SPEC_V1_1, SPEC_V1_2, SPEC_V1_3, SPEC_V1_4)
+V1_3_ON = (SPEC_V1_3, SPEC_V1_4)  # the specs with v1.3's fields
+V1_2_ON = (SPEC_V1_2, *V1_3_ON)  # the specs with v1.2's fields
 HISTOGRAM_BINS = 20  # v1.2: bins at the 20-quantiles of the temperature split's confidences
 ISSUER = {"tool": "decision-cert", "version": __version__}
 BAND_LEVEL = 0.95
@@ -303,17 +312,32 @@ def _histogram(bins: list[float], conf: np.ndarray, min_n: int) -> dict[str, Any
 
 
 def _automated(
-    conf: np.ndarray, err: np.ndarray, auto: np.ndarray, abstain_below: float, d: float | None, bounded: bool
+    conf: np.ndarray,
+    err: np.ndarray,
+    auto: np.ndarray,
+    abstain_below: float,
+    d: float | None,
+    bounded: bool,
+    loss: np.ndarray | None = None,
 ) -> dict[str, Any]:
     """v1.3 (P1): one test's answered cases whose answer is an automated option. Their share of the
     test's cases, and `ucb` (ltt only) and `realized_band` of their error, computed as the test's own
-    are (descriptive, spec v1.2 §1.2); both null for an inherited segment, which has no test."""
+    are (descriptive, spec v1.2 §1.2); both null for an inherited segment, which has no test. With
+    `loss` (v1.4 `selective_cost`), `ucb` is the Hoeffding-Bentkus bound on their mean normalised
+    loss, and `realized_cost` that mean (null when none is answered); both descriptive."""
     hit = (conf >= abstain_below) & auto
     k, e = int(hit.sum()), int(err[hit].sum())
     out: dict[str, Any] = {"coverage": k / len(conf) if len(conf) else 0.0, "ucb": None, "realized_band": None}
+    if loss is not None:
+        out["realized_cost"] = None
     if bounded:
         low, high = cs.band(k, e, BAND_LEVEL)
-        out["ucb"] = cs.ucb(k, e, d) if d is not None else None
+        if loss is not None:
+            total = float(loss[hit].sum())
+            out["ucb"] = cs.hb_ucb(k, total, d) if d is not None else None
+            out["realized_cost"] = total / k if k else None
+        else:
+            out["ucb"] = cs.ucb(k, e, d) if d is not None else None
         out["realized_band"] = {"level": BAND_LEVEL, "low": low, "high": high}
     return {**out, "_answered": k, "_errors": e}
 
@@ -331,6 +355,54 @@ def _test(conf: np.ndarray, err: np.ndarray, cuts: np.ndarray, alpha: float, d: 
         "_answered": pt.n,
         "_errors": pt.e,
     }
+
+
+def _cost_test(
+    conf: np.ndarray, err: np.ndarray, loss: np.ndarray, cuts: np.ndarray, alpha: float, d: float
+) -> dict[str, Any]:
+    """One `selective_cost` test (spec v1.4 §1): ltt at level d on the mean normalised loss, with
+    Hoeffding-Bentkus p-values. `ucb` is that bound at the chosen threshold, `realized_band` stays the
+    Clopper-Pearson band on the answered cases' error count, and `realized_cost` is their mean loss."""
+    pt = cs.cost_ltt(conf, loss, cuts, alpha, d)
+    e = int(err[conf >= pt.abstain_below].sum()) if pt.n else 0
+    low, high = cs.band(pt.n, e, BAND_LEVEL)
+    return {
+        "n": len(conf),
+        "abstain_below": pt.abstain_below,
+        "coverage": pt.n / len(conf) if len(conf) else 0.0,
+        "ucb": cs.hb_ucb(pt.n, pt.loss_sum, d),
+        "realized_band": {"level": BAND_LEVEL, "low": low, "high": high},
+        "realized_cost": pt.loss_sum / pt.n if pt.n else None,
+        "_answered": pt.n,
+        "_errors": e,
+        "_loss": pt.loss_sum,
+    }
+
+
+def check_cost(cost: dict[str, Any], options: list[str], decision: str) -> tuple[np.ndarray, float, bool]:
+    """(matrix, c_max, equal) for a v1.4 cost input: options x options, diagonal 0, entries finite and
+    >= 0, largest > 0. `equal` is True when every off-diagonal entry is the same, the case v1.4 writes
+    as `selective_error` (spec v1.4 §1)."""
+    unknown = sorted(set(cost) - {"matrix", "unit"})
+    if unknown or "matrix" not in cost:
+        raise CertError(f"decision '{decision}': a cost is {{matrix, unit}}; got {sorted(cost)}")
+    unit = cost.get("unit")
+    if unit is not None and (not isinstance(unit, str) or not unit):
+        raise CertError(f"decision '{decision}': cost.unit is a non-empty string or null")
+    k = len(options)
+    m = cost["matrix"]
+    ok = isinstance(m, list) and len(m) == k and all(isinstance(r, list) and len(r) == k for r in m)
+    ok = ok and all(
+        isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x) and x >= 0 for r in m for x in r
+    )
+    a = np.array(m, float) if ok else np.zeros((0, 0))
+    if not ok or any(a[i, i] != 0 for i in range(k)) or a.max() <= 0:
+        raise CertError(
+            f"decision '{decision}': cost.matrix must be {k} x {k} (row = label, column = answered option), "
+            "with a zero diagonal and finite entries >= 0, the largest above 0"
+        )
+    off = [float(a[i, j]) for i in range(k) for j in range(k) if i != j]
+    return a, float(a.max()), len(set(off)) == 1
 
 
 def certify_decision(
@@ -353,6 +425,7 @@ def certify_decision(
     recal: list[Case] | None = None,
     prior: rc.Prior | None = None,
     automate_options: list[str] | None = None,
+    cost: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """(unsigned certificate, aggregate diagnostics) for one decision. Spec §1.1. Under v1.1 and
     v1.2 each test starts at the best cut on its own temperature-split cases; under v1, every test
@@ -364,11 +437,22 @@ def certify_decision(
     the bins."""
     if spec not in SPECS:
         raise CertError(f"unknown spec {spec!r}; this issuer writes {' or '.join(SPECS)}")
-    if recal is not None and spec not in (SPEC_V1_2, SPEC_V1_3):
+    if recal is not None and spec not in V1_2_ON:
         raise CertError(f"decision '{decision}': the dr calibration map needs {SPEC_V1_2} or later")
-    v13 = spec == SPEC_V1_3
+    v13 = spec in V1_3_ON
+    v14 = spec == SPEC_V1_4
     if automate_options is not None and not v13:
-        raise CertError(f"decision '{decision}': automate_options needs {SPEC_V1_3}")
+        raise CertError(f"decision '{decision}': automate_options needs {SPEC_V1_3} or later")
+    matrix: np.ndarray | None = None  # set only for a selective_cost certificate
+    c_max = 0.0
+    if cost is not None:
+        if not v14:
+            raise CertError(f"decision '{decision}': a cost needs {SPEC_V1_4}")
+        if method != "ltt":
+            raise CertError(f"decision '{decision}': a cost risk is certified with ltt, not {method}")
+        m, c_max, equal = check_cost(cost, options, decision)
+        if not equal:  # equal costs: v1's exact binomial test, the same certificate as without a cost
+            matrix = m
     auto = list(options) if automate_options is None else [o for o in options if o in automate_options]
     if automate_options is not None and (not automate_options or len(automate_options) != len(auto)):
         raise CertError(
@@ -405,10 +489,18 @@ def certify_decision(
             np.array([t for _, _, t in s3], int).reshape(-1),
         )
 
-    conf_t, err_t, _ = conf_err(t_idx)
+    def losses(idx: np.ndarray, conf: np.ndarray, top: np.ndarray) -> np.ndarray:
+        """Each case's normalised loss C[label][answer] / c_max; 0 where the rule abstains whatever the cut."""
+        assert matrix is not None
+        lab = np.array([cases[i].label_index for i in idx], int).reshape(-1)
+        return np.where(conf >= 0, matrix[lab, np.maximum(top, 0)] / c_max, 0.0) if len(idx) else np.zeros(0)
+
+    conf_t, err_t, top_t = conf_err(t_idx)
+    loss_t = losses(t_idx, conf_t, top_t) if matrix is not None else None
     all_cuts = cs.cuts_of(conf_t)
     pooled_start = cs.start(all_cuts, conf_t, err_t, alpha)
     conf_a, err_a, top_a = conf_err(a_idx)
+    loss_a = losses(a_idx, conf_a, top_a) if matrix is not None else None
     automated_a = np.isin(top_a, auto_idx)  # threshold-split cases whose answer would be automated
     per_case = [
         {"case_id": cases[i].case_id, "split": "temperature", "confidence": float(c), "error": bool(e)}
@@ -433,15 +525,29 @@ def certify_decision(
         own temperature-split cases, falling back to the pooled start when it has none."""
         if spec == SPEC_V1 or not mask_t.any():
             return all_cuts[pooled_start:]
+        if loss_t is not None:  # v1.4 selective_cost: the start by the Hoeffding-Bentkus p-value on the losses
+            return all_cuts[cs.cost_start(all_cuts, conf_t[mask_t], loss_t[mask_t], alpha) :]
         return all_cuts[cs.start(all_cuts, conf_t[mask_t], err_t[mask_t], alpha) :]
 
-    v12 = spec in (SPEC_V1_2, SPEC_V1_3)
+    def run(m: np.ndarray, mask_t: np.ndarray) -> dict[str, Any]:
+        """The test of the threshold-split cases `m` on their grid: v1's, or v1.4's cost test."""
+        if loss_a is not None and d is not None:
+            return _cost_test(conf_a[m], err_a[m], loss_a[m], cuts_for(mask_t), alpha, d)
+        r = _test(conf_a[m], err_a[m], cuts_for(mask_t), alpha, d)
+        return {**r, "realized_cost": None} if v14 else r
+
+    def auto_of(m: np.ndarray, abstain_below: float, bounded: bool) -> dict[str, Any]:
+        lo = None if loss_a is None else loss_a[m]
+        a = _automated(conf_a[m], err_a[m], automated_a[m], abstain_below, d, bounded, lo)
+        return {**a, "realized_cost": None} if v14 and lo is None else a
+
+    v12 = spec in V1_2_ON
     bins = cs.bins_of(conf_t, HISTOGRAM_BINS) if v12 else []
     rest = ~np.isin(seg_a, certified) | ~has_seg
     rest_t = ~np.isin(seg_t, certified) | ~has_seg_t
     cuts = cuts_for(rest_t)
-    top = _test(conf_a[rest], err_a[rest], cuts, alpha, d)
-    top_auto = _automated(conf_a[rest], err_a[rest], automated_a[rest], top["abstain_below"], d, True)
+    top = run(rest, rest_t)
+    top_auto = auto_of(rest, top["abstain_below"], True)
     segments: list[dict[str, Any]] = []
     seg_diag: dict[str, dict[str, Any]] = {}
     hidden = rest.copy()  # remainder cases no published inherited histogram counts (spec §6)
@@ -449,7 +555,7 @@ def certify_decision(
         m = has_seg & (seg_a == v)
         field = cfg.segments.field if cfg.segments else ""
         if v in certified:
-            r = _test(conf_a[m], err_a[m], cuts_for(has_seg_t & (seg_t == v)), alpha, d)
+            r = run(m, has_seg_t & (seg_t == v))
         else:  # inherited: decided by the top-level threshold, no bound of its own
             hit = m & (conf_a >= top["abstain_below"])
             r = {
@@ -458,6 +564,7 @@ def certify_decision(
                 "coverage": int(hit.sum()) / int(m.sum()),
                 "ucb": None,
                 "realized_band": None,
+                **({"realized_cost": None} if v14 else {}),
                 "_answered": int(hit.sum()),
                 "_errors": int(err_a[hit].sum()),
             }
@@ -469,7 +576,7 @@ def certify_decision(
                 hidden &= ~m
         seg_diag[v] = {"answered": r["_answered"], "errors": r["_errors"]}
         if v13:
-            a = _automated(conf_a[m], err_a[m], automated_a[m], r["abstain_below"], d, v in certified)
+            a = auto_of(m, r["abstain_below"], v in certified)
             entry["automated"] = {k: x for k, x in a.items() if k[0] != "_"}
             seg_diag[v]["automated"] = {"answered": a["_answered"], "errors": a["_errors"]}
         segments.append(entry)
@@ -500,7 +607,7 @@ def certify_decision(
         "alpha": alpha,
         "delta": delta if method == "ltt" else None,
         "method": method,
-        "risk": "selective_error" if method == "ltt" else "joint_error",
+        "risk": ("selective_cost" if matrix is not None else "selective_error") if method == "ltt" else "joint_error",
         **{k: v for k, v in top.items() if k[0] != "_"},
         "segments": segments,
         "window": window,
@@ -518,6 +625,13 @@ def certify_decision(
     if v13:
         cert["automate_options"] = auto
         cert["automated"] = {k: x for k, x in top_auto.items() if k[0] != "_"}
+    if v14:
+        cert["cost"] = (
+            None
+            if matrix is None or cost is None
+            else {"matrix": [[float(x) for x in row] for row in matrix], "c_max": c_max, "unit": cost.get("unit")}
+        )
+        cert["pvalue"] = ("hoeffding_bentkus" if matrix is not None else "binomial") if method == "ltt" else None
     diag = {
         "n": len(cases),
         "n_unscored": sum(c.raw is None for c in cases),
@@ -527,6 +641,7 @@ def certify_decision(
         "errors": top["_errors"],
         "segments": seg_diag,
         **({"automated": {"answered": top_auto["_answered"], "errors": top_auto["_errors"]}} if v13 else {}),
+        **({"loss_sum": top["_loss"]} if "_loss" in top else {}),
         "temperature_at_search_bound": temperature is not None
         and (temperature <= sp.T_MIN * 1.05 or temperature >= sp.T_MAX * 0.95),
         "_cases": per_case,
@@ -683,6 +798,7 @@ def issue(
     recal_rows: list[dict[str, Any]] | None = None,
     prior: rc.Prior | None = None,
     automate_options: dict[str, list[str]] | None = None,
+    costs: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
     """(calibration file contents, aggregate diagnostics per decision). `spec` picks what is written:
     v1.2 by default, v1.3 (v1.2 plus the automated options in `automate_options`, keyed by decision
@@ -705,6 +821,8 @@ def issue(
         raise CertError(f"predictions are for decisions the domain doesn't have: {unknown}")
     if automate_options and (stray := sorted(set(automate_options) - set(wanted))):
         raise CertError(f"automate_options names decisions with no predictions: {stray}")
+    if costs and (stray := sorted(set(costs) - set(wanted))):
+        raise CertError(f"costs names decisions with no predictions: {stray}")
     cal, diags = {}, {}
     for dec_id in wanted:
         options = dom.decision(dec_id).option_ids()
@@ -730,6 +848,7 @@ def issue(
             recal=recal,
             prior=prior,
             automate_options=None if automate_options is None else automate_options.get(dec_id),
+            cost=None if costs is None else costs.get(dec_id),
         )
         signed = sign(cert, key)
         jsonschema.validate(signed, schema(spec))
@@ -904,14 +1023,34 @@ def main(argv: list[str] | None = None) -> None:
         "--automate-options",
         action="append",
         metavar="DECISION=OPTION[,OPTION]",
-        help=f"the options the consumer decides automatically for one decision ({SPEC_V1_3}; repeat per "
-        "decision; default every option)",
+        help=f"the options the consumer decides automatically for one decision ({SPEC_V1_3} or later; repeat "
+        "per decision; default every option)",
+    )
+    ap.add_argument(
+        "--cost",
+        action="append",
+        metavar="DECISION=COSTS.json",
+        help=f"a cost matrix for one decision ({SPEC_V1_4}; repeat per decision): the file is "
+        '{"matrix": [[...]], "unit": "USD" | null}, row = label, column = answered option',
     )
     a = ap.parse_args(argv)
-    if a.map == "dr" and (a.recal_data is None or a.prior is None or a.spec not in (SPEC_V1_2, SPEC_V1_3)):
-        ap.error(f"--map dr needs --recal-data, --prior and --spec {SPEC_V1_2} or {SPEC_V1_3}")
-    if a.automate_options is not None and a.spec != SPEC_V1_3:
-        ap.error(f"--automate-options needs --spec {SPEC_V1_3}")
+    if a.map == "dr" and (a.recal_data is None or a.prior is None or a.spec not in V1_2_ON):
+        ap.error(f"--map dr needs --recal-data, --prior and --spec {SPEC_V1_2} or later")
+    if a.automate_options is not None and a.spec not in V1_3_ON:
+        ap.error(f"--automate-options needs --spec {SPEC_V1_3} or later")
+    if a.cost is not None and a.spec != SPEC_V1_4:
+        ap.error(f"--cost needs --spec {SPEC_V1_4}")
+    costs: dict[str, dict[str, Any]] | None = None
+    if a.cost is not None:
+        costs = {}
+        for item in a.cost:
+            dec, sep, path = item.partition("=")
+            if not sep or not dec or not path or dec in costs:
+                ap.error("--cost takes DECISION=COSTS.json, once per decision")
+            try:
+                costs[dec] = json.loads(Path(path).read_text())
+            except (OSError, ValueError) as e:
+                ap.error(f"--cost {dec}: {e}")
     automate: dict[str, list[str]] | None = None
     if a.automate_options is not None:
         automate = {}
@@ -940,6 +1079,7 @@ def main(argv: list[str] | None = None) -> None:
             recal_rows=sp.read_cases(a.recal_data) if a.recal_data else None,
             prior=load_prior(a.prior) if a.prior else None,
             automate_options=automate,
+            costs=costs,
         )
     except TooFewCases as e:
         print(f"{PROG} certify: {e}", file=sys.stderr)

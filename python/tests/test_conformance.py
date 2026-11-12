@@ -1,5 +1,5 @@
 """The same fixture loop as rust/tests/conformance.rs: agree with the Rust crate on the canonical
-bytes, the certificate id and the verdict of every fixture (v1, v1.1, v1.2 and v1.3), and reject every
+bytes, the certificate id and the verdict of every fixture (v1, v1.1, v1.2, v1.3 and v1.4), and reject every
 schema mutation."""
 
 from __future__ import annotations
@@ -13,7 +13,13 @@ import pytest
 import decision_cert as dc
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
-SETS = {"": 14, "v1.1": 9, "v1.2": 25, "v1.3": 43}  # each fixture set, and how many fixtures it has at least
+SETS = {
+    "": 14,
+    "v1.1": 9,
+    "v1.2": 25,
+    "v1.3": 43,
+    "v1.4": 70,
+}  # each fixture set, and how many fixtures it has at least
 
 
 def fixtures() -> list[tuple[str, Any]]:
@@ -56,3 +62,18 @@ def test_every_schema_invalid_mutation_is_rejected(name: str) -> None:
             pass
     assert not accepted, f"accepted: {accepted}"
     assert len(f["cases"]) > 200
+
+
+def test_costs_are_read_from_v1_4_cost_certificates_only() -> None:
+    def read(name: str) -> Any:
+        f = dc.loads((FIXTURES / f"{name}.json").read_text(encoding="utf-8"))
+        return dc.verify(f["certificate"], f["keys"])
+
+    for name in ("v1.3/valid_basic", "v1.4/valid_basic", "v1.4/valid_crc_abstain_all"):
+        assert read(name).cost() is None, name
+    assert read("v1.4/valid_cost_three_options").cost() == {
+        "matrix": [[0, 1, 0.5], [8, 0, 2], [3, 1.5, 0]],
+        "c_max": 8,
+        "unit": None,
+    }
+    assert read("v1.4/valid_cost_basic").cost()["unit"] == "usd"

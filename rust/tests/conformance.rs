@@ -1,5 +1,5 @@
 //! The Rust verifier agrees with the issuer on the JCS bytes, the certificate id and the
-//! verdict of every fixture in fixtures/ (v1), fixtures/v1.1/, fixtures/v1.2/ and fixtures/v1.3/
+//! verdict of every fixture in fixtures/ (v1), fixtures/v1.1/, fixtures/v1.2/, fixtures/v1.3/ and fixtures/v1.4/
 //! (see fixtures/README.md for which program wrote each). The v1, v1.1 and v1.2 sets are frozen: a
 //! newer verifier gives every one of their files the same verdict, id and bytes.
 
@@ -60,6 +60,50 @@ fn rust_and_python_agree_on_every_v1_3_fixture() {
         && f["certificate"]["spec"] == "decision-certificate.v1.3"
         && f["certificate"]["automate_options"] == serde_json::json!(["yes"])));
     agree_on(set);
+}
+
+#[test]
+fn rust_and_python_agree_on_every_v1_4_fixture() {
+    let set = fixtures("v1.4", 70);
+    assert!(set.iter().any(|(_, f)| f["valid"].as_bool().unwrap()
+        && f["certificate"]["spec"] == "decision-certificate.v1.4"
+        && f["certificate"]["risk"] == "selective_cost"
+        && f["certificate"]["options"].as_array().unwrap().len() == 3));
+    agree_on(set);
+}
+
+/// A v1.4 verifier reads a `selective_cost` certificate's costs, and finds none in an error-risk or
+/// earlier certificate.
+#[test]
+fn costs_are_read_from_v1_4_cost_certificates_only() {
+    let read = |set: &str, name: &str| {
+        let (_, f) = fixtures(set, 1)
+            .into_iter()
+            .find(|(n, _)| n == name)
+            .unwrap();
+        let keys: BTreeMap<String, String> = serde_json::from_value(f["keys"].clone()).unwrap();
+        verify(&f["certificate"], &keys).unwrap()
+    };
+    for (set, name) in [
+        ("v1.3", "valid_basic"),
+        ("v1.4", "valid_basic"),
+        ("v1.4", "valid_crc_abstain_all"),
+    ] {
+        assert!(read(set, name).cost().is_none(), "{set}/{name}");
+    }
+    let v = read("v1.4", "valid_cost_three_options");
+    let c = v.cost().unwrap();
+    assert_eq!(c.c_max, 8.0);
+    assert_eq!(c.matrix[1][0], 8.0);
+    assert!(c.unit.is_none());
+    assert_eq!(
+        read("v1.4", "valid_cost_basic")
+            .cost()
+            .unwrap()
+            .unit
+            .as_deref(),
+        Some("usd")
+    );
 }
 
 /// A v1.3 verifier reads the automated options and each test's automated cases, and finds none in
@@ -203,6 +247,11 @@ fn every_v1_2_schema_invalid_mutation_is_rejected() {
 #[test]
 fn every_v1_3_schema_invalid_mutation_is_rejected() {
     rejects_every_mutation("v1.3/mutations/schema_invalid.json");
+}
+
+#[test]
+fn every_v1_4_schema_invalid_mutation_is_rejected() {
+    rejects_every_mutation("v1.4/mutations/schema_invalid.json");
 }
 
 fn rejects_every_mutation(rel: &str) {

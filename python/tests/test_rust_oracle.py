@@ -188,6 +188,47 @@ V13_PATHS = [
     "method",
 ]
 
+V14_PATHS = [
+    "risk",
+    "pvalue",
+    "cost",
+    "cost.matrix",
+    "cost.matrix.0",
+    "cost.matrix.1",
+    "cost.matrix.0.0",
+    "cost.matrix.1.0",
+    "cost.c_max",
+    "cost.unit",
+    "cost.extra",
+    "realized_cost",
+    "automated.realized_cost",
+    "segments.0.realized_cost",
+    "segments.1.realized_cost",
+    "segments.0.automated.realized_cost",
+    "segments.1.automated.realized_cost",
+    "spec",
+]
+
+V14_VALUES: list[Any] = [
+    "selective_cost",
+    "selective_error",
+    "hoeffding_bentkus",
+    "binomial",
+    "decision-certificate.v1.3",
+    "decision-certificate.v1.4",
+    0.0071,
+    0.0094,
+    5,
+    5.0,
+    8,
+    [[0, 1], [5, 0]],
+    [[0, 5], [5, 0]],
+    [[0, 1, 0.5], [8, 0, 2], [3, 1.5, 0]],
+    [0, 1],
+    {"matrix": [[0, 1], [5, 0]], "c_max": 5, "unit": None},
+    {"matrix": [[0, 1], [5, 0]], "c_max": 5, "unit": "usd"},
+]
+
 DR_PATHS = [
     "calibration_map.kind",
     "calibration_map.params",
@@ -263,6 +304,26 @@ def cases() -> list[tuple[str, str]]:
             add(f"dr-edit{i}-{path}", resign(c))
         except dc.Invalid:
             add(f"dr-unsigned{i}-{path}", c)
+    v14 = [
+        "v1.4/valid_cost_basic",
+        "v1.4/valid_cost_segments",
+        "v1.4/valid_cost_three_options",
+        "v1.4/valid_cost_automated_subset",
+        "v1.4/valid_segments_unicode",
+        "v1.4/valid_crc_abstain_all",
+    ]
+    for i in range(400):
+        c = base(rng.choice(v14))
+        path = rng.choice(V14_PATHS + V13_PATHS[:8] + PATHS[:4])
+        value = rng.choice(V14_VALUES + EDGE_VALUES)
+        try:
+            c = set_path(c, path, value)
+        except (KeyError, IndexError, TypeError):
+            continue
+        try:
+            add(f"v14-edit{i}-{path}", resign(c))
+        except dc.Invalid:
+            add(f"v14-unsigned{i}-{path}", c)
     for name, raw in [("minus-zero-int", '"n": -0'), ("float-int", '"n": 2500.0'), ("exp-int", '"n": 25e2')]:
         c = resign(base())
         text = json.dumps({"certificate": c, "keys": KEYS}).replace('"n": 2500', raw, 1)

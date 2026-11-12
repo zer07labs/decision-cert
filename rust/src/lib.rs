@@ -41,8 +41,11 @@ pub const SPEC_V1_2: &str = "decision-certificate.v1.2";
 /// The `spec` of a v1.3 certificate: v1.2, plus the automated options and their answered share and
 /// error per test.
 pub const SPEC_V1_3: &str = "decision-certificate.v1.3";
-/// Every `spec` this verifier accepts. v1 and v1.1 have the same fields; v1.2 adds some, v1.3 more.
-pub const SPECS: [&str; 4] = [SPEC, SPEC_V1_1, SPEC_V1_2, SPEC_V1_3];
+/// The `spec` of a v1.4 certificate: v1.3, plus the cost risk `selective_cost`.
+pub const SPEC_V1_4: &str = "decision-certificate.v1.4";
+/// Every `spec` this verifier accepts. v1 and v1.1 have the same fields; v1.2 adds some, v1.3 more,
+/// v1.4 more again.
+pub const SPECS: [&str; 5] = [SPEC, SPEC_V1_1, SPEC_V1_2, SPEC_V1_3, SPEC_V1_4];
 /// Most bins a `confidence_bins` may define.
 pub const MAX_BINS: usize = 100;
 /// `abstain_below` that abstains on every case (as `dk calibrate` writes it).
@@ -88,6 +91,21 @@ pub struct Automated {
     pub ucb: Option<f64>,
     #[serde(deserialize_with = "nullable")]
     pub realized_band: Option<Band>,
+    /// v1.4 only (absent before v1.4): the automated cases' mean normalised cost under
+    /// `selective_cost`; present and null otherwise.
+    #[serde(default, deserialize_with = "present")]
+    pub realized_cost: Option<Option<f64>>,
+}
+
+/// A v1.4 `selective_cost` certificate's costs: `matrix[label][answered option]`, in the options'
+/// order, its largest entry `c_max`, and a free `unit` label (informational).
+#[derive(Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Cost {
+    pub matrix: Vec<Vec<f64>>,
+    pub c_max: f64,
+    #[serde(deserialize_with = "nullable")]
+    pub unit: Option<String>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq)]
@@ -109,6 +127,9 @@ pub struct Segment {
     /// v1.3 only: absent (None) before v1.3.
     #[serde(default, deserialize_with = "present")]
     pub automated: Option<Automated>,
+    /// v1.4 only: absent (None) before v1.4.
+    #[serde(default, deserialize_with = "present")]
+    pub realized_cost: Option<Option<f64>>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq)]
@@ -209,6 +230,16 @@ pub struct Certificate {
     /// v1.3 only: the remainder's automated cases.
     #[serde(default, deserialize_with = "present")]
     pub automated: Option<Automated>,
+    /// v1.4 only (absent before v1.4): the costs of a `selective_cost` certificate; present and null
+    /// for the error risks.
+    #[serde(default, deserialize_with = "present")]
+    pub cost: Option<Option<Cost>>,
+    /// v1.4 only: the `ltt` p-value, `binomial` or `hoeffding_bentkus`; null for `crc`.
+    #[serde(default, deserialize_with = "present")]
+    pub pvalue: Option<Option<String>>,
+    /// v1.4 only: the remainder's mean normalised cost of its answered cases (descriptive).
+    #[serde(default, deserialize_with = "present")]
+    pub realized_cost: Option<Option<f64>>,
 }
 
 /// A field that may be absent (with `default`, as None) but, when present, is read as `T`: so a
@@ -295,6 +326,13 @@ impl Verified {
         }
     }
 
+    /// A v1.4 `selective_cost` certificate's costs; None otherwise. A consumer refuses a certificate
+    /// whose matrix differs from the costs it is configured with (spec v1.4 §4), and reports the
+    /// bound as `alpha * c_max` in `unit`.
+    pub fn cost(&self) -> Option<&Cost> {
+        self.cert.cost.as_ref().and_then(|c| c.as_ref())
+    }
+
     /// The probabilities the certificate's calibration map gives a case's raw scores, one per
     /// option (spec v1.2 §1, [`probabilities`]). None when the map's kind is not one this crate
     /// applies ([`MAP_KINDS`]), its params do not fit that kind, or `scores` does not have one score
@@ -303,7 +341,8 @@ impl Verified {
     pub fn probabilities(&self, scores: &[f64]) -> Option<Vec<f64>> {
         let defined = self.cert.calibration_map.kind == "temperature"
             || self.cert.spec == SPEC_V1_2
-            || self.cert.spec == SPEC_V1_3;
+            || self.cert.spec == SPEC_V1_3
+            || self.cert.spec == SPEC_V1_4;
         (defined && scores.len() == self.cert.options.len())
             .then(|| probabilities(&self.cert.calibration_map, scores))
             .flatten()
@@ -387,7 +426,7 @@ fn check(c: &Certificate) -> Result<(), CertError> {
     let open = |x: f64| x > 0.0 && x < 1.0;
     let threshold = |x: f64| (0.0..=ABSTAIN_ALL).contains(&x);
     if !SPECS.contains(&c.spec.as_str()) {
-        return bad("spec is not decision-certificate.v1, decision-certificate.v1.1, decision-certificate.v1.2 or decision-certificate.v1.3");
+        return bad("spec is not decision-certificate.v1, decision-certificate.v1.1, decision-certificate.v1.2, decision-certificate.v1.3 or decision-certificate.v1.4");
     }
     fields_for_spec(c)?;
     let mut seen = std::collections::BTreeSet::new();
@@ -406,8 +445,10 @@ fn check(c: &Certificate) -> Result<(), CertError> {
     {
         return bad("domain, decision, calibration_map.kind and issuer must be non-empty");
     }
+    let v14 = c.spec == SPEC_V1_4;
     match (c.method.as_str(), c.risk.as_str(), c.delta, c.ucb) {
         ("ltt", "selective_error", Some(d), _) if open(d) => {}
+        ("ltt", "selective_cost", Some(d), _) if v14 && open(d) => {}
         ("crc", "joint_error", None, None) => {}
         _ => return bad("method, risk, delta and ucb disagree"),
     }
@@ -465,12 +506,15 @@ fn check(c: &Certificate) -> Result<(), CertError> {
         timestamp(&w.start)?;
         timestamp(&w.end)?;
     }
-    if c.spec == SPEC_V1_2 || c.spec == SPEC_V1_3 {
+    if c.spec == SPEC_V1_2 || c.spec == SPEC_V1_3 || v14 {
         histograms(c)?;
         map::check(&c.calibration_map, c.options.len())?;
     }
-    if c.spec == SPEC_V1_3 {
+    if c.spec == SPEC_V1_3 || v14 {
         automated(c)?;
+    }
+    if v14 {
+        cost(c)?;
     }
     Ok(())
 }
@@ -480,7 +524,8 @@ fn check(c: &Certificate) -> Result<(), CertError> {
 /// fields belong to another spec is refused as a spec it is not, so a v1.1-shaped certificate naming
 /// v1.2, or a v1.2-shaped one naming v1.3, is still refused as an unknown spec.
 fn fields_for_spec(c: &Certificate) -> Result<(), CertError> {
-    let v13 = c.spec == SPEC_V1_3;
+    let v14 = c.spec == SPEC_V1_4;
+    let v13 = c.spec == SPEC_V1_3 || v14;
     let v12 = c.spec == SPEC_V1_2 || v13;
     // (name, present, required by this spec): the v1.2 fields first, then the v1.3 ones.
     let mut present = vec![
@@ -492,6 +537,9 @@ fn fields_for_spec(c: &Certificate) -> Result<(), CertError> {
         ),
         ("automate_options", c.automate_options.is_some(), v13),
         ("automated", c.automated.is_some(), v13),
+        ("cost", c.cost.is_some(), v14),
+        ("pvalue", c.pvalue.is_some(), v14),
+        ("realized_cost", c.realized_cost.is_some(), v14),
     ];
     for s in &c.segments {
         present.push((
@@ -500,6 +548,19 @@ fn fields_for_spec(c: &Certificate) -> Result<(), CertError> {
             v12,
         ));
         present.push(("segments[].automated", s.automated.is_some(), v13));
+        present.push(("segments[].realized_cost", s.realized_cost.is_some(), v14));
+    }
+    if let Some(a) = &c.automated {
+        present.push(("automated.realized_cost", a.realized_cost.is_some(), v14));
+    }
+    for s in &c.segments {
+        if let Some(a) = &s.automated {
+            present.push((
+                "segments[].automated.realized_cost",
+                a.realized_cost.is_some(),
+                v14,
+            ));
+        }
     }
     for (name, here, required) in present {
         if required && !here {
@@ -597,15 +658,89 @@ fn automated(c: &Certificate) -> Result<(), CertError> {
                 a.coverage == coverage && a.ucb == ucb && a.realized_band.as_ref() == band
             })
         };
+        // v1.4: the realized costs agree too (both absent before v1.4)
+        let same_cost = |a: &Option<Automated>, rc: Option<Option<f64>>| {
+            a.as_ref().is_none_or(|a| a.realized_cost == rc)
+        };
         if !same(&c.automated, c.coverage, c.ucb, Some(&c.realized_band))
+            || !same_cost(&c.automated, c.realized_cost)
             || !c
                 .segments
                 .iter()
                 .all(|s| same(&s.automated, s.coverage, s.ucb, s.realized_band.as_ref()))
+            || !c
+                .segments
+                .iter()
+                .all(|s| same_cost(&s.automated, s.realized_cost))
         {
             return Err(CertError::Invalid(
                 "automated must equal its test's coverage, ucb and realized_band when every option is automated".into(),
             ));
+        }
+    }
+    Ok(())
+}
+
+/// v1.4's checks beyond the schema (spec v1.4 §2): `cost` and `pvalue` pair with `risk`; the cost
+/// matrix is options x options with a zero diagonal, every entry in [0, c_max], `c_max` its largest
+/// entry and above 0, and its off-diagonal entries not all equal; `realized_cost` is in [0, 1], null
+/// for the error risks, for an inherited segment and wherever its test answered no case.
+fn cost(c: &Certificate) -> Result<(), CertError> {
+    let bad = |m: &str| Err(CertError::Invalid(m.to_string()));
+    let cost = c.cost.clone().flatten();
+    let pvalue = c.pvalue.clone().flatten();
+    let want = match c.risk.as_str() {
+        "selective_error" => Some("binomial"),
+        "selective_cost" => Some("hoeffding_bentkus"),
+        _ => None,
+    };
+    if cost.is_some() != (c.risk == "selective_cost") || pvalue.as_deref() != want {
+        return bad("cost, pvalue and risk disagree");
+    }
+    if let Some(k) = &cost {
+        let n = c.options.len();
+        let m = &k.matrix;
+        let all = || m.iter().flatten().copied();
+        let ok = m.len() == n
+            && m.iter().all(|r| r.len() == n)
+            && (0..n).all(|i| m[i][i] == 0.0)
+            && all().all(|x| (0.0..=k.c_max).contains(&x))
+            && k.c_max > 0.0
+            && all().fold(f64::NEG_INFINITY, f64::max) == k.c_max
+            && k.unit.as_deref() != Some("");
+        if !ok {
+            return bad("cost.matrix must be options x options with a zero diagonal and entries in [0, c_max], c_max its largest entry and above 0");
+        }
+        let off: Vec<f64> = (0..n)
+            .flat_map(|i| (0..n).filter(move |&j| j != i).map(move |j| (i, j)))
+            .map(|(i, j)| m[i][j])
+            .collect();
+        if off.iter().all(|&x| x == off[0]) {
+            return bad("a cost risk needs unequal off-diagonal costs; with equal costs it is selective_error");
+        }
+    }
+    let unit = |x: f64| (0.0..=1.0).contains(&x);
+    let auto = |a: &Option<Automated>| {
+        a.as_ref()
+            .map(|a| (a.realized_cost.flatten(), a.coverage))
+            .unwrap_or((None, 0.0))
+    };
+    let mut tests = vec![(c.realized_cost.flatten(), c.coverage, true)];
+    tests.extend(
+        c.segments
+            .iter()
+            .map(|s| (s.realized_cost.flatten(), s.coverage, !s.inherited)),
+    );
+    let (rc, cov) = auto(&c.automated);
+    tests.push((rc, cov, true));
+    tests.extend(c.segments.iter().map(|s| {
+        let (rc, cov) = auto(&s.automated);
+        (rc, cov, !s.inherited)
+    }));
+    for (rc, coverage, own) in tests {
+        let expect = cost.is_some() && own && coverage > 0.0;
+        if rc.is_some() != expect || rc.is_some_and(|x| !unit(x)) {
+            return bad("realized_cost must be in [0, 1], and null for the error risks, an inherited segment and a test that answered no case");
         }
     }
     Ok(())

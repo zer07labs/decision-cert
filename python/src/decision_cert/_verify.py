@@ -36,14 +36,19 @@ SPEC_V1_2 = "decision-certificate.v1.2"
 #: The `spec` of a v1.3 certificate: v1.2, plus the automated options and their answered share and
 #: error per test.
 SPEC_V1_3 = "decision-certificate.v1.3"
+#: The `spec` of a v1.4 certificate: v1.3, plus the cost risk `selective_cost`.
+SPEC_V1_4 = "decision-certificate.v1.4"
 #: Every `spec` this verifier accepts. v1 and v1.1 have the same fields; v1.2 adds some
-#: (`V1_2_FIELDS`), v1.3 more (`V1_3_FIELDS`).
-SPECS = (SPEC, SPEC_V1_1, SPEC_V1_2, SPEC_V1_3)
+#: (`V1_2_FIELDS`), v1.3 more (`V1_3_FIELDS`), v1.4 more again (`V1_4_FIELDS`).
+SPECS = (SPEC, SPEC_V1_1, SPEC_V1_2, SPEC_V1_3, SPEC_V1_4)
 #: The fields a v1.2 or v1.3 certificate has and a v1 or v1.1 certificate must not: top level, and
 #: per segment.
 V1_2_FIELDS = (("confidence_bins", "confidence_histogram"), ("confidence_histogram",))
 #: The fields a v1.3 certificate has and an earlier one must not: top level, and per segment.
 V1_3_FIELDS = (("automate_options", "automated"), ("automated",))
+#: The fields a v1.4 certificate has and an earlier one must not: top level, per segment, and in every
+#: `automated` block.
+V1_4_FIELDS = (("cost", "pvalue", "realized_cost"), ("realized_cost",), ("realized_cost",))
 #: Most bins a `confidence_bins` may define.
 MAX_BINS = 100
 #: `abstain_below` that abstains on every case.
@@ -197,7 +202,12 @@ def _struct(name: str, fields: dict[str, Reader], optional: tuple[str, ...] = ()
 
 _band = _struct("Band", {"level": _f64, "low": _f64, "high": _f64})
 _histogram = _nullable(_struct("Histogram", {"counts": _seq(_u64), "unscored": _u64}))
-_automated = _struct("Automated", {"coverage": _f64, "ucb": _nullable(_f64), "realized_band": _nullable(_band)})
+_automated = _struct(
+    "Automated",
+    {"coverage": _f64, "ucb": _nullable(_f64), "realized_band": _nullable(_band), "realized_cost": _nullable(_f64)},
+    optional=V1_4_FIELDS[2],
+)
+_cost = _nullable(_struct("Cost", {"matrix": _seq(_seq(_f64)), "c_max": _f64, "unit": _nullable(_string)}))
 _segment = _struct(
     "Segment",
     {
@@ -211,8 +221,9 @@ _segment = _struct(
         "inherited": _boolean,
         "confidence_histogram": _histogram,
         "automated": _automated,
+        "realized_cost": _nullable(_f64),
     },
-    optional=V1_2_FIELDS[1] + V1_3_FIELDS[1],
+    optional=V1_2_FIELDS[1] + V1_3_FIELDS[1] + V1_4_FIELDS[1],
 )
 _certificate = _struct(
     "Certificate",
@@ -252,8 +263,11 @@ _certificate = _struct(
         "confidence_histogram": _histogram,
         "automate_options": _seq(_string),
         "automated": _automated,
+        "cost": _cost,
+        "pvalue": _nullable(_string),
+        "realized_cost": _nullable(_f64),
     },
-    optional=V1_2_FIELDS[0] + V1_3_FIELDS[0],
+    optional=V1_2_FIELDS[0] + V1_3_FIELDS[0] + V1_4_FIELDS[0],
 )
 
 
@@ -304,8 +318,8 @@ def _check(c: Mapping[str, Any]) -> None:
 
     if c["spec"] not in SPECS:
         raise bad(
-            "spec is not decision-certificate.v1, decision-certificate.v1.1, decision-certificate.v1.2 "
-            "or decision-certificate.v1.3"
+            "spec is not decision-certificate.v1, decision-certificate.v1.1, decision-certificate.v1.2, "
+            "decision-certificate.v1.3 or decision-certificate.v1.4"
         )
     _check_fields_for_spec(c)
     opts = c["options"]
@@ -314,8 +328,10 @@ def _check(c: Mapping[str, Any]) -> None:
     if not all((c["domain"], c["decision"], c["calibration_map"]["kind"], c["issuer"]["tool"], c["issuer"]["version"])):
         raise bad("domain, decision, calibration_map.kind and issuer must be non-empty")
     method, risk, delta, ucb = c["method"], c["risk"], c["delta"], c["ucb"]
+    v14 = c["spec"] == SPEC_V1_4
+    ltt_risks = ("selective_error", "selective_cost") if v14 else ("selective_error",)
     if not (
-        (method == "ltt" and risk == "selective_error" and delta is not None and _open(delta))
+        (method == "ltt" and risk in ltt_risks and delta is not None and _open(delta))
         or (method == "crc" and risk == "joint_error" and delta is None and ucb is None)
     ):
         raise bad("method, risk, delta and ucb disagree")
@@ -361,12 +377,14 @@ def _check(c: Mapping[str, Any]) -> None:
     if c["window"] is not None:
         timestamp(c["window"]["start"])
         timestamp(c["window"]["end"])
-    if c["spec"] in (SPEC_V1_2, SPEC_V1_3):
+    if c["spec"] in (SPEC_V1_2, SPEC_V1_3, SPEC_V1_4):
         _check_histograms(c)
         if (msg := _map.check(c["calibration_map"], len(opts))) is not None:
             raise Invalid(msg)
-    if c["spec"] == SPEC_V1_3:
+    if c["spec"] in (SPEC_V1_3, SPEC_V1_4):
         _check_automated(c)
+    if v14:
+        _check_cost(c)
 
 
 def _check_fields_for_spec(c: Mapping[str, Any]) -> None:
@@ -374,11 +392,18 @@ def _check_fields_for_spec(c: Mapping[str, Any]) -> None:
     earlier certificate none of them, at the top level and in every segment. A certificate whose
     fields belong to another spec is refused as a spec it is not, so a v1.1-shaped certificate naming
     v1.2, or a v1.2-shaped one naming v1.3, is still refused as an unknown spec."""
-    v13 = c["spec"] == SPEC_V1_3
+    v14 = c["spec"] == SPEC_V1_4
+    v13 = c["spec"] == SPEC_V1_3 or v14
     v12 = c["spec"] == SPEC_V1_2 or v13
-    top = [(f, v12) for f in V1_2_FIELDS[0]] + [(f, v13) for f in V1_3_FIELDS[0]]
-    per_segment = [(f, v12) for f in V1_2_FIELDS[1]] + [(f, v13) for f in V1_3_FIELDS[1]]
-    for where, obj, names in [("", c, top), *(("segments[]", s, per_segment) for s in c["segments"])]:
+    top = [(f, v12) for f in V1_2_FIELDS[0]] + [(f, v13) for f in V1_3_FIELDS[0]] + [(f, v14) for f in V1_4_FIELDS[0]]
+    per_segment = (
+        [(f, v12) for f in V1_2_FIELDS[1]] + [(f, v13) for f in V1_3_FIELDS[1]] + [(f, v14) for f in V1_4_FIELDS[1]]
+    )
+    per_automated = [(f, v14) for f in V1_4_FIELDS[2]]
+    where_obj = [("", c, top), *(("segments[]", s, per_segment) for s in c["segments"])]
+    where_obj += [("automated", c["automated"], per_automated)] if "automated" in c else []
+    where_obj += [("segments[].automated", s["automated"], per_automated) for s in c["segments"] if "automated" in s]
+    for where, obj, names in where_obj:
         for f, required in names:
             name = f"{where}.{f}" if where else f
             if required and f not in obj:
@@ -413,11 +438,53 @@ def _check_automated(c: Mapping[str, Any]) -> None:
                 "null exactly where the test's are"
             )
     if len(auto) == len(c["options"]):
+        names = ("coverage", "ucb", "realized_band", "realized_cost")
         for t in [c, *c["segments"]]:
-            if t["automated"] != {"coverage": t["coverage"], "ucb": t["ucb"], "realized_band": t["realized_band"]}:
+            if t["automated"] != {k: t[k] for k in names if k in t["automated"]}:
                 raise Invalid(
                     "automated must equal its test's coverage, ucb and realized_band when every option is automated"
                 )
+
+
+def _check_cost(c: Mapping[str, Any]) -> None:
+    """v1.4's checks beyond the schema (spec v1.4 §2): `cost` and `pvalue` pair with `risk`; the cost
+    matrix is options x options with a zero diagonal, every entry in [0, c_max], `c_max` its largest
+    entry and above 0, and its off-diagonal entries not all equal; `realized_cost` is in [0, 1], null
+    for the error risks, for an inherited segment and wherever its test answered no case."""
+    risk, cost, pvalue = c["risk"], c["cost"], c["pvalue"]
+    want = {"selective_error": "binomial", "selective_cost": "hoeffding_bentkus", "joint_error": None}[risk]
+    if (cost is not None) != (risk == "selective_cost") or pvalue != want:
+        raise Invalid("cost, pvalue and risk disagree")
+    if cost is not None:
+        k, m, cmax = len(c["options"]), cost["matrix"], cost["c_max"]
+        if not (
+            len(m) == k
+            and all(len(r) == k for r in m)
+            and all(m[i][i] == 0.0 for i in range(k))
+            and all(0.0 <= x <= cmax for r in m for x in r)
+            and cmax > 0.0
+            and max(x for r in m for x in r) == cmax
+            and (cost["unit"] is None or cost["unit"] != "")
+        ):
+            raise Invalid(
+                "cost.matrix must be options x options with a zero diagonal and entries in [0, c_max], "
+                "c_max its largest entry and above 0"
+            )
+        if len({m[i][j] for i in range(k) for j in range(k) if i != j}) == 1:
+            raise Invalid("a cost risk needs unequal off-diagonal costs; with equal costs it is selective_error")
+    tests = [
+        (c["realized_cost"], c["coverage"], True),
+        *((s["realized_cost"], s["coverage"], not s["inherited"]) for s in c["segments"]),
+    ]
+    tests += [(c["automated"]["realized_cost"], c["automated"]["coverage"], True)]
+    tests += [(s["automated"]["realized_cost"], s["automated"]["coverage"], not s["inherited"]) for s in c["segments"]]
+    for rc, coverage, own in tests:
+        expect = cost is not None and own and coverage > 0.0
+        if (rc is not None) != expect or (rc is not None and not _unit(rc)):
+            raise Invalid(
+                "realized_cost must be in [0, 1], and null for the error risks, an inherited segment and a test "
+                "that answered no case"
+            )
 
 
 def _check_histograms(c: Mapping[str, Any]) -> None:
@@ -604,6 +671,12 @@ class Verified:
                     break
         return a
 
+    def cost(self) -> Mapping[str, Any] | None:
+        """A v1.4 `selective_cost` certificate's cost block `{matrix, c_max, unit}`; None otherwise. A
+        consumer refuses a certificate whose matrix differs from the costs it is configured with
+        (spec v1.4 §4), and reports the bound as `alpha * c_max` in `unit`."""
+        return self._typed.get("cost")
+
     def probabilities(self, scores: Sequence[float]) -> tuple[float, ...] | None:
         """The probabilities the certificate's calibration map gives a case's raw scores, one per
         option (spec v1.2 §1, `decision_cert.probabilities`). None when the map's kind is not one
@@ -611,7 +684,7 @@ class Verified:
         have one score per option, or the map is `dr` in a certificate before v1.2, which did not
         define it. A consumer refuses a certificate whose map it does not apply (spec v1.2 §4)."""
         m = self._typed["calibration_map"]
-        if m["kind"] != "temperature" and self._typed["spec"] not in (SPEC_V1_2, SPEC_V1_3):
+        if m["kind"] != "temperature" and self._typed["spec"] not in (SPEC_V1_2, SPEC_V1_3, SPEC_V1_4):
             return None
         if len(scores) != len(self._typed["options"]):
             return None
