@@ -1,13 +1,12 @@
 # Decision certificate, v1.4
 
-Status: **implemented, not frozen** (2026-11-12). v1.4 is
+Status: **frozen** (2026-11-12). v1.4 is
 [`decision-certificate.v1.3`](decision-certificate.v1.3.md) with one addition from the
 [cost-weighted abstention draft](drafts/cost-weighted-abstention.md): the cost risk
 `selective_cost`, which bounds the expected cost of the answered cases instead of their error rate
-(§1.7, §2, §4). Until v1.4 is frozen, its fields and fixtures may still change, so a consumer that
-needs a fixed format pins `decision-certificate.v1.2`. The v1.3 spec text applies to a v1.4
+(§1.7, §2, §4). Corrections go in [`ERRATA.md`](ERRATA.md). The v1.3 spec text applies to a v1.4
 certificate except where this document says otherwise. v1, v1.1, v1.2 and v1.3 certificates,
-fixtures and verdicts do not change.
+fixtures and verdicts do not change; v1.3 is frozen with v1.4.
 
 **Versions.** Verifiers accept `decision-certificate.v1`, `v1.1`, `v1.2`, `v1.3` and `v1.4`, each
 against its own schema. v1.4 certificates have the v1.3 fields and eight more: `cost`, `pvalue`,

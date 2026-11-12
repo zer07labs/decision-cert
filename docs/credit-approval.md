@@ -83,7 +83,7 @@ a certified segment's own cases, or everything the top-level threshold decides.
 A deployment that approves automatically and sends every "no" answer to a person, as well as every
 abstention, decides fewer cases than `coverage` counts, and the error among them can differ from the
 error of all answered cases. A v1.3 certificate
-([spec](../spec/decision-certificate.v1.3.md), implemented, not frozen) states both:
+([spec](../spec/decision-certificate.v1.3.md)) states both:
 
 ```bash
 python -m decision_cert.issue certify ... --spec decision-certificate.v1.3 --automate-options approved=yes

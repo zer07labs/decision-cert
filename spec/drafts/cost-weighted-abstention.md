@@ -1,4 +1,4 @@
-> Design draft, now **implemented as [spec v1.4](../decision-certificate.v1.4.md)** (2026-11-12):
+> Design draft, now **implemented as [spec v1.4](../decision-certificate.v1.4.md)**, frozen 2026-11-12 for release 0.5.0:
 > `selective_cost` with Hoeffding-Bentkus only, per the owner answers below. The study of §3 is
 > [cost-study.md](cost-study.md). `joint_cost` and a betting p-value stay draft.
 
@@ -167,3 +167,6 @@ Two effects move the label count at a fixed `alpha` and `delta`:
    whenever costs are equal, proved by the equal-cost test in §2.
 3. **`joint_cost`:** out of v1.4. `selective_cost` ships alone; `crc` may follow if a consumer asks.
 4. **Status:** a draft. No code until the founder's go.
+
+Later (2026-11-12): the founder's go to build v1.4, then to publish it; v1.4 is frozen and ships in 0.5.0, with
+whole-number costs (#45).

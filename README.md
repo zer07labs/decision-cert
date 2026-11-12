@@ -68,7 +68,7 @@ certificate and its expiry.
 
 | Path | What |
 |---|---|
-| [`spec/`](spec/) | [`decision-certificate.v1.4.md`](spec/decision-certificate.v1.4.md) and [`decision-certificate.v1.3.md`](spec/decision-certificate.v1.3.md) (implemented, **not frozen**), [`decision-certificate.v1.2.md`](spec/decision-certificate.v1.2.md) (**frozen** 2026-11-08), [`decision-certificate.v1.1.md`](spec/decision-certificate.v1.1.md) (**frozen** 2026-11-08), [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (**frozen** 2026-10-25), and a JSON Schema for each |
+| [`spec/`](spec/) | [`decision-certificate.v1.4.md`](spec/decision-certificate.v1.4.md) and [`decision-certificate.v1.3.md`](spec/decision-certificate.v1.3.md) (**frozen** 2026-11-12), [`decision-certificate.v1.2.md`](spec/decision-certificate.v1.2.md) (**frozen** 2026-11-08), [`decision-certificate.v1.1.md`](spec/decision-certificate.v1.1.md) (**frozen** 2026-11-08), [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (**frozen** 2026-10-25), and a JSON Schema for each |
 | [`rust/`](rust/) | the `decision-cert` crate: `verify`, `canonical`, `certificate_id`, `key_id`, segment thresholds, expiry, the v1.2 calibration maps (`probabilities`, `confidence`) and shift score |
 | [`python/`](python/) | a pure-Python verifier (`decision_cert`), a port of the crate that passes the same fixtures |
 | [`fixtures/`](fixtures/) | conformance fixtures: signed certificates with their canonical bytes, ids and expected verdicts, plus `mutations/schema_invalid.json`, schema-invalid certificates a verifier must reject; v1 at the top level, v1.1 in `fixtures/v1.1/`, v1.2 in `fixtures/v1.2/`, v1.3 in `fixtures/v1.3/`, v1.4 in `fixtures/v1.4/` |
@@ -77,14 +77,14 @@ certificate and its expiry.
 | [`docs/model-risk.md`](docs/model-risk.md) | what a certificate gives a model validation (SR 11-7 headings), and what it does not |
 | [`plans/`](plans/) | the public roadmap |
 
-v1, v1.1 and v1.2 are frozen, and verifiers accept them, v1.3 and v1.4. v1 and v1.1 have the same fields; v1.1
+v1 to v1.4 are frozen, and verifiers accept all five. v1 and v1.1 have the same fields; v1.1
 changes one step of the issuing procedure (each test starts the threshold grid on its own cases) and
 clarifies the text. v1.2 keeps v1.1's procedure and adds fields under its own `spec` value: the
 confidence histogram for monitoring without labels. It also defines a second calibration map kind,
-`dr`, refitted on a few labels from a shifted population. v1.3, implemented but not yet frozen,
+`dr`, refitted on a few labels from a shifted population. v1.3
 adds to v1.2 the options a consumer decides automatically, with each test's answered share and
 error among them (descriptive: the bound still covers every answered case), and binds each case's
-`cannot_tell` value in `data_hash`. v1.4, implemented but not yet frozen, adds to v1.3 a cost
+`cannot_tell` value in `data_hash`. v1.4 adds to v1.3 a cost
 risk, `selective_cost`: from a consumer's cost matrix, it bounds the expected cost of the answered
 cases instead of their error rate (equal costs stay v1's error test). Issuers write v1.2 unless
 asked for v1.3 or v1.4. A frozen spec's fields never change meaning, and

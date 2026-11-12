@@ -1,11 +1,10 @@
 # Decision certificate, v1.3
 
-Status: **implemented, not frozen** (2026-11-10). v1.3 is
+Status: **frozen** (2026-11-12; implemented 2026-11-10). v1.3 is
 [`decision-certificate.v1.2`](decision-certificate.v1.2.md) with two additions from the
 [v1.3 draft](drafts/decision-certificate.v1.3.md): C1, `data_hash` binds each case's `cannot_tell`
 value (§2), and P1, each test reports its answered cases among the options the consumer automates
-(§1.6, §2, §4). Until v1.3 is frozen, its fields and fixtures may still change, so a consumer that
-needs a fixed format pins `decision-certificate.v1.2`. The v1.2 spec text applies to a v1.3
+(§1.6, §2, §4). Corrections go in [`ERRATA.md`](ERRATA.md). The v1.2 spec text applies to a v1.3
 certificate except where this document says otherwise. v1, v1.1 and v1.2 stay frozen and valid, and
 their certificates, fixtures and verdicts do not change.
 

@@ -1,7 +1,7 @@
 > **Draft.** C1 and P1 are decided and implemented in
-> [`decision-certificate.v1.3.md`](../decision-certificate.v1.3.md) (2026-11-10, not frozen). The
+> [`decision-certificate.v1.3.md`](../decision-certificate.v1.3.md) (2026-11-10, frozen 2026-11-12). The
 > other items are design only: no field, check or fixture of theirs exists in any verifier or
-> issuer, and the owner decides each before any of it is built. v1, v1.1 and v1.2 stay frozen.
+> issuer, and the owner decides each before any of it is built. v1 to v1.3 stay frozen.
 
 # Decision certificate, v1.3 (draft)
 
@@ -288,3 +288,4 @@ log would anchor them.
 | 2026-11-10 | C1 | Decided and implemented: the hashed tuple gains a seventh member, `cannot_tell` (null when absent), under `spec` v1.3 only. Q1: a positional tuple per spec value, as before. Q2: ships without F1. |
 | 2026-11-10 | P1 | Decided and implemented: `automate_options` and, per test, an `automated` block (share, `ucb`, `realized_band`) on the answered cases whose top option is automated. Q1: v1.3 carries it. Q2, Q4: the numbers are descriptive, like v1.2 §1.2, and the threshold is still tested on all answered cases, so no bound on the subset is claimed and the test's validity is unchanged. Q3: one automated subset, not one test per option. Q5: a consumer refuses a different `automate_options` and monitors the automated share (v1.3 §4). |
 | 2026-11-10 | F1, R1, K1, U1, S1, M1 | Stay draft. |
+| 2026-11-12 | v1.3 | Frozen with v1.4 for release 0.5.0 (founder go, 2026-11-12). The other items stay draft and would be a later spec value. |

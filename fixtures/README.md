@@ -65,7 +65,7 @@ test's `coverage`, `ucb` and `realized_band`. Its own `mutations/`, and the v1.3
   `invalid_v1_3_field_in_v1_2`: fields that belong to another spec;
 - `invalid_unknown_spec`: a certificate naming `decision-certificate.v1.4`.
 
-v1.3 is not frozen yet, so this set may still change until it is; `v1.2/invalid_unknown_spec.json`
+v1.3 is frozen (2026-11-12) and this set does not change; `v1.2/invalid_unknown_spec.json`
 names v1.3 with v1.2's fields, and a v1.3 verifier refuses it with `spec is not` in its message.
 
 **v1.4.** [`v1.4/`](v1.4/) holds the v1.3 set again with `spec` `decision-certificate.v1.4` and
@@ -102,7 +102,7 @@ certificate. The v1.4 cases:
   fields that belong to another spec;
 - `invalid_unknown_spec`: a certificate naming `decision-certificate.v1.5`.
 
-v1.4 is not frozen yet, so this set may still change until it is; `v1.3/invalid_unknown_spec.json`
+v1.4 is frozen (2026-11-12) and this set does not change; `v1.3/invalid_unknown_spec.json`
 names v1.4 with v1.3's fields, and a v1.4 verifier refuses it with `spec is not` in its message.
 
 The v1 and v1.1 sets do not change. `v1.1/invalid_unknown_spec.json` names v1.2 with v1.1's fields;
