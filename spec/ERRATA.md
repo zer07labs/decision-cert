@@ -75,3 +75,16 @@ every number through an IEEE-754 double, so `9007199254740993` canonicalises as
 `9007199254740992`. Issuers must not write such integers. A verifier that canonicalises them
 differently will compute a different id; the Python verifier follows the reference.
 Fixtures: none
+
+## 2026-11-15: `certificate_id` is a frozen identity
+
+Concerns: §3 (canonical form and signature), and every later version, which inherits §3 (v1.1 to v1.4)
+Kind: clarification
+`certificate_id` = `"sha256:"` + lowercase hex SHA-256 of the RFC 8785 (JCS) bytes of the whole signed
+certificate, `signature` included. This derivation is frozen: no later version of this spec changes it.
+Consumers name a certificate by it, among them the certificate trailer Seam's sealed decision records are
+designed to carry. A different identity would need a new key under a new name, never a change to this
+one. The reference implementations are `certificate_id` in the Rust crate (`rust/src/lib.rs:381`) and in
+the Python verifier (`python/src/decision_cert/_verify.py:595`). Each conformance fixture's
+`certificate_id` field fixes the expected value (`docs/conformance.md`, rule 2).
+Fixtures: every file under `fixtures/` (its `certificate_id` field)
