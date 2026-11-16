@@ -174,9 +174,8 @@ class _Budget:
         if self.members > self.limits.members:
             raise PackError(f"more than {self.limits.members} members (at {name!r}); raise --max-members to read it")
 
-    def file(self, name: str, size: int) -> int:
-        """Admit a file of `size` bytes; returns how many bytes to read at most (one more than allowed,
-        so a file that grows while read is caught)."""
+    def file(self, name: str, size: int) -> None:
+        """Admit a file of `size` bytes, before anything of it is opened or read."""
         if size > self.limits.member_bytes:
             raise PackError(
                 f"{name!r} is {size} bytes, over the {self.limits.member_bytes}-byte member limit;"
@@ -188,10 +187,11 @@ class _Budget:
                 " raise --max-total-bytes to read it"
             )
         self.total += size
-        return size + 1
 
-    def read(self, name: str, f: IO[bytes], size: int) -> bytes:
-        data = f.read(self.file(name, size))
+    @staticmethod
+    def read(name: str, f: IO[bytes], size: int) -> bytes:
+        """Read a member admitted by `file`: at most one byte more than its size."""
+        data = f.read(size + 1)
         if len(data) != size:
             raise PackError(f"{name!r}: read {len(data)} bytes, expected {size} (changed or truncated while read)")
         return bytes(data)
@@ -217,6 +217,7 @@ def _read_dir(root: Path, budget: _Budget) -> dict[str, bytes]:
             if not _member_ok(rel):
                 raise Invalid(f"{rel!r}: not a valid member path")
             budget.entry(rel)
+            budget.file(rel, st.st_size)  # before the file is opened
             with full.open("rb") as f:
                 out[rel] = budget.read(rel, f, st.st_size)
     return out
@@ -243,7 +244,8 @@ def _read_tar(path: Path, budget: _Budget) -> dict[str, bytes]:
                 raise Invalid(f"{m.name!r}: not a valid member path (relative, no '..', letters, digits, . _ -)")
             if name in out:
                 raise Invalid(f"{name!r}: appears twice in the archive")
-            f = tar.extractfile(m)  # reads nothing yet; budget.read admits the size first
+            budget.file(name, m.size)  # before the member is opened or decompressed
+            f = tar.extractfile(m)
             if f is None:
                 raise Invalid(f"{m.name!r}: unreadable")
             out[name] = budget.read(name, f, m.size)
