@@ -130,6 +130,15 @@ selector, an error bound for the automated options only, and optionally segment 
 drift alarm's false-alarm rate. C1 and P1 became v1.3; nothing else in it is approved for implementation,
 and the owner decides each item first.
 
+## Trust designs (design only)
+
+[`docs/design/`](../docs/design/README.md) holds four designs the owner approved writing on
+2026-11-16, as documents only: key revocation and rotation (K1), the issuance ledger and dataset roles
+(R1), a per-tenant transparency log (#28) and an independent auditor's attestation (#29). They add
+sidecar documents that name a certificate by `certificate_id` and change no frozen spec. A tenant's
+certificates stay inside that tenant's scope, so none of them publishes anything about a tenant.
+Each ends with the questions the owner decides before any of it is built.
+
 ## Naming (decided 2026-11-07)
 
 The crate, the Python distribution and the repository keep the name `decision-cert` for good. It
