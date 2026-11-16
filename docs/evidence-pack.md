@@ -51,9 +51,19 @@ in memory and never extracts it.
 `..`, no absolute paths, no hidden files, no backslashes). A pack holds regular files only: a verifier
 rejects links, devices and other special files, and a tar member named twice.
 
+**Read limits.** A verifier bounds what it reads, and enforces the bounds while reading, before each
+member's bytes are read (or, in a compressed tar, decompressed), for a directory and a tar alike: no
+more than 1 GiB of member content in all, no member larger than 256 MiB, and no more than 10,000
+entries, all uncompressed. The reference verifier's defaults are these, and `--max-total-bytes`,
+`--max-member-bytes` and `--max-members` change them. A pack over a limit is not read: the verifier
+stops with a usage error (exit 2) naming the limit, not a verdict.
+
 ## The manifest (`pack.json`)
 
-A JSON object. Every field below is required; nullable ones are marked.
+A JSON object. Every field below is required; nullable ones are marked. **No object in the manifest
+repeats a key**: a verifier rejects a manifest that does. (A certificate parsed as `serde_json` parses
+keeps a repeated key's last value; the manifest is a new format with no such history, so a repeated
+key, whose meaning would depend on the parser, is refused.)
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -103,6 +113,13 @@ These are exactly the members of the certificate's `data_hash` entries, so the f
 a `data_hash` entry has no `cannot_tell`, so for those certificates the `cannot_tell` values are not
 bound by the hash.
 
+**`set` is not bound by `data_hash`.** A `data_hash` entry has no member for `set`, so the hash fixes
+which cases were measured but not which of them were calibration and which recalibration cases.
+Step 6 checks only the counts (calibration cases number `n_cal` + `n_temperature`; scored
+recalibration cases number `label_budget`); only a recompute (step 7) checks the assignment itself,
+because a different split of the same cases gives different figures. Where the recompute is skipped,
+`set` is the assembler's statement.
+
 **Order.** The lines are in the order the issuer passed the cases to the procedure (for the reference
 issuer, the order of its `--data` file). `data_hash` sorts the cases, so the order does not change
 it; but a `seeded` split permutes that order (spec v1.2 §1.1 step 1), so the recompute needs it.
@@ -139,16 +156,19 @@ A verifier runs these checks in order. A failure in steps 1 to 4 stops it; a fai
 certificate's steps skips the rest of that certificate's steps and goes on to the next certificate.
 
 1. **Layout.** The pack reads as a directory or a tar under the rules above, with `pack.json` at the
-   top.
-2. **Manifest.** `pack.json` parses as JSON (strictly, as the certificate verifier parses), `format`
-   is `decision-evidence-pack.v1`, and every field above has its type. Unknown fields are reported.
+   top. A pack that cannot be read at all (missing, truncated or corrupt, unreadable, over a read
+   limit) is a usage error (exit 2), not a verdict.
+2. **Manifest.** `pack.json` parses as JSON (strictly, as the certificate verifier parses, and with no
+   repeated key in any object), `format` is `decision-evidence-pack.v1`, and every field above has its
+   type. Unknown fields are reported.
 3. **Files.** The paths in `files` are exactly the pack's files other than `pack.json` (nothing
    missing, nothing unlisted), each file's SHA-256 matches, and every path the manifest names
    (`trusted_keys`, each `path` and `cases`) is listed.
 4. **Trusted keys.** The trusted-keys file is a JSON object of strings. The keys a verifier checks
    signatures against are **the caller's**, when given (`--keys`), else the pack's own. A pack that
    carries its own keys can only show that it is consistent; to check who signed, the auditor gets the
-   operator's public keys separately and passes them.
+   operator's public keys separately and passes them. Without `--keys` this check reports `warn`,
+   not `ok`, and the verdict line says so (below).
 5. **Each certificate.** The file verifies as a certificate (schema, the checks beyond the schema, a
    trusted key, the signature; as `decision-cert verify`), its id equals the entry's `certificate_id`,
    and its `data_hash` equals `measurement.data_hash`. Expiry is reported against the check time
@@ -157,11 +177,16 @@ certificate's steps skips the rest of that certificate's steps and goes on to th
    cases hash to the certificate's `data_hash` under its spec; the calibration cases number
    `n_cal` + `n_temperature`; recalibration cases appear only under a `dr` map, and the scored ones
    number its `label_budget`. Without `cases`, the step is skipped and the report names `location`.
+   `set` itself is not bound by `data_hash`; only step 7 checks it.
 7. **Each recompute**, when `cases` and `procedure` are set and the reference issuer is installed
    (`pip install 'decision-cert[issue]'`). Below.
 
-The verdict is **verified** when no check failed and **rejected** otherwise. Skipped checks are listed
-with their reason; `--require-recompute` turns a skipped recompute into a rejection.
+The verdict is **verified** when no check failed and **rejected** otherwise. Each check reports `ok`,
+`warn` (passed, with a limit on what it shows), `fail` or `skipped`; skipped checks are listed with
+their reason, and `--require-recompute` turns a skipped recompute into a rejection. Verified against
+the pack's own keys, the verdict line reads `pack verified: N certificate(s); consistent with its own
+keys only; pin keys with --keys`; verified against the caller's keys, `pack verified: N
+certificate(s)`.
 
 ### The recompute
 
@@ -204,7 +229,9 @@ It never claims:
   `assembled_by`, `location` and `procedure` are the assembler's statements. Anyone holding the files
   could rebuild a manifest; the certificates' signatures and `data_hash` are what bind the content.
 - **Who signed, without the caller's keys.** Checked against the pack's own trusted keys, a pack only
-  shows that it is consistent.
+  shows that it is consistent, and the verdict line says so.
+- **Which cases were calibration and which recalibration, without a recompute.** `data_hash` does not
+  bind `set`.
 - **That the cases at `location` are the cases.** A verifier never fetches `location`. Cases fetched
   from there match only if they hash to `data_hash`.
 - **That the labels are right.** The recompute checks arithmetic on the labels given, not the labels.
@@ -294,7 +321,10 @@ certificate signed by a key the pack does not list, one label changed in the cas
 
 ## Exit codes
 
-`python -m decision_cert verify-pack <pack> [--keys K] [--now T] [--no-recompute | --require-recompute]`:
-0 verified (with `--require-recompute`, also every recompute run), 1 rejected, 2 a usage error or a
-pack or keys file that cannot be read. From Python: `decision_cert.verify_pack(path, keys)` returns
+`python -m decision_cert verify-pack <pack> [--keys K] [--now T] [--no-recompute | --require-recompute]
+[--max-total-bytes N] [--max-member-bytes N] [--max-members N]`: 0 verified (with
+`--require-recompute`, also every recompute run; without `--keys`, verified as consistent with the
+pack's own keys only, and the verdict line says so), 1 rejected, 2 a usage error, a pack or keys file
+that cannot be read (missing, truncated, corrupt, unreadable), or a pack over a read limit; the
+message goes to stderr, never a traceback. From Python: `decision_cert.verify_pack(path, keys)` returns
 the report (`report.ok`, `report.checks`).

@@ -6,12 +6,15 @@ Exit 1: it does not verify, or it has expired; the reason is printed on stderr.
 Exit 2: usage error, an unreadable file, or a keys file that is not a JSON object of strings.
 The Rust `decision-cert verify` behaves the same.
 
-`python -m decision_cert verify-pack <pack> [--keys <keys.json>] [--now <ts>] [--no-recompute | --require-recompute]`
+`python -m decision_cert verify-pack <pack> [--keys <keys.json>] [--now <ts>] [--no-recompute | --require-recompute]
+[--max-total-bytes N] [--max-member-bytes N] [--max-members N]`
 
 Verifies an evidence pack, a directory or a tar (docs/evidence-pack.md), and prints one line per
 check and the verdict on stdout. Exit 0: no check failed (with `--require-recompute`, also no
-recompute skipped). Exit 1: a check failed. Exit 2: usage error, or the pack or keys file can't be
-read. An expired certificate is reported, not failed: a pack is often checked after the fact.
+recompute skipped); without `--keys` the verdict says the pack is consistent with its own keys only.
+Exit 1: a check failed. Exit 2: usage error, the pack or keys file can't be read (missing, truncated,
+corrupt), or the pack reaches a read limit. An expired certificate is reported, not failed: a pack is
+often checked after the fact.
 """
 
 from __future__ import annotations
@@ -23,7 +26,17 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from . import CertError, Invalid, loads, timestamp, verify
-from ._pack import PackError, render, verify_pack
+from ._pack import DEFAULT_LIMITS, Limits, PackError, render, verify_pack
+
+
+def _positive(text: str) -> int:
+    try:
+        n = int(text)
+    except ValueError:
+        n = 0
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"{text!r} is not a positive integer")
+    return n
 
 
 def _usage(msg: str) -> int:
@@ -50,6 +63,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     rc.add_argument("--no-recompute", action="store_true", help="Skip re-running the procedure on included cases.")
     rc.add_argument(
         "--require-recompute", action="store_true", help="Fail unless every certificate's figures are recomputed."
+    )
+    d = DEFAULT_LIMITS
+    vp.add_argument(
+        "--max-total-bytes",
+        type=_positive,
+        default=d.total_bytes,
+        help=f"Refuse a pack whose files hold more than this, uncompressed (default {d.total_bytes}, 1 GiB).",
+    )
+    vp.add_argument(
+        "--max-member-bytes",
+        type=_positive,
+        default=d.member_bytes,
+        help=f"Refuse a pack with a file larger than this, uncompressed (default {d.member_bytes}).",
+    )
+    vp.add_argument(
+        "--max-members",
+        type=_positive,
+        default=d.members,
+        help=f"Refuse a pack with more entries than this (default {d.members}).",
     )
     args = ap.parse_args(argv)  # exits 2 on a usage error
     if args.command == "verify-pack":
@@ -119,7 +151,8 @@ def _verify_pack(args: argparse.Namespace) -> int:
         except Invalid:
             return _usage(f"--now {args.now!r} is not YYYY-MM-DDTHH:MM:SSZ")
     try:
-        report = verify_pack(args.pack, keys, now=now, recompute=not args.no_recompute)
+        limits = Limits(args.max_total_bytes, args.max_member_bytes, args.max_members)
+        report = verify_pack(args.pack, keys, now=now, recompute=not args.no_recompute, limits=limits)
     except PackError as e:
         return _usage(str(e))
     sys.stdout.write(render(report))

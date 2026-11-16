@@ -12,7 +12,11 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
   the manifest, the hashes, each certificate against the caller's or the pack's keys, the cases against
   `data_hash`, and, with the `issue` extra, re-runs the procedure on the cases and compares every
   measured figure (`decision_cert.issue.recompute`). Synthetic fixture packs in `python/tests/packs/`
-  from `tools/gen_pack_fixtures.py` (`--check` in CI).
+  from `tools/gen_pack_fixtures.py` (`--check` in CI). The verifier bounds what it reads (1 GiB in all,
+  256 MiB a member, 10,000 entries by default; `--max-total-bytes`, `--max-member-bytes`,
+  `--max-members`), checked while reading; a pack over a limit, or truncated, corrupt or unreadable, is
+  exit 2 with a message. A manifest that repeats a key is rejected. Without `--keys` the trusted-keys
+  check reports `warn` and the verdict says the pack is consistent with its own keys only.
 
 ## 0.5.0 — unreleased (tag `v0.5.0` on the merge commit)
 

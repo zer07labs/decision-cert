@@ -27,7 +27,7 @@ every conformance fixture. A certificate describes a measured process; it never 
 
 from ._map import MAP_KINDS, confidence, probabilities
 from ._monitor import Histogram, ShiftScore, bin_of, chi2_sf, shift_score
-from ._pack import PACK_FORMAT, Check, PackError, PackReport, measured_cases_hash, verify_pack
+from ._pack import PACK_FORMAT, Check, Limits, PackError, PackReport, measured_cases_hash, verify_pack
 from ._verify import (
     ABSTAIN_ALL,
     SPEC,
@@ -74,6 +74,7 @@ __all__ = [
     "Check",
     "Histogram",
     "Invalid",
+    "Limits",
     "PackError",
     "PackReport",
     "ShiftScore",

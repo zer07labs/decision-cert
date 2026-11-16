@@ -16,17 +16,20 @@ describes a measured process; it never guarantees an outcome.
 from __future__ import annotations
 
 import datetime as dt
+import gzip
 import hashlib
 import io
 import json
+import lzma
 import os
 import re
 import stat
 import tarfile
+import zlib
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import IO, Any, Literal
 
 from ._verify import (
     SPEC,
@@ -64,11 +67,35 @@ CASE_FIELDS = (
 SETS = ("calibration", "recalibration")
 PROCEDURE_FIELDS = ("ttl_days", "histogram_min_n", "segment_floor", "dr_prior")
 
-Status = Literal["ok", "fail", "skipped"]
+Status = Literal["ok", "warn", "fail", "skipped"]
+
+#: The verdict line's qualifier when the certificates were checked against the pack's own keys.
+UNPINNED = "consistent with its own keys only; pin keys with --keys"
 
 
 class PackError(Exception):
-    """The pack could not be read at all (missing path, not a directory or a tar)."""
+    """The pack could not be read at all: a missing path, neither a directory nor a tar, a truncated or
+    corrupt archive, a read error, or a read limit reached (`Limits`)."""
+
+
+@dataclass(frozen=True)
+class Limits:
+    """What a verifier reads before refusing a pack (`PackError`), enforced while reading: no member
+    larger than `member_bytes`, no more than `total_bytes` of member content in all, and no more than
+    `members` entries (files, and in a tar also directories). Sizes are uncompressed."""
+
+    total_bytes: int = 1 << 30
+    member_bytes: int = 256 << 20
+    members: int = 10_000
+
+    def __post_init__(self) -> None:
+        if min(self.total_bytes, self.member_bytes, self.members) < 1:
+            raise ValueError("every read limit must be at least 1")
+
+
+DEFAULT_LIMITS = Limits()
+#: The errors reading a pack's bytes can raise: the file system, and a truncated or corrupt archive.
+_READ_ERRORS = (OSError, EOFError, zlib.error, gzip.BadGzipFile, lzma.LZMAError, tarfile.TarError)
 
 
 @dataclass(frozen=True)
@@ -88,6 +115,8 @@ class PackReport:
     checks: list[Check] = field(default_factory=list)
     #: The verified certificates' ids, in manifest order.
     certificate_ids: list[str] = field(default_factory=list)
+    #: False when the certificates were checked against the pack's own trusted keys, not the caller's.
+    keys_pinned: bool = True
 
     @property
     def ok(self) -> bool:
@@ -111,46 +140,97 @@ def _member_ok(name: str) -> bool:
     return bool(_PATH.fullmatch(name)) and all(p not in (".", "..") for p in name.split("/"))
 
 
-def read_members(path: Path) -> dict[str, bytes]:
+def read_members(path: Path, limits: Limits = DEFAULT_LIMITS) -> dict[str, bytes]:
     """The pack's files by member path. A directory is walked without following links; a tar
-    (optionally gzip-compressed) is read in memory, never extracted. Refuses links, special files,
-    duplicate names and paths outside the pack (`Invalid`); `PackError` when `path` is neither."""
+    (optionally compressed) is read in memory, never extracted. Refuses links, special files,
+    duplicate names and paths outside the pack (`Invalid`). `PackError` when `path` is neither, cannot
+    be read, is truncated or corrupt, or reaches a read limit, which is checked before each member is
+    read and bounds each read."""
+    reader: Callable[[Path, _Budget], dict[str, bytes]]
     if path.is_dir():
-        return _read_dir(path)
-    if path.is_file():
-        try:
-            return _read_tar(path)
-        except tarfile.TarError as e:
-            raise PackError(f"{path}: not a directory or a tar archive ({e})") from None
-    raise PackError(f"{path}: no such directory or file")
+        reader = _read_dir
+    elif path.is_file():
+        reader = _read_tar
+    else:
+        raise PackError(f"{path}: no such directory or file")
+    try:
+        return reader(path, _Budget(limits))
+    except tarfile.ReadError as e:
+        raise PackError(f"{path}: not a directory or a readable tar archive ({e})") from None
+    except _READ_ERRORS as e:
+        raise PackError(f"{path}: cannot be read ({type(e).__name__}: {e})") from None
 
 
-def _read_dir(root: Path) -> dict[str, bytes]:
+class _Budget:
+    """The read limits, counted down while a pack is read."""
+
+    def __init__(self, limits: Limits) -> None:
+        self.limits = limits
+        self.members = 0
+        self.total = 0
+
+    def entry(self, name: str) -> None:
+        self.members += 1
+        if self.members > self.limits.members:
+            raise PackError(f"more than {self.limits.members} members (at {name!r}); raise --max-members to read it")
+
+    def file(self, name: str, size: int) -> int:
+        """Admit a file of `size` bytes; returns how many bytes to read at most (one more than allowed,
+        so a file that grows while read is caught)."""
+        if size > self.limits.member_bytes:
+            raise PackError(
+                f"{name!r} is {size} bytes, over the {self.limits.member_bytes}-byte member limit;"
+                " raise --max-member-bytes to read it"
+            )
+        if self.total + size > self.limits.total_bytes:
+            raise PackError(
+                f"the members reach more than {self.limits.total_bytes} bytes in all (at {name!r});"
+                " raise --max-total-bytes to read it"
+            )
+        self.total += size
+        return size + 1
+
+    def read(self, name: str, f: IO[bytes], size: int) -> bytes:
+        data = f.read(self.file(name, size))
+        if len(data) != size:
+            raise PackError(f"{name!r}: read {len(data)} bytes, expected {size} (changed or truncated while read)")
+        return bytes(data)
+
+
+def _raise(e: OSError) -> None:
+    raise e
+
+
+def _read_dir(root: Path, budget: _Budget) -> dict[str, bytes]:
     out: dict[str, bytes] = {}
-    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False, onerror=_raise):
         for name in [*dirnames, *filenames]:
             full = Path(dirpath) / name
             rel = full.relative_to(root).as_posix()
-            mode = full.lstat().st_mode
-            if stat.S_ISLNK(mode):
+            st = full.lstat()
+            if stat.S_ISLNK(st.st_mode):
                 raise Invalid(f"{rel}: a link; a pack holds regular files only")
-            if stat.S_ISDIR(mode):
+            if stat.S_ISDIR(st.st_mode):
                 continue
-            if not stat.S_ISREG(mode):
+            if not stat.S_ISREG(st.st_mode):
                 raise Invalid(f"{rel}: not a regular file")
             if not _member_ok(rel):
                 raise Invalid(f"{rel!r}: not a valid member path")
-            out[rel] = full.read_bytes()
+            budget.entry(rel)
+            with full.open("rb") as f:
+                out[rel] = budget.read(rel, f, st.st_size)
     return out
 
 
-def _read_tar(path: Path) -> dict[str, bytes]:
+def _read_tar(path: Path, budget: _Budget) -> dict[str, bytes]:
     out: dict[str, bytes] = {}
     with tarfile.open(path, "r:*") as tar:
-        for m in tar.getmembers():
+        # Iterate, not getmembers(): each header is checked against the limits before the next is read.
+        for m in tar:
             name = m.name[2:] if m.name.startswith("./") else m.name
             if m.isdir() and name.rstrip("/") in ("", "."):
                 continue
+            budget.entry(m.name)
             if m.issym() or m.islnk():
                 raise Invalid(f"{m.name!r}: a link; a pack holds regular files only")
             if m.isdir():
@@ -163,10 +243,10 @@ def _read_tar(path: Path) -> dict[str, bytes]:
                 raise Invalid(f"{m.name!r}: not a valid member path (relative, no '..', letters, digits, . _ -)")
             if name in out:
                 raise Invalid(f"{name!r}: appears twice in the archive")
-            f = tar.extractfile(m)
+            f = tar.extractfile(m)  # reads nothing yet; budget.read admits the size first
             if f is None:
                 raise Invalid(f"{m.name!r}: unreadable")
-            out[name] = f.read()
+            out[name] = budget.read(name, f, m.size)
     return out
 
 
@@ -175,6 +255,26 @@ def sha256_of(data: bytes) -> str:
 
 
 # ---------- the manifest ----------
+
+
+def _refuse_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for k, v in pairs:
+        if k in out:
+            raise Invalid(f"the key {k!r} appears twice in one object; a pack manifest names each key once")
+        out[k] = v
+    return out
+
+
+def load_manifest(data: bytes) -> Any:
+    """Parse `pack.json`: strictly, as `loads` parses a certificate, and refusing a key repeated in any
+    object (a certificate keeps the last, as serde_json does; a manifest has no such legacy)."""
+    m = loads(data)
+    try:
+        json.loads(data, object_pairs_hook=_refuse_duplicates)
+    except ValueError as e:
+        raise Invalid(str(e)) from None
+    return m
 
 
 def _is_int(v: Any) -> bool:
@@ -353,19 +453,21 @@ def verify_pack(
     *,
     now: dt.datetime | None = None,
     recompute: bool = True,
+    limits: Limits = DEFAULT_LIMITS,
     _recompute: Recompute | None = None,
 ) -> PackReport:
     """Verify the pack at `path` (docs/evidence-pack.md, "Verifying a pack"). With `keys`, the
     certificates are verified against those (key id -> base64url public key, obtained out of band);
     without, against the pack's own trusted keys, which shows only that the pack is consistent. `now`
     is the time expiry is reported at (default: the current time); an expired certificate is reported,
-    not failed. Raises `PackError` only when `path` cannot be read as a pack at all."""
+    not failed. `limits` bounds what is read. Raises `PackError` only when `path` cannot be read as a
+    pack at all, or reaches a read limit."""
     report = PackReport()
     now = now or dt.datetime.now(dt.UTC)
 
     # 1. layout
     try:
-        members = read_members(path)
+        members = read_members(path, limits)
     except Invalid as e:
         report.add("layout", "fail", str(e))
         return report
@@ -376,7 +478,7 @@ def verify_pack(
 
     # 2. manifest
     try:
-        m = loads(members[MANIFEST])
+        m = load_manifest(members[MANIFEST])
         unknown = _check_manifest(m)
     except Invalid as e:
         report.add("manifest", "fail", str(e))
@@ -414,10 +516,11 @@ def verify_pack(
         return report
     if keys is None:
         keys = pack_keys
+        report.keys_pinned = False
         report.add(
             "trusted-keys",
-            "ok",
-            f"{len(pack_keys)} key(s) from the pack itself; pin them out of band (--keys) to check who signed",
+            "warn",
+            f"{len(pack_keys)} key(s) from the pack itself: {UNPINNED} (obtained out of band) to check who signed",
         )
     else:
         same = "the same as" if dict(keys) == pack_keys else "different from"
@@ -512,10 +615,16 @@ def _verify_entry(
 
 
 def render(report: PackReport) -> str:
-    """The report as text: one line per check, then the verdict."""
+    """The report as text: one line per check, then the verdict, which says when the keys were the
+    pack's own."""
     lines = [f"{c.status:<8}{c.name}: {c.detail}" for c in report.checks]
     n = len(report.certificate_ids)
-    lines.append(f"pack verified: {n} certificate(s)" if report.ok else "pack rejected")
+    if not report.ok:
+        lines.append("pack rejected")
+    elif report.keys_pinned:
+        lines.append(f"pack verified: {n} certificate(s)")
+    else:
+        lines.append(f"pack verified: {n} certificate(s); {UNPINNED}")
     return "\n".join(lines) + "\n"
 
 
