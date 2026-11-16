@@ -1,0 +1,26 @@
+{
+  "format": "decision-evidence-pack.v1",
+  "created_at": "2026-11-16T00:00:00Z",
+  "tenant": "tenant-synthetic",
+  "assembled_by": {
+    "tool": "decision-cert/tools/gen_pack_fixtures.py",
+    "version": "1"
+  },
+  "trusted_keys": "trusted-keys.json",
+  "certificates": [
+    {
+      "path": "certificates/approved.json",
+      "certificate_id": "sha256:a3d025922c9b55f2c9b62eade4d232c01f9d6485a95f37a630286a7c6bd3f40d",
+      "measurement": {
+        "data_hash": "sha256:3fad64a3f002c59e3740ef399bde241050a05e6b7865e370ba1113b99468ed73",
+        "location": "example://tenant-synthetic/calibration/approved.jsonl",
+        "cases": null,
+        "procedure": null
+      }
+    }
+  ],
+  "files": {
+    "certificates/approved.json": "sha256:86c15f13525442153cb1de7eb6548e186060d24dc07ad1811864c27c0ca45844",
+    "trusted-keys.json": "sha256:d31db62f54f27171f23e8d156cbc17fd32e0fbf7232fe60e1c157e574fb48760"
+  }
+}

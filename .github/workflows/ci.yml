@@ -178,6 +178,10 @@ jobs:
         run: uv run python tools/gen_negative_fixtures.py --check
       - name: demo files and manifest are current
         run: uv run python tools/gen_demos.py --check
+      - name: evidence-pack fixtures and manifest are current
+        run: |
+          uv run python tools/gen_pack_fixtures.py --check
+          (cd tests/packs && sha256sum --strict -c PACKS.sha256)
 
   demos:
     # Every demo file is hash-listed, and both verifiers accept every demo certificate.

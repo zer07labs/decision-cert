@@ -76,6 +76,7 @@ certificate and its expiry.
 | [`docs/credit-approval.md`](docs/credit-approval.md) | a profile: one certificate per credit-approval deployment, with the label-free drift alarm and an audit sample for selective labels |
 | [`docs/method.md`](docs/method.md) | the method explained: how the threshold is chosen, what the claim is, what the numbers describe, and the limits |
 | [`docs/model-risk.md`](docs/model-risk.md) | what a certificate gives a model validation (SR 11-7 headings), and what it does not |
+| [`docs/evidence-pack.md`](docs/evidence-pack.md) | the evidence pack format (`decision-evidence-pack.v1`): one tenant's certificates, trusted keys and measured cases with a hashed manifest, and `verify-pack`, which checks one |
 | [`plans/`](plans/) | the public roadmap |
 
 v1 to v1.4 are frozen, and verifiers accept all five. v1 and v1.1 have the same fields; v1.1
