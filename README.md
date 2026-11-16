@@ -74,6 +74,7 @@ certificate and its expiry.
 | [`fixtures/`](fixtures/) | conformance fixtures: signed certificates with their canonical bytes, ids and expected verdicts, plus `mutations/schema_invalid.json`, schema-invalid certificates a verifier must reject; v1 at the top level, v1.1 in `fixtures/v1.1/`, v1.2 in `fixtures/v1.2/`, v1.3 in `fixtures/v1.3/`, v1.4 in `fixtures/v1.4/` |
 | [`docs/certificates.md`](docs/certificates.md) | how a certificate is issued, verified and applied |
 | [`docs/credit-approval.md`](docs/credit-approval.md) | a profile: one certificate per credit-approval deployment, with the label-free drift alarm and an audit sample for selective labels |
+| [`docs/method.md`](docs/method.md) | the method explained: how the threshold is chosen, what the claim is, what the numbers describe, and the limits |
 | [`docs/model-risk.md`](docs/model-risk.md) | what a certificate gives a model validation (SR 11-7 headings), and what it does not |
 | [`plans/`](plans/) | the public roadmap |
 

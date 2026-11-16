@@ -80,7 +80,9 @@ describes a measured process, never an outcome.
    - It is held to the same wording rules as the spec (the CI `wording` job covers `docs/`).
 
 Status: the README quickstart and the method draft landed in #10; the first demos on a public
-dataset (`demo/bank-marketing*`) were issued from 0.2.0.
+dataset (`demo/bank-marketing*`) were issued from 0.2.0. The owner approved publishing the write-up on 2026-11-16
+(#26): brought up to date with the frozen v1 to v1.4 specs, it is now
+[`docs/method.md`](../docs/method.md).
 
 **Acceptance.** Every demo verifies with both CLIs in CI. The quickstart line runs green in CI.
 The draft is marked DRAFT at the top and passes the wording check.
