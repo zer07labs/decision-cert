@@ -39,4 +39,4 @@ PyPI, both `decision-cert`) or a git revision. It holds no data and never calls 
 | `cd python && uv run python tools/gen_negative_fixtures.py` | regenerate the negative fixtures and `fixtures/FIXTURES.sha256` |
 | `cd python && uv run python tools/gen_demos.py` | rewrite `demo/example/` and `demo/DEMOS.sha256` |
 | `cd python && uv run python -m decision_cert verify-pack <pack> [--keys <keys>]` | verify an evidence pack ([`docs/evidence-pack.md`](docs/evidence-pack.md)) |
-| `cd python && uv run python tools/gen_pack_fixtures.py` | regenerate the evidence-pack fixtures in `python/tests/packs/` (never hand-edit them) |
+| `cd python && uv run python tools/gen_pack_fixtures.py` | regenerate the evidence-pack fixtures in `python/tests/packs/` from the committed `issued/` certificates (`--issue` re-issues them; never hand-edit) |

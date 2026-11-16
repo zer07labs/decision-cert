@@ -4,6 +4,13 @@ mutations a pack verifier must reject. Everything is synthetic and seeded; never
 
     cd python && uv run python tools/gen_pack_fixtures.py          # write
     cd python && uv run python tools/gen_pack_fixtures.py --check  # fail if any byte would change
+    cd python && uv run python tools/gen_pack_fixtures.py --issue  # re-issue the certificates, then write
+
+The certificates are issued once and kept in `issued/`, as signed demo certificates are: their last
+float bits depend on the platform's maths library, so `--check` builds the packs from the committed
+certificates and the regenerated cases (seeded, identical on every platform) instead of re-issuing.
+It still checks that each certificate's `data_hash` is the hash of its cases, and the tests re-run the
+procedure on them (to 1e-9). Re-issue with `--issue` only when the cases or the issuer change.
 
 `expected.json` names each pack's verdict and, for a rejected pack, the first check that fails.
 `PACKS.sha256` lists every file. The keys are public test keys (seeds 64..95 and 96..127).
@@ -17,6 +24,7 @@ import datetime as dt
 import hashlib
 import json
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +35,7 @@ from decision_cert._pack import CASE_FIELDS, MANIFEST, manifest_bytes, measured_
 from decision_cert.issue import certify as ct
 
 ROOT = Path(__file__).resolve().parents[1] / "tests" / "packs"
+ISSUED = ROOT / "issued"
 KEY = Ed25519PrivateKey.from_private_bytes(bytes(range(64, 96)))
 OTHER = Ed25519PrivateKey.from_private_bytes(bytes(range(96, 128)))
 FITTED_AT = dt.datetime(2026, 11, 1, tzinfo=dt.UTC)
@@ -155,16 +164,35 @@ class Pack:
         return copy.deepcopy(self)
 
 
-def packs() -> tuple[dict[str, dict[str, bytes]], dict[str, bytes], dict[str, Any]]:
-    """(pack directories by name, tar files by name, expected verdicts)."""
+def issued(name: str, reissue: bool, make: Callable[[], dict[str, Any]]) -> dict[str, Any]:
+    """The committed certificate `issued/<name>.json`, or a fresh one from `make` with `reissue`."""
+    path = ISSUED / f"{name}.json"
+    if reissue or not path.exists():
+        return make()
+    cert: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return cert
+
+
+def packs(
+    reissue: bool,
+) -> tuple[dict[str, dict[str, bytes]], dict[str, bytes], dict[str, Any], dict[str, dict[str, Any]]]:
+    """(pack directories by name, tar files by name, expected verdicts, issued certificates by name)."""
     approved_rows = synthetic_rows(1, 600, 2, segments=True, timed=False)
     route_rows = synthetic_rows(2, 300, 3, segments=False, timed=True)
-    approved = issue(
-        approved_rows, "approved", ["yes", "no"], ct.SPEC_V1_3, alpha=0.1, seed=7, automate_options=["yes"]
+    approved = issued(
+        "approved",
+        reissue,
+        lambda: issue(
+            approved_rows, "approved", ["yes", "no"], ct.SPEC_V1_3, alpha=0.1, seed=7, automate_options=["yes"]
+        ),
     )
-    route = issue(route_rows, "route", ["fast", "standard", "manual"], ct.SPEC_V1_2, alpha=0.1)
-    assert approved["data_hash"] == measured_cases_hash(approved_rows, approved["spec"])
-    assert route["data_hash"] == measured_cases_hash(route_rows, route["spec"])
+    route = issued(
+        "route", reissue, lambda: issue(route_rows, "route", ["fast", "standard", "manual"], ct.SPEC_V1_2, alpha=0.1)
+    )
+    if approved["data_hash"] != measured_cases_hash(approved_rows, approved["spec"]):
+        raise SystemExit("issued/approved.json was not measured on these cases; re-issue with --issue")
+    if route["data_hash"] != measured_cases_hash(route_rows, route["spec"]):
+        raise SystemExit("issued/route.json was not measured on these cases; re-issue with --issue")
     loc = "example://tenant-synthetic/calibration/{}.jsonl"
 
     valid = Pack()
@@ -231,12 +259,12 @@ def packs() -> tuple[dict[str, dict[str, bytes]], dict[str, bytes], dict[str, An
     escaping = {**base.members(), "../outside.json": b"{}\n"}
     tars["invalid_traversal.tar"] = tar_bytes(escaping)  # tar_bytes writes any name; the verifier refuses it
     expected["invalid_traversal.tar"] = {"verdict": "rejected", "first_failure": "layout", "recomputed": None}
-    return dirs, tars, expected
+    return dirs, tars, expected, {"approved": approved, "route": route}
 
 
-def rendered() -> dict[Path, bytes]:
-    dirs, tars, expected = packs()
-    out: dict[Path, bytes] = {}
+def rendered(reissue: bool = False) -> dict[Path, bytes]:
+    dirs, tars, expected, certs = packs(reissue)
+    out: dict[Path, bytes] = {ISSUED / f"{name}.json": pretty(c) for name, c in certs.items()}
     for name, members in dirs.items():
         for p, data in members.items():
             out[ROOT / name / p] = data
@@ -250,9 +278,11 @@ def rendered() -> dict[Path, bytes]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--check", action="store_true", help="fail if any fixture would change")
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--check", action="store_true", help="fail if any fixture would change")
+    mode.add_argument("--issue", action="store_true", help="re-issue the certificates in issued/, then write")
     args = ap.parse_args()
-    files = rendered()
+    files = rendered(reissue=args.issue)
     stale = [p for p, d in files.items() if not p.exists() or p.read_bytes() != d]
     extra = sorted(p for p in ROOT.rglob("*") if p.is_file() and p not in files) if ROOT.exists() else []
     if args.check:
