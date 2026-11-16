@@ -80,7 +80,9 @@ describes a measured process, never an outcome.
    - It is held to the same wording rules as the spec (the CI `wording` job covers `docs/`).
 
 Status: the README quickstart and the method draft landed in #10; the first demos on a public
-dataset (`demo/bank-marketing*`) were issued from 0.2.0.
+dataset (`demo/bank-marketing*`) were issued from 0.2.0. The owner approved publishing the write-up on 2026-11-16
+(#26): brought up to date with the frozen v1 to v1.4 specs, it is now
+[`docs/method.md`](../docs/method.md).
 
 **Acceptance.** Every demo verifies with both CLIs in CI. The quickstart line runs green in CI.
 The draft is marked DRAFT at the top and passes the wording check.
@@ -129,6 +131,15 @@ ledger, key revocation and rotation, binding the per-case `cannot_tell` values, 
 selector, an error bound for the automated options only, and optionally segment correction and the
 drift alarm's false-alarm rate. C1 and P1 became v1.3; nothing else in it is approved for implementation,
 and the owner decides each item first.
+
+## Trust designs (design only)
+
+[`docs/design/`](../docs/design/README.md) holds four designs the owner approved writing on
+2026-11-16, as documents only: key revocation and rotation (K1), the issuance ledger and dataset roles
+(R1), a per-tenant transparency log (#28) and an independent auditor's attestation (#29). They add
+sidecar documents that name a certificate by `certificate_id` and change no frozen spec. A tenant's
+certificates stay inside that tenant's scope, so none of them publishes anything about a tenant.
+Each ends with the questions the owner decides before any of it is built.
 
 ## Naming (decided 2026-11-07)
 

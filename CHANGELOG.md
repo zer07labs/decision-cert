@@ -17,6 +17,11 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
   `--max-members`), checked while reading; a pack over a limit, or truncated, corrupt or unreadable, is
   exit 2 with a message. A manifest that repeats a key is rejected. Without `--keys` the trusted-keys
   check reports `warn` and the verdict says the pack is consistent with its own keys only.
+- **The method write-up is published** (#26, owner go 2026-11-16): `docs/drafts/method.md` moves to
+  `docs/method.md`, without its DRAFT banner, and is brought up to date with the frozen v1.1 to v1.4
+  specs: the per-test start, the refusal floor, segments and the mix, `cannot_tell`, the v1.3
+  automated options, the v1.4 cost risk, expiry, the histogram's withholding rule, the frozen
+  `certificate_id`, and the limits.
 
 ## 0.5.0 — unreleased (tag `v0.5.0` on the merge commit)
 
