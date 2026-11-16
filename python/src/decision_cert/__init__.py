@@ -19,10 +19,15 @@ every conformance fixture. A certificate describes a measured process; it never 
 
     # v1.3: the options the consumer automates, and the error of the answered cases among them
     v.automate_options(), v.automated_for("north")
+
+    # an evidence pack (docs/evidence-pack.md): manifest, signatures, measured cases, recompute
+    report = verify_pack(Path("pack/"), keys)
+    report.ok, [(c.name, c.status) for c in report.checks]
 """
 
 from ._map import MAP_KINDS, confidence, probabilities
 from ._monitor import Histogram, ShiftScore, bin_of, chi2_sf, shift_score
+from ._pack import PACK_FORMAT, Check, PackError, PackReport, measured_cases_hash, verify_pack
 from ._verify import (
     ABSTAIN_ALL,
     SPEC,
@@ -54,6 +59,7 @@ __version__ = "0.5.0"
 __all__ = [
     "ABSTAIN_ALL",
     "MAP_KINDS",
+    "PACK_FORMAT",
     "SPEC",
     "SPECS",
     "SPEC_V1_1",
@@ -65,8 +71,11 @@ __all__ = [
     "BadKey",
     "BadSignature",
     "CertError",
+    "Check",
     "Histogram",
     "Invalid",
+    "PackError",
+    "PackReport",
     "ShiftScore",
     "UntrustedKey",
     "Verified",
@@ -79,9 +88,11 @@ __all__ = [
     "is_expired",
     "key_id",
     "loads",
+    "measured_cases_hash",
     "probabilities",
     "shift_score",
     "threshold_for",
     "timestamp",
     "verify",
+    "verify_pack",
 ]

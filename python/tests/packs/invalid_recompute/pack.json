@@ -1,0 +1,32 @@
+{
+  "format": "decision-evidence-pack.v1",
+  "created_at": "2026-11-16T00:00:00Z",
+  "tenant": "tenant-synthetic",
+  "assembled_by": {
+    "tool": "decision-cert/tools/gen_pack_fixtures.py",
+    "version": "1"
+  },
+  "trusted_keys": "trusted-keys.json",
+  "certificates": [
+    {
+      "path": "certificates/route.json",
+      "certificate_id": "sha256:270e2379732c033e75830444625b06e0df8e75b86ab05c42f7ddbdacca258363",
+      "measurement": {
+        "data_hash": "sha256:d7d4458676d7a3125d8e5daac48823e12859415e3226f587f64fe7da9c780d40",
+        "location": "example://tenant-synthetic/calibration/route.jsonl",
+        "cases": "cases/route.jsonl",
+        "procedure": {
+          "ttl_days": 90,
+          "histogram_min_n": 30,
+          "segment_floor": 60,
+          "dr_prior": null
+        }
+      }
+    }
+  ],
+  "files": {
+    "cases/route.jsonl": "sha256:1b5f7d7dd48ffcf56edc2448055df235fdc0bb73ea61aba7309b0061d834d917",
+    "certificates/route.json": "sha256:31bc55d60a495623cd709930cfb6132a847459d8e869f239d470a4a7bf7e6de2",
+    "trusted-keys.json": "sha256:d31db62f54f27171f23e8d156cbc17fd32e0fbf7232fe60e1c157e574fb48760"
+  }
+}

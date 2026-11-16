@@ -1,0 +1,62 @@
+{
+  "invalid_cases_hash": {
+    "verdict": "rejected",
+    "first_failure": "cases certificates/route.json",
+    "recomputed": null
+  },
+  "invalid_certificate_id": {
+    "verdict": "rejected",
+    "first_failure": "certificate certificates/route.json",
+    "recomputed": null
+  },
+  "invalid_format": {
+    "verdict": "rejected",
+    "first_failure": "manifest",
+    "recomputed": null
+  },
+  "invalid_missing_file": {
+    "verdict": "rejected",
+    "first_failure": "files",
+    "recomputed": null
+  },
+  "invalid_recompute": {
+    "verdict": "rejected",
+    "first_failure": "recompute certificates/route.json",
+    "recomputed": null
+  },
+  "invalid_tampered_file": {
+    "verdict": "rejected",
+    "first_failure": "files",
+    "recomputed": null
+  },
+  "invalid_traversal.tar": {
+    "verdict": "rejected",
+    "first_failure": "layout",
+    "recomputed": null
+  },
+  "invalid_unlisted_file": {
+    "verdict": "rejected",
+    "first_failure": "files",
+    "recomputed": null
+  },
+  "invalid_untrusted_key": {
+    "verdict": "rejected",
+    "first_failure": "certificate certificates/route.json",
+    "recomputed": null
+  },
+  "valid": {
+    "verdict": "verified",
+    "first_failure": null,
+    "recomputed": 2
+  },
+  "valid.tar": {
+    "verdict": "verified",
+    "first_failure": null,
+    "recomputed": 2
+  },
+  "valid_location_only": {
+    "verdict": "verified",
+    "first_failure": null,
+    "recomputed": 0
+  }
+}

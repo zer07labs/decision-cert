@@ -5,6 +5,15 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
 
 ## Unreleased
 
+- **Evidence packs** (`decision-evidence-pack.v1`, [`docs/evidence-pack.md`](docs/evidence-pack.md)): one
+  tenant's certificates, the trusted keys, where the measured cases live (and optionally the cases, the
+  members of `data_hash`), and a manifest with every file's sha256, as a directory or a tar. Versioned
+  additively. `python -m decision_cert verify-pack` (and `decision_cert.verify_pack`) checks the layout,
+  the manifest, the hashes, each certificate against the caller's or the pack's keys, the cases against
+  `data_hash`, and, with the `issue` extra, re-runs the procedure on the cases and compares every
+  measured figure (`decision_cert.issue.recompute`). Synthetic fixture packs in `python/tests/packs/`
+  from `tools/gen_pack_fixtures.py` (`--check` in CI).
+
 ## 0.5.0 — unreleased (tag `v0.5.0` on the merge commit)
 
 Specs v1.3 and v1.4: frozen, verified, issued. Verifiers accept v1 to v1.4; v1 to v1.2 certificates,
