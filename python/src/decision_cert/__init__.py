@@ -33,8 +33,23 @@ every conformance fixture. A certificate describes a measured process; it never 
     trust = LogTrust.from_json(parse_ijson(open("log-trust.json").read()))
     verdict = verify_bundle(parse_ijson(open("bundle.json").read()), trust)
     verdict.t_proven_time(), verdict.to_json()
+
+    # the issuer's side: a certificate's leaf record for the tenant's log, the backfill of older
+    # certificates (§12), and the bundle once a cosigned checkpoint includes the leaf
+    leaf_record(cert)                                   # {"certificate_id", "leaf", "leaf_hash"}
+    bundle, verdict = bundle_certificate(cert, leaf_index, proof, checkpoint_text, trust)
 """
 
+from ._bundle import (
+    NotYetInCheckpoint,
+    backfill_order,
+    backfill_records,
+    bundle_bytes,
+    bundle_certificate,
+    certificate_leaf,
+    leaf_record,
+    leaf_records_text,
+)
 from ._inclusion import (
     ConsistencyVerdict,
     CountedWitness,
@@ -121,6 +136,7 @@ __all__ = [
     "Leaf",
     "Limits",
     "LogTrust",
+    "NotYetInCheckpoint",
     "PackError",
     "PackReport",
     "Policy",
@@ -132,15 +148,22 @@ __all__ = [
     "WrongTenant",
     "__version__",
     "apply_policy",
+    "backfill_order",
+    "backfill_records",
     "bin_of",
+    "bundle_bytes",
+    "bundle_certificate",
     "canonical",
     "certificate_id",
+    "certificate_leaf",
     "check_tenants",
     "chi2_sf",
     "confidence",
     "is_expired",
     "key_id",
     "leaf_hash",
+    "leaf_record",
+    "leaf_records_text",
     "loads",
     "measured_cases_hash",
     "parse_checkpoint",

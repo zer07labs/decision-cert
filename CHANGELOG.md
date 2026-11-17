@@ -30,6 +30,17 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
   (`--check` in CI): 231 files and 301 manifest cases, with expectations from the cases' construction.
   CI checks both verifiers against every case, and both CLIs against each other on every document and on
   random trees.
+- **Inclusion v1 (draft), the issuer's side** (Phase 4): the reference issuer's `certify --leaf-out`
+  writes each certificate's leaf record (`{"certificate_id", "leaf", "leaf_hash"}`, JSON Lines) for the
+  tenant's log to append; `python -m decision_cert bundle --certificate --leaf-index --proof --checkpoint
+  --trust --out` builds the leaf from the certificate, checks the bundle as `verify-bundle` does, and
+  writes it as its JCS bytes (exit 3 while no cosigned checkpoint includes the leaf yet); and
+  `python -m decision_cert log backfill --tenant --leaf-out` writes the leaf records of older
+  certificates (v1 to v1.5) in §12's order, refusing another tenant's v1.5 certificate. Backfilled
+  leaves carry no mark and get no early time evidence. Python API: `certificate_leaf`, `leaf_record`,
+  `leaf_records_text`, `backfill_order`, `backfill_records`, `bundle_certificate`, `bundle_bytes`,
+  `NotYetInCheckpoint`. No new dependency; the inclusion generator builds its certificate leaves with
+  `certificate_leaf`, and every fixture is byte-identical. Documented in `docs/certificates.md`.
 
 ## 0.6.0 — unreleased (tag `v0.6.0` on the merge commit)
 
