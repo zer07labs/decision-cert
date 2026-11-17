@@ -590,7 +590,7 @@ def _days_in_month(year: int, month: int) -> int:
 def timestamp(s: str) -> dt.datetime:
     """Parse the spec's timestamp form, `YYYY-MM-DDTHH:MM:SSZ`, exactly as the Rust crate does.
 
-    Like the crate (chrono), a leap second (`:60`) and year 0000 are accepted. Python's datetime can
+    Like the Rust crate, a leap second (`:60`) and year 0000 are accepted. Python's datetime can
     hold neither, so `:60` reads as `:59.999999` and year 0000 as `datetime.min`; both keep
     `is_expired` correct at microsecond resolution.
     """

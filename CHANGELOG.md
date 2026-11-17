@@ -18,6 +18,10 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
     (`chrono` stored it as a second 59 with an extra second of nanoseconds). Ordering against every time of
     whole seconds, and so `is_expired` with a `--now` time, is unchanged; only a `now` of exactly
     `HH:MM:59.999999999` on that minute now counts as expired.
+  - Migrating: a Rust caller that passes `chrono::Utc::now()` (or any `chrono` time) to `is_expired`, or reads
+    `expires_at` as a `chrono` type, passes or reads a `decision_cert::UtcDateTime` instead, for example
+    `v.is_expired(decision_cert::UtcDateTime::now())`, when it moves to the release with this change. JSON and CLI
+    output are unchanged, so callers of the CLI or the Python package need no change.
 
 ## 0.7.0 — unreleased (tag `v0.7.0` on the merge commit)
 
