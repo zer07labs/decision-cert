@@ -40,6 +40,11 @@ every conformance fixture. A certificate describes a measured process; it never 
     leaf_record(cert)                                   # {"certificate_id", "leaf", "leaf_hash"}
     bundle, verdict = bundle_certificate(cert, leaf_index, proof, checkpoint_text, trust)
     backfill_records(certs, tenant)                     # records with "backfilled": true, leaves unchanged
+
+    # the reference log and witness (plan Phase 5): one tenant's log in a directory, C2SP tlog-tiles
+    log = FileLog.init(path, tenant, log_public_key)    # or FileLog(path) for an existing one
+    log.append(records, now); log.checkpoint(log_private_key, now); log.prove(checkpoint_text, index)
+    FileWitness(state_path).cosign(checkpoint_text, consistency_doc, witness_private_key, now)
 """
 
 from ._bundle import (
@@ -69,6 +74,15 @@ from ._inclusion import (
     parse_ijson,
     verify_bundle,
     verify_consistency,
+)
+from ._log import (
+    FileLog,
+    FileWitness,
+    LogError,
+    NotIncludedYet,
+    cosignature_line,
+    log_signature_line,
+    trust_config,
 )
 from ._map import MAP_KINDS, confidence, probabilities
 from ._monitor import Histogram, ShiftScore, bin_of, chi2_sf, shift_score
@@ -130,6 +144,8 @@ __all__ = [
     "ConsistencyVerdict",
     "CountedWitness",
     "ErrorName",
+    "FileLog",
+    "FileWitness",
     "Histogram",
     "InclusionError",
     "InclusionVerdict",
@@ -137,7 +153,9 @@ __all__ = [
     "KeyMode",
     "Leaf",
     "Limits",
+    "LogError",
     "LogTrust",
+    "NotIncludedYet",
     "NotYetInCheckpoint",
     "PackError",
     "PackReport",
@@ -161,12 +179,14 @@ __all__ = [
     "check_tenants",
     "chi2_sf",
     "confidence",
+    "cosignature_line",
     "is_expired",
     "key_id",
     "leaf_hash",
     "leaf_record",
     "leaf_records_text",
     "loads",
+    "log_signature_line",
     "measured_cases_hash",
     "parse_checkpoint",
     "parse_ijson",
@@ -176,6 +196,7 @@ __all__ = [
     "tenant_keys_from_json",
     "threshold_for",
     "timestamp",
+    "trust_config",
     "verify",
     "verify_bundle",
     "verify_consistency",

@@ -282,6 +282,65 @@ calls the log: it writes files and reads files.
    gives the log's `started_at` (its first entry's time) and the certificate's `fitted_at` is earlier.
    Configure `started_at` and the mark does not depend on the bundle. The mark never refuses anything.
 
+#### The reference log and witness (draft)
+
+A tenant that runs its own log can use the reference log: files in a directory, the C2SP `tlog-tiles`
+layout, no server. One directory holds one log for one tenant. Keys are Ed25519 PEM files the operator
+creates and keeps (for example `openssl genpkey -algorithm ed25519 -out log.pem`); the log and the
+witness keep only public keys.
+
+```bash
+python -m decision_cert log init --dir acme-log --tenant acme-bank --key log.pem     # prints the log_id
+python -m decision_cert log append --dir acme-log backfill.jsonl                       # backfilled first
+python -m decision_cert log append --dir acme-log leaves.jsonl                         # then certify --leaf-out
+python -m decision_cert log info --dir acme-log > log-entry.json   # started_at, the trust entry
+python -m decision_cert log checkpoint --dir acme-log --key log.pem                    # when due (hourly)
+
+python -m decision_cert witness init --state w1.json --name witness.example/w1 --key w1.pem     --log-entry log-entry.json                             # prints the witness's trust entry
+python -m decision_cert witness cosign --state w1.json --key w1.pem     --checkpoint acme-log/checkpoint --out cosigned.txt [--consistency consistency.json]
+
+python -m decision_cert log prove --dir acme-log --checkpoint cosigned.txt     --certificate-id <id> --out proof.json --record-out record.json                    # exit 3: not yet
+python -m decision_cert bundle --certificate cert.json --leaf-index <n> --proof proof.json     --checkpoint cosigned.txt --trust log-trust.json --leaf-record record.json --out bundle.json
+python -m decision_cert log consistency --dir acme-log --older cosigned.txt     --newer acme-log/checkpoint --out consistency.json
+```
+
+- **`log init`** writes `log.json` with the tenant, a `log_id` of `log:` and 32 random hex characters,
+  the key name (the `log_id` unless `--key-name`), the public key and the cadence
+  (`--cadence-seconds`, 3600 by default).
+- **`log append`** takes the leaf records `certify --leaf-out` and `log backfill` write, all or none.
+  It refuses a v1.5 certificate's or an `audit_head`'s leaf for another tenant (`tenant_mismatch`), a
+  leaf already in the log (`duplicate_leaf`), a backfilled record after a new leaf (`backfill_order`),
+  and records or leaves out of form. A record's `"backfilled": true` is kept in the log's own
+  `records.jsonl`, never in the leaf or the tiles. The first append sets the log's `started_at`.
+- **`log info`** prints the size, `started_at`, the cadence and the last checkpoint, and `trust_entry`,
+  the log's entry for a log trust configuration's `logs` (with `started_at` once the log has one), ready
+  to give to the tenant's consumers.
+- **`log checkpoint`** signs a checkpoint (a C2SP signed note) with the log key when the last one is at
+  least the cadence old, and otherwise prints when the next is due; `--force` signs now. Run it from any
+  scheduler.
+- **`witness cosign`** checks the checkpoint's log signature, and that it extends the last checkpoint
+  this witness cosigned: a smaller tree is `size_regression`, another root at the same size `split_view`,
+  and a larger tree needs the consistency document from that checkpoint (`bad_consistency_proof`). It
+  then adds its `cosignature/v1` line and records the checkpoint in its state file. Carrying checkpoints
+  to witnesses is the operator's.
+- **`log prove`** writes the proof `bundle --proof` takes, and with `--record-out` the leaf's record,
+  so `bundle --leaf-record` carries a backfilled certificate's mark. It exits 3 while the checkpoint
+  does not include the leaf yet.
+- **`log consistency`** writes the consistency proof document (draft §7.2) between two checkpoints.
+
+Each command prints one JSON line; exit 1 is a refusal with the error name, exit 2 a usage error, an
+unreadable file, or a key that is not the log's or the witness's. On disk:
+
+```text
+acme-log/
+  log.json            tenant, log_id, key_name, key_id, key, cadence_seconds, started_at
+  records.jsonl       one line per leaf: leaf_index, leaf_hash, certificate_id, backfilled, appended_at
+  checkpoint          the latest checkpoint, signed by the log
+  checkpointed.json   its tree size and time, for the cadence
+  tile/0/000 ...      hash tiles, height 8 (256 hashes), partial ones at tile/<L>/<N>.p/<W>
+  tile/entries/000    entry bundles: each leaf's JCS bytes after a 2-byte big-endian length
+```
+
 A verified bundle shows that the log recorded the certificate by `t_proven`. It says nothing about
 whether the measurement was right: a certificate describes a measured process and
 never guarantees an outcome.

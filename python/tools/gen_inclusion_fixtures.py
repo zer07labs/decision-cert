@@ -15,7 +15,12 @@ Every case's expected verdict comes from how the case is built: an accepted verd
 tree, the checkpoint and the cosignatures written into the case, and a refusal names the one check the
 case is built to fail (§10, §7.2, §9, §11, §14). This script does not use the verifier's checks; its
 certificate leaves and their backfill order are the issuer's (`decision_cert.certificate_leaf`,
-`backfill_order`), which the verifiers check against each certificate. Both verifiers
+`backfill_order`), which the verifiers check against each certificate. acme-bank's log is built through the
+reference log (`decision_cert.FileLog`, in a temporary directory, C2SP tlog-tiles): its checkpoints' roots,
+inclusion proofs and consistency proofs are read from that log's tiles, and its well-formed signature lines
+are made by the reference log's and witness's signers (`log_signature_line`, `cosignature_line`). The
+expected verdicts are still computed here, with this script's own tree code, so the reference log is
+checked against it on every case; lines built to be malformed are made here. Both verifiers
 are then checked against the manifest: `rust/tests/inclusion_fixtures.rs` and
 `python/tests/test_inclusion.py`, which also runs the two command-line verifiers on every file and
 compares their output lines.
@@ -42,6 +47,7 @@ import datetime as dt
 import hashlib
 import json
 import sys
+import tempfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -49,7 +55,13 @@ from typing import Any
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from decision_cert import backfill_order, certificate_leaf
+from decision_cert import (
+    FileLog,
+    backfill_order,
+    certificate_leaf,
+    cosignature_line,
+    log_signature_line,
+)
 from decision_cert.issue import certify as ct
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -428,6 +440,20 @@ G_LEAVES = [cert_leaf(CERT_V12), *(keyset_leaf(i) for i in range(1, 4))]
 G_HASHES = [jcs_leaf_hash(x) for x in G_LEAVES]
 
 
+def reference_log_a() -> tuple[FileLog, tempfile.TemporaryDirectory[str]]:
+    """acme-bank's log, built with the reference log: the three backfilled certificates first (marked so in
+    the log's own records, not in the leaves), then the rest. The directory lives as long as this run."""
+    tmp = tempfile.TemporaryDirectory(prefix="inclusion-v1-log-a-")
+    log = FileLog.init(Path(tmp.name) / "log", TENANT, raw(LOG_A_KEY), log_id=LOG_A)
+    log.append([{"leaf": x, "backfilled": True} for x in A_LEAVES[:3]], T0 - 3600)
+    log.append([{"leaf": x} for x in A_LEAVES[3:]], T0 - 3600)
+    assert [log.leaf(i) for i in range(log.size)] == A_LEAVES
+    return log, tmp
+
+
+LOG_A_REF, _LOG_A_DIR = reference_log_a()
+
+
 # ---------- checkpoints and cosignatures (§5) ----------
 
 
@@ -440,14 +466,20 @@ def note_text(origin: str, size: int | str, root: bytes | str) -> str:
 
 
 def log_line(text: str, k: Ed25519PrivateKey = LOG_A_KEY, name: str = LOG_A, sig: bytes | None = None) -> str:
+    """A log signature line: the reference log's signer, or a line with another signature `sig` built here."""
     value = c2sp_id(name, 0x01, k) + (k.sign(text.encode()) if sig is None else sig)
-    return f"{EM} {name} {b64(value)}\n"
+    line = f"{EM} {name} {b64(value)}\n"
+    if sig is None:
+        assert log_signature_line(text, name, k) == line
+    return line
 
 
 def cosig_line(
     text: str, name: str, t: int, k: Ed25519PrivateKey | None = None, *, sign_time: int | None = None
 ) -> str:
     k = W[name] if k is None else k
+    if sign_time is None and 0 <= t <= MAX_COSIGNATURE_TIME:
+        return cosignature_line(text, name, k, t)  # the reference witness's signer
     signed = f"cosignature/v1\ntime {t if sign_time is None else sign_time}\n{text}".encode()
     value = c2sp_id(name, 0x04, k) + t.to_bytes(8, "big") + k.sign(signed)
     return f"{EM} {name} {b64(value)}\n"
@@ -458,7 +490,10 @@ def checkpoint(text: str, lines: Sequence[str]) -> str:
 
 
 def a_note(size: int) -> str:
-    return note_text(LOG_A, size, mth(A_HASHES[:size]))
+    """acme-bank's note text at `size`, its root read from the reference log's tiles (and checked here)."""
+    root = LOG_A_REF.root(size)
+    assert root == mth(A_HASHES[:size])
+    return note_text(LOG_A, size, root)
 
 
 def a_checkpoint(size: int, cosigners: Sequence[tuple[str, int]] | None = None) -> str:
@@ -476,12 +511,15 @@ def bundle(index: int, size: int, cp: str | None = None, leaves: Sequence[dict[s
     """acme-bank's log's bundle for the leaf at `index`, against the checkpoint at `size`."""
     leaf = leaves[index]
     hashes = [jcs_leaf_hash(x) for x in leaves[:size]]
+    p = path(hashes, index)
+    if leaves is A_LEAVES:  # the reference log's proof, which must be this script's
+        assert LOG_A_REF.inclusion_proof(index, size) == p
     out: dict[str, Any] = {
         "spec": SPEC_BUNDLE,
         "log_id": LOG_A,
         "leaf_index": index,
         "leaf": copy.deepcopy(leaf),
-        "proof": [b64(x) for x in path(hashes, index)],
+        "proof": [b64(x) for x in p],
         "checkpoint": a_checkpoint(size) if cp is None else cp,
     }
     if leaf["kind"] == "certificate":
@@ -495,8 +533,15 @@ def consistency(older: int, newer: int, older_cp: str | None = None, newer_cp: s
         "log_id": LOG_A,
         "older": a_checkpoint(older) if older_cp is None else older_cp,
         "newer": a_checkpoint(newer) if newer_cp is None else newer_cp,
-        "proof": [b64(x) for x in proof(older, A_HASHES[:newer])] if older <= newer else [],
+        "proof": [b64(x) for x in a_consistency(older, newer)] if older <= newer else [],
     }
+
+
+def a_consistency(older: int, newer: int) -> list[bytes]:
+    """The consistency path in acme-bank's log, from the reference log's tiles (and checked here)."""
+    p = LOG_A_REF.consistency_proof(older, newer)
+    assert p == proof(older, A_HASHES[:newer])
+    return p
 
 
 def log_entry(

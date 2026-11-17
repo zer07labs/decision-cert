@@ -49,6 +49,27 @@ a certificate, or a v1.5 certificate for another tenant; nothing written. Exit 2
 unreadable file. Each record carries `"backfilled": true` (§12), beside the leaf, which is the leaf any
 certificate gets: its hash is unchanged. A backfilled certificate gets no early time evidence: its
 `t_proven` is the first cosigned checkpoint that includes it, after the log started.
+
+The reference log and witness (draft; plan Phase 5), file-based, one log per directory and one tenant per
+log, in the C2SP tlog-tiles layout (`decision_cert._log` describes the files):
+
+    python -m decision_cert log init --dir <log> --tenant <tenant> --key <log.pem> [--key-name N]
+        [--cadence-seconds 3600]
+    python -m decision_cert log info --dir <log>                     # started_at and the trust entry
+    python -m decision_cert log append --dir <log> <leaves.jsonl>... [--now T]
+    python -m decision_cert log checkpoint --dir <log> --key <log.pem> [--now T] [--force]
+    python -m decision_cert log prove --dir <log> --checkpoint <cp> (--index N | --certificate-id C)
+        --out <proof.json> [--record-out <record.json>]               # exit 3: not in that checkpoint yet
+    python -m decision_cert log consistency --dir <log> --older <cp> --newer <cp> --out <doc.json>
+    python -m decision_cert witness init --state <state.json> --name <name> --key <witness.pem>
+        --log-entry <entry.json>
+    python -m decision_cert witness cosign --state <state.json> --key <witness.pem> --checkpoint <cp>
+        [--consistency <doc.json>] --out <cosigned> [--now T]
+
+Each prints one JSON line. Exit 1: refused, with the error name; exit 2: usage, an unreadable file, or a
+key that is not the log's or the witness's. Keys are Ed25519 PEM files the operator keeps (`openssl genpkey
+-algorithm ed25519`); the log and the witness store only public keys. `log checkpoint` signs only when the
+cadence (hourly by default) says one is due, so it can run from any scheduler.
 """
 
 from __future__ import annotations
@@ -71,6 +92,7 @@ from ._bundle import (
     leaf_records_text,
 )
 from ._inclusion import ErrorName, InclusionError, LogTrust, parse_ijson, verify_bundle, verify_consistency
+from ._log_cli import add_log_commands, add_witness_commands, run_log, run_witness
 from ._pack import DEFAULT_LIMITS, Limits, PackError, render, verify_pack
 
 
@@ -205,13 +227,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     bf.add_argument("files", type=Path, nargs="+", help="Certificates, or issuer calibration files.")
     bf.add_argument("--tenant", required=True, help="The tenant whose log the leaves are for.")
     bf.add_argument("--leaf-out", type=Path, required=True, help="Where to write the leaf records (JSON Lines).")
+    add_log_commands(lsub)
+    add_witness_commands(sub)
     args = ap.parse_args(argv)  # exits 2 on a usage error
     if args.command == "verify-pack":
         return _verify_pack(args)
     if args.command == "bundle":
         return _bundle(args)
     if args.command == "log":
-        return _backfill(args)
+        return _backfill(args) if args.log_command == "backfill" else run_log(args)
+    if args.command == "witness":
+        return run_witness(args)
     if args.command == "verify-bundle":
         return _inclusion(args.bundle, args.trust, lambda v, t: verify_bundle(v, t).to_json(), ErrorName.BUNDLE_FORM)
     if args.command == "verify-consistency":

@@ -172,7 +172,8 @@ jobs:
 
   python:
     # The Python verifier: lint, types, the shared fixture loop, the differential test against the
-    # Rust crate (needs cargo), and the generator check that the negative fixtures are current.
+    # Rust crate (needs cargo), the reference log and witness end to end through both CLIs, and the
+    # generator check that the negative fixtures are current.
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
@@ -193,6 +194,17 @@ jobs:
       - run: uv run ruff format --check
       - run: uv run mypy
       - run: uv run pytest -v
+      - name: the reference log and witness end to end through both CLIs, built here (fails on any skip)
+        # init -> append -> checkpoint -> witness cosign -> prove -> bundle -> verify-bundle (Python and
+        # Rust) -> append -> checkpoint -> consistency -> verify-consistency (both) -> a forked log refused.
+        # DECISION_CERT_REQUIRE_RUST turns a missing cargo into a failure; the greps check the test ran.
+        env:
+          DECISION_CERT_REQUIRE_RUST: "1"
+        run: |
+          set -o pipefail
+          uv run pytest tests/test_log.py -v -rs | tee "$RUNNER_TEMP/e2e.log"
+          grep -F 'tests/test_log.py::test_end_to_end_issue_log_cosign_prove_bundle_verify PASSED' "$RUNNER_TEMP/e2e.log"
+          if grep -E 'SKIPPED|skipped' "$RUNNER_TEMP/e2e.log"; then echo "a reference log test was skipped"; exit 1; fi
       - name: the reference issuer regenerates its fixtures byte-identical
         run: uv run python tools/gen_positive_fixtures.py --check
       - name: negative fixtures and manifest are current

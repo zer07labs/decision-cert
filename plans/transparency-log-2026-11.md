@@ -240,10 +240,38 @@ system of its own outside the log operator's control, or an independent witness.
 independent witnesses republish what they cosign, which shows a tenant's log size to others, so a
 tenant picks one that does not, or accepts that.
 
-**The backfilled mark in the reference log.** `log init` records the log's `started_at` (the time of its
-first entry) and prints it for the tenant's consumers to put in their log trust configurations (draft
-§9); `log backfill` keeps writing `"backfilled": true` in each record, beside the leaf it appends, and
-`prove` hands that record's mark to `bundle`. The log itself stores only leaves.
+**The backfilled mark in the reference log.** The log records its `started_at` (the time of its first
+entry: `log init` creates an empty log, and its first `log append` sets it) and `log info` prints it,
+inside a ready log trust configuration entry, for the tenant's consumers to put in their log trust
+configurations (draft §9); `log backfill` keeps writing `"backfilled": true` in each record, `log append`
+keeps that mark in the log's own records (`records.jsonl`), beside the leaf it appends, and `prove
+--record-out` hands that record's mark to `bundle --leaf-record`. The leaves and tiles hold only leaves.
+
+**Built** (`decision_cert._log`, `_log_cli`; commands in [`docs/certificates.md`](../docs/certificates.md)):
+
+- `log init --dir --tenant --key [--key-name] [--cadence-seconds]`: one log per directory, one tenant per
+  log, `log_id` = `log:` and 32 random hex characters; it keeps only the log's public key (the private
+  key stays in the operator's PEM file, never in the log or this repository).
+- `log append --dir <records.jsonl>...`: all or none; refuses a record or leaf out of form, a leaf for
+  another tenant (a v1.5 certificate's or an `audit_head`'s, `tenant_mismatch`), a leaf already in the
+  log, and a backfilled record after a new leaf (§12).
+- `log checkpoint --dir --key [--force]`: signs a C2SP checkpoint with the log key, when due.
+- `log prove --dir --checkpoint (--index | --certificate-id) --out [--record-out]`: the proof file
+  `bundle --proof` takes; exit 3 while the checkpoint does not include the leaf.
+- `log consistency --dir --older --newer --out`: the §7.2 document.
+- `log info --dir`: size, `started_at`, cadence, the last checkpoint, and the log's trust entry.
+- `witness init --state --name --key --log-entry` and `witness cosign --state --key --checkpoint
+  [--consistency] --out`: refuses a smaller tree (`size_regression`), another root at a size it cosigned
+  (`split_view`), and a larger tree without a consistency path from the last one it cosigned
+  (`bad_consistency_proof`); its state file holds its public key id, the log's entry and the last
+  cosigned note.
+- On disk, in the C2SP `tlog-tiles` layout: `checkpoint`, `tile/<L>/<N>[.p/<W>]` (hash tiles of height
+  8), `tile/entries/<N>[.p/<W>]` (each leaf's JCS bytes, 2-byte length prefixed), plus the tool's own
+  `log.json`, `records.jsonl` and `checkpointed.json`.
+- The inclusion generator builds acme-bank's log through `FileLog` and the log's and witness's signers,
+  and checks every root and path it reads from the tiles against its own tree code (fixtures unchanged).
+- The end-to-end test (`python/tests/test_log.py`) runs in CI's `python` job as its own step, with the
+  Rust CLI built there and a skip failing the step.
 
 **Done when** the reference log and witness commands are merged, the generator builds its fixtures
 through them, and an end-to-end test runs issue → append → checkpoint → cosign → prove → bundle →
@@ -253,10 +281,11 @@ verify in both verifiers.
 
 - **Hourly by default, configurable per log** (owner, 2026-11-17). The reference log has no scheduler:
   its operator runs `log checkpoint` on the configured cadence (a hosting service runs its own
-  schedule).
+  schedule). `log init --cadence-seconds` sets it (3600 by default); `log checkpoint` signs only when the
+  last checkpoint is at least that old, so any scheduler can run it more often, and `--force` signs now.
 - **While waiting**, the certificate exists and is valid as a certificate; its proof follows at the next
   cosigned checkpoint. The issuer keeps the certificate with its leaf index and bundles it when the
-  proof arrives. A proof against an older checkpoint stays valid; it never needs refreshing.
+  proof arrives: `log prove` and `bundle` exit 3 against a checkpoint that does not include the leaf yet. A proof against an older checkpoint stays valid; it never needs refreshing.
 - **Under `warn`** (the default), a consumer loads a certificate without a proof and records a warning
   naming `certificate_id`. Under `refuse`, it does not load it until the bundle arrives. Under `off`,
   it does not look. A proof that is present but fails is refused under `warn` and `refuse` alike: `warn`
