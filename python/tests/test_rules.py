@@ -101,7 +101,7 @@ def test_timestamps_must_be_the_strict_form(ts: str) -> None:
     rejects(set_path(base(), "expires_at", ts), "is not YYYY-MM-DDTHH:MM:SSZ")
 
 
-def test_leap_seconds_and_year_zero_are_accepted_like_chrono() -> None:
+def test_leap_seconds_and_year_zero_are_accepted_like_the_crate() -> None:
     v = ok(set_path(base(), "expires_at", "2026-12-31T23:59:60Z"))
     assert not v.is_expired(dt.datetime(2026, 12, 31, 23, 59, 59, tzinfo=UTC))
     assert v.is_expired(dt.datetime(2027, 1, 1, tzinfo=UTC))

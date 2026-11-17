@@ -46,7 +46,7 @@ let cert: serde_json::Value = serde_json::from_str(&std::fs::read_to_string("cer
 let keys = serde_json::from_str(&std::fs::read_to_string("trusted-keys.json")?)?; // key id -> base64url public key
 let v = verify(&cert, &keys)?;                       // schema, trusted key, signature
 let threshold = v.threshold_for(Some("north"));      // segment threshold, else the top-level one
-let expired = v.is_expired(chrono::Utc::now());      // re-measure after expires_at
+let expired = v.is_expired(decision_cert::UtcDateTime::now()); // re-measure after expires_at
 
 // v1.2: compare recent cases' confidences with the stored histogram
 // (None for a case unscored or above rule.cannot_tell_above)

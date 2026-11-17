@@ -37,14 +37,17 @@ mod monitor;
 
 pub use map::{confidence, probabilities, MAP_KINDS};
 pub use monitor::{bin_of, chi2_sf, shift_score, ShiftScore};
+/// The UTC time type of [`timestamp`], [`Verified::expires_at`] and [`Verified::is_expired`],
+/// re-exported so a caller need not depend on `time` to name it.
+pub use time::UtcDateTime;
 
 use std::collections::BTreeMap;
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-use chrono::{DateTime, Utc};
 use ed25519_dalek::{Signature, VerifyingKey};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use time::{Date, Month, Time};
 
 /// The `spec` of a certificate produced by the v1 procedure.
 pub const SPEC: &str = "decision-certificate.v1";
@@ -319,7 +322,7 @@ pub struct Verified {
     /// `sha256:<hex>` of the signed certificate's JCS bytes.
     pub id: String,
     pub cert: Certificate,
-    pub expires_at: DateTime<Utc>,
+    pub expires_at: UtcDateTime,
 }
 
 impl Verified {
@@ -335,7 +338,8 @@ impl Verified {
             .map_or(self.cert.abstain_below, |s| s.abstain_below)
     }
 
-    pub fn is_expired(&self, now: DateTime<Utc>) -> bool {
+    /// Whether the certificate has expired at `now`: `now` is not before its `expires_at`.
+    pub fn is_expired(&self, now: UtcDateTime) -> bool {
         now >= self.expires_at
     }
 
@@ -1089,10 +1093,20 @@ fn band_ok(b: &Band) -> bool {
 }
 
 /// Parse the spec's timestamp form, `YYYY-MM-DDTHH:MM:SSZ`, and nothing else.
-pub fn timestamp(s: &str) -> Result<DateTime<Utc>, CertError> {
-    // The schema's `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$` exactly: chrono also takes `t` or a space.
+///
+/// The form is the schema's `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$` exactly (no `t`, `z`, space,
+/// fraction or numeric offset), naming a real date in years 0000 to 9999 (proleptic Gregorian, so
+/// 0000-02-29 exists), hours 00 to 23, minutes 00 to 59 and seconds 00 to 60. A second of 60 (a
+/// leap second, accepted at the end of any minute) reads as the last nanosecond of that minute's
+/// second 59: after every time of second precision up to it, and before the next minute.
+pub fn timestamp(s: &str) -> Result<UtcDateTime, CertError> {
+    timestamp_parts(s)
+        .ok_or_else(|| CertError::Invalid(format!("timestamp {s:?} is not YYYY-MM-DDTHH:MM:SSZ")))
+}
+
+fn timestamp_parts(s: &str) -> Option<UtcDateTime> {
     let b = s.as_bytes();
-    let ok = b.len() == 20
+    let form = b.len() == 20
         && b.iter().enumerate().all(|(i, &c)| match i {
             4 | 7 => c == b'-',
             10 => c == b'T',
@@ -1100,11 +1114,27 @@ pub fn timestamp(s: &str) -> Result<DateTime<Utc>, CertError> {
             19 => c == b'Z',
             _ => c.is_ascii_digit(),
         });
-    DateTime::parse_from_rfc3339(s)
-        .ok()
-        .filter(|_| ok)
-        .map(|t| t.with_timezone(&Utc))
-        .ok_or_else(|| CertError::Invalid(format!("timestamp {s:?} is not YYYY-MM-DDTHH:MM:SSZ")))
+    if !form {
+        return None;
+    }
+    let n = |i: usize, len: usize| {
+        b[i..i + len]
+            .iter()
+            .fold(0u16, |acc, &c| acc * 10 + u16::from(c - b'0'))
+    };
+    let month = Month::try_from(u8::try_from(n(5, 2)).ok()?).ok()?;
+    let date = Date::from_calendar_date(i32::from(n(0, 4)), month, u8::try_from(n(8, 2)).ok()?);
+    let (second, nano) = match n(17, 2) {
+        60 => (59, 999_999_999),
+        sec => (u8::try_from(sec).ok()?, 0),
+    };
+    let time = Time::from_hms_nano(
+        u8::try_from(n(11, 2)).ok()?,
+        u8::try_from(n(14, 2)).ok()?,
+        second,
+        nano,
+    );
+    Some(UtcDateTime::new(date.ok()?, time.ok()?))
 }
 
 fn hex(b: &[u8]) -> String {
@@ -1138,7 +1168,7 @@ mod tests {
         let v = Verified {
             id: String::new(),
             cert,
-            expires_at: Utc::now(),
+            expires_at: UtcDateTime::now(),
         };
         assert!(v.probabilities(&[1.0, 0.0]).is_none() && v.confidence(&[1.0, 0.0]).is_none());
         let mut v12 = v.clone();
@@ -1203,6 +1233,123 @@ mod tests {
         }
     }
 
+    fn utc(y: i32, m: Month, d: u8, hh: u8, mm: u8, ss: u8, ns: u32) -> UtcDateTime {
+        UtcDateTime::new(
+            Date::from_calendar_date(y, m, d).unwrap(),
+            Time::from_hms_nano(hh, mm, ss, ns).unwrap(),
+        )
+    }
+
+    /// The timestamps accepted and refused are the ones the 0.7.0 crate accepted and refused
+    /// (`chrono`'s RFC 3339 parser behind the schema's exact form).
+    #[test]
+    fn timestamps_accept_the_spec_form_and_real_dates_only() {
+        let at = |s: &str| timestamp(s).unwrap_or_else(|e| panic!("{s}: {e}"));
+        assert_eq!(
+            at("2027-01-23T12:00:00Z"),
+            utc(2027, Month::January, 23, 12, 0, 0, 0)
+        );
+        assert_eq!(at("1970-01-01T00:00:00Z"), UtcDateTime::UNIX_EPOCH);
+        assert_eq!(at("2024-02-29T00:00:00Z").unix_timestamp(), 1_709_164_800);
+        assert_eq!(
+            at("0000-01-01T00:00:00Z"),
+            utc(0, Month::January, 1, 0, 0, 0, 0)
+        );
+        assert_eq!(
+            at("9999-12-31T23:59:59Z"),
+            utc(9999, Month::December, 31, 23, 59, 59, 0)
+        );
+        for s in [
+            "2000-02-29T00:00:00Z",
+            "0000-02-29T00:00:00Z",
+            "2400-02-29T00:00:00Z",
+            "2027-12-31T00:00:00Z",
+            "2027-04-30T00:00:00Z",
+            "2027-01-01T23:59:59Z",
+        ] {
+            at(s);
+        }
+        let refused = [
+            // not a real date or time
+            "2023-02-29T00:00:00Z",
+            "1900-02-29T00:00:00Z",
+            "2100-02-29T00:00:00Z",
+            "2027-04-31T00:00:00Z",
+            "2027-00-01T00:00:00Z",
+            "2027-13-01T00:00:00Z",
+            "2027-01-00T00:00:00Z",
+            "2027-01-32T00:00:00Z",
+            "2027-01-23T24:00:00Z",
+            "2027-01-23T12:60:00Z",
+            "2027-01-23T12:00:61Z",
+            "2027-01-23T12:00:99Z",
+            // not the form
+            "2027-01-23t12:00:00Z",
+            "2027-01-23T12:00:00z",
+            "2027-01-23 12:00:00Z",
+            "2027-01-23T12:00:00+00:00",
+            "2027-01-23T12:00:00-00:00",
+            "2027-01-23T12:00:00+01:00",
+            "2027-01-23T12:00:00.5Z",
+            "2027-01-23T12:00:00.000Z",
+            "2027-01-23T12:00:00",
+            "2027-01-23",
+            "2027-01-23T12:00Z",
+            "2027-1-23T12:00:00Z",
+            "+2027-01-23T12:00:00Z",
+            "-0001-01-01T00:00:00Z",
+            "10000-01-01T00:00:00Z",
+            " 2027-01-23T12:00:00Z",
+            "2027-01-23T12:00:00Z ",
+            "2027-01-23T12:00:00ZZ",
+            "2027-01-23T12:00:00Z\n",
+            "\u{ff12}027-01-23T12:00:00Z",
+            "",
+        ];
+        for s in refused {
+            let e = timestamp(s).expect_err(s);
+            assert_eq!(
+                e.to_string(),
+                format!(
+                    "certificate is not a valid decision certificate: timestamp {s:?} is not \
+                     YYYY-MM-DDTHH:MM:SSZ"
+                )
+            );
+        }
+    }
+
+    /// A second of 60 is accepted at the end of any minute, and orders after every second of
+    /// that minute and before the next one, as it did with `chrono`.
+    #[test]
+    fn leap_seconds_are_accepted_and_ordered() {
+        let leap = timestamp("2026-12-31T23:59:60Z").unwrap();
+        let before = timestamp("2026-12-31T23:59:59Z").unwrap();
+        let after = timestamp("2027-01-01T00:00:00Z").unwrap();
+        assert!(before < leap && leap < after);
+        assert_eq!(
+            leap,
+            utc(2026, Month::December, 31, 23, 59, 59, 999_999_999)
+        );
+        let mid = timestamp("2027-06-15T12:34:60Z").unwrap();
+        assert!(
+            timestamp("2027-06-15T12:34:59Z").unwrap() < mid
+                && mid < timestamp("2027-06-15T12:35:00Z").unwrap()
+        );
+        assert!(timestamp("0000-01-01T00:00:60Z").is_ok());
+        assert!(timestamp("9999-12-31T23:59:60Z").is_ok());
+
+        let mut cert: Certificate = serde_json::from_value(valid()).unwrap();
+        cert.expires_at = "2026-12-31T23:59:60Z".into();
+        let v = Verified {
+            id: String::new(),
+            expires_at: timestamp(&cert.expires_at).unwrap(),
+            cert,
+        };
+        assert!(!v.is_expired(before));
+        assert!(v.is_expired(leap));
+        assert!(v.is_expired(after));
+    }
+
     /// The same table as python/tests/test_ed25519.py: every small-order encoding is a key
     /// `verify_strict` refuses (the Python verifier must refuse the same ones).
     #[test]
@@ -1249,8 +1396,7 @@ mod tests {
         );
         assert_eq!(v.threshold_for(None), v.cert.abstain_below);
         assert!(
-            v.is_expired(v.expires_at)
-                && !v.is_expired(v.expires_at - chrono::Duration::seconds(1))
+            v.is_expired(v.expires_at) && !v.is_expired(v.expires_at - time::Duration::seconds(1))
         );
     }
 }

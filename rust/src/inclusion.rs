@@ -564,13 +564,37 @@ fn time_ok(s: &str) -> bool {
     crate::timestamp(s).is_ok() && s.get(17..19).is_some_and(|ss| ss <= "59")
 }
 
-/// §0's time of POSIX seconds.
+/// The latest POSIX second [`time_of`] writes, 262142-12-31T23:59:59Z; after it, the empty string.
+const LAST_TIME_OF: u64 = 8_210_266_876_799;
+
+/// §0's time of POSIX seconds. A counted cosignature time is at most [`MAX_COSIGNATURE_TIME`], so
+/// four digits of year; for the public fields' larger values, the year is written with its sign
+/// (`+10000-01-01T00:00:00Z`) up to [`LAST_TIME_OF`], and a later time is the empty string.
 fn time_of(secs: u64) -> String {
-    i64::try_from(secs)
-        .ok()
-        .and_then(|s| chrono::DateTime::from_timestamp(s, 0))
-        .map(|t| t.format("%Y-%m-%dT%H:%M:%SZ").to_string())
-        .unwrap_or_default()
+    if secs > LAST_TIME_OF {
+        return String::new();
+    }
+    // Days since 1970-01-01 to a proleptic Gregorian date (H. Hinnant's civil_from_days).
+    let (days, rem) = (secs / 86_400, secs % 86_400);
+    let z = days + 719_468;
+    let (era, doe) = (z / 146_097, z % 146_097);
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + u64::from(month <= 2);
+    let year = if year <= 9_999 {
+        format!("{year:04}")
+    } else {
+        format!("+{year}")
+    };
+    format!(
+        "{year}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
+        rem / 3_600,
+        rem / 60 % 60,
+        rem % 60
+    )
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1868,6 +1892,60 @@ mod tests {
 
     fn refused(b: &Value, t: &LogTrust) -> ErrorName {
         verify_bundle(b, t).expect_err("expected a refusal").name
+    }
+
+    /// The times written are the ones the 0.7.0 crate wrote (`chrono`'s `%Y-%m-%dT%H:%M:%SZ`).
+    #[test]
+    fn times_are_written_in_the_spec_form() {
+        let cases: [(u64, &str); 9] = [
+            (0, "1970-01-01T00:00:00Z"),
+            (951_782_400, "2000-02-29T00:00:00Z"),
+            (1_709_164_800, "2024-02-29T00:00:00Z"),
+            (1_800_000_000, "2027-01-15T08:00:00Z"),
+            (4_107_542_400, "2100-03-01T00:00:00Z"),
+            (MAX_COSIGNATURE_TIME, "9999-12-31T23:59:59Z"),
+            (MAX_COSIGNATURE_TIME + 1, "+10000-01-01T00:00:00Z"),
+            (LAST_TIME_OF, "+262142-12-31T23:59:59Z"),
+            (86_399, "1970-01-01T23:59:59Z"),
+        ];
+        for (secs, want) in cases {
+            assert_eq!(time_of(secs), want, "{secs}");
+        }
+        for secs in [
+            LAST_TIME_OF + 1,
+            i64::MAX as u64,
+            i64::MAX as u64 + 1,
+            u64::MAX,
+        ] {
+            assert_eq!(time_of(secs), "", "{secs}");
+        }
+        // every written time up to the cosignature limit reads back as itself
+        let mut secs = 0;
+        while secs <= MAX_COSIGNATURE_TIME {
+            let t = time_of(secs);
+            assert!(time_ok(&t), "{t}");
+            let back = crate::timestamp(&t).unwrap().unix_timestamp();
+            assert_eq!(u64::try_from(back).unwrap(), secs, "{t}");
+            secs += 9_876_543;
+        }
+    }
+
+    #[test]
+    fn times_are_the_certificate_form_with_seconds_to_59() {
+        assert!(time_ok("2026-12-31T23:59:59Z"));
+        assert!(time_ok("0000-02-29T00:00:00Z"));
+        for s in [
+            "2026-12-31T23:59:60Z",
+            "2026-12-31T23:59:61Z",
+            "2023-02-29T00:00:00Z",
+            "2026-12-31t23:59:59Z",
+            "2026-12-31T23:59:59z",
+            "2026-12-31T23:59:59+00:00",
+            "2026-12-31T23:59:59.0Z",
+            "",
+        ] {
+            assert!(!time_ok(s), "{s}");
+        }
     }
 
     #[test]
