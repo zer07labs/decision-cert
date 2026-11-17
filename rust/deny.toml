@@ -4,6 +4,11 @@
 [advisories]
 version = 2
 yanked = "deny"
+ignore = [
+    # chrono is unmaintained (advisory published 2026-11-17, all versions, no safe upgrade). No known vulnerability;
+    # replacing it is tracked in issue #66. Re-check by 2027-02-28.
+    { id = "RUSTSEC-2026-0543", reason = "chrono unmaintained; replacement tracked in #66" },
+]
 
 [bans]
 multiple-versions = "warn"
