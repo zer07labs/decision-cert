@@ -5,6 +5,22 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
 
 ## Unreleased
 
+## 0.6.0 — unreleased (tag `v0.6.0` on the merge commit)
+
+Spec v1.5: frozen, verified, issued. Verifiers accept v1 to v1.5; v1 to v1.4 certificates, fixtures and
+verdicts are byte-identical, `verify(cert, keys)` keeps its meaning for them, and the issuer's default stays v1.2.
+
+- **Spec v1.5 frozen** (2026-11-17, owner go, #55): the `tenant` and `signer` fields, the tenant-bound
+  signature, `verify_for_tenant` with moded trusted keys in both verifiers, the issuer's `--tenant` and
+  signer mode, and `fixtures/v1.5/`.
+- **Evidence packs** and **`verify-pack`**, with the procedure re-run (`decision_cert.issue.recompute`).
+  A pack carries no expected tenant, so `verify-pack` refuses v1.5 certificates for now.
+- **Design records** (docs only): the owner's answers for the transparency log (#28) and the auditor
+  attestation (#29) (#54). Nothing in them is built.
+- The README, CLAUDE.md, roadmap and docs reference the frozen v1.5 spec and 0.6.0.
+
+The entries below, from 0.5.0 to this release, give the detail.
+
 - **Spec v1.5 frozen: tenant binding and a hosted signer** (2026-11-17, owner go,
   [`spec/decision-certificate.v1.5.md`](spec/decision-certificate.v1.5.md)). v1.4 plus `tenant` and
   `signer` (`{"mode": "operator"}` or `{"mode": "hosted", "host": <key id>}`). A v1.5 signature is over
@@ -38,7 +54,7 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
   automated options, the v1.4 cost risk, expiry, the histogram's withholding rule, the frozen
   `certificate_id`, and the limits.
 
-## 0.5.0 — unreleased (tag `v0.5.0` on the merge commit)
+## 0.5.0 — 2026-11-12 (tag `v0.5.0`)
 
 Specs v1.3 and v1.4: frozen, verified, issued. Verifiers accept v1 to v1.4; v1 to v1.2 certificates,
 fixtures and verdicts are byte-identical, and the issuer's default stays v1.2.
