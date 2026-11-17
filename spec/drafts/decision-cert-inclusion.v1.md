@@ -1,8 +1,8 @@
 > **Draft, not frozen.** Phase 1 of the build plan
 > [`plans/transparency-log-2026-11.md`](../../plans/transparency-log-2026-11.md), on the design
 > [`docs/design/transparency-log.md`](../../docs/design/transparency-log.md) and the owner's decisions
-> of 2026-11-17 ([Decision log](#decision-log)). Nothing here is implemented yet, and the text may
-> change until the owner approves the freeze, when it moves to `spec/decision-cert-inclusion.v1.md`
+> of 2026-11-17 ([Decision log](#decision-log)). The Rust verifier (`decision_cert::inclusion`) implements
+> it; the Python verifier, fixtures, issuer tooling and reference log follow. The text may change until the owner approves the freeze, when it moves to `spec/decision-cert-inclusion.v1.md`
 > (plan, Phase 6). The certificate specs v1 to v1.5 are frozen and unchanged by it.
 
 # Decision certificate inclusion, v1 (draft): a tenant's transparency log
