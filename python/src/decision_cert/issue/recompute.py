@@ -13,7 +13,7 @@ import math
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from .._verify import SPEC_V1_3, SPEC_V1_4, timestamp
+from .._verify import SPEC_V1_3, SPEC_V1_4, SPEC_V1_5, timestamp
 from . import recal as rc
 from .certify import Case, CertConfig, Segments, certify_decision
 
@@ -50,7 +50,7 @@ def recompute(cert: Mapping[str, Any], cases: Sequence[Mapping[str, Any]], proce
         histogram_min_n=int(procedure["histogram_min_n"]),
     )
     prior = procedure["dr_prior"]
-    cost = cert.get("cost") if spec == SPEC_V1_4 else None
+    cost = cert.get("cost") if spec in (SPEC_V1_4, SPEC_V1_5) else None
     calibration = [_case(r) for r in cases if r["set"] == "calibration"]
     recal = [_case(r) for r in cases if r["set"] == "recalibration"]
     got, _ = certify_decision(
@@ -73,8 +73,10 @@ def recompute(cert: Mapping[str, Any], cases: Sequence[Mapping[str, Any]], proce
         prior=None
         if prior is None
         else rc.Prior(float(prior["mu_a"]), float(prior["sigma_a"]), float(prior["sigma_b"])),
-        automate_options=list(cert["automate_options"]) if spec in (SPEC_V1_3, SPEC_V1_4) else None,
+        automate_options=list(cert["automate_options"]) if spec in (SPEC_V1_3, SPEC_V1_4, SPEC_V1_5) else None,
         cost=None if cost is None else {"matrix": cost["matrix"], "unit": cost["unit"]},
+        tenant=cert["tenant"] if spec == SPEC_V1_5 else None,
+        signer=dict(cert["signer"]) if spec == SPEC_V1_5 else None,
     )
     want = {k: v for k, v in cert.items() if k not in NOT_COMPARED}
     have = {k: v for k, v in got.items() if k not in NOT_COMPARED}

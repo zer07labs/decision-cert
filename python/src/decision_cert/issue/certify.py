@@ -18,6 +18,11 @@ certificate then bounds the mean normalised cost of the answered cases (`risk: s
 p-values). With every off-diagonal cost equal it writes `selective_error` with v1's binomial test instead, the same
 certificate as without `--cost` (spec v1.4 §1).
 
+`--spec decision-certificate.v1.5 --tenant T` adds the tenant the certificate is issued for and who signs it, and signs
+over bytes that bind the tenant (spec v1.5). `--signer-mode operator` (the default) is the tenant signing with its own
+key; `--signer-mode hosted --host ed25519:<16 hex>` is a hosting service signing for the tenant with a key it holds for
+that tenant only, `--host` being the hosting service's own key id.
+
 `--map dr --recal-data recal.jsonl --prior prior.json` (v1.2 or later) fits a `dr` calibration map on a
 recalibration set of labelled target cases, disjoint from the calibration cases, instead of the
 temperature (spec v1.2 §1.1 step 2). The predictions file covers those cases too. The prior is
@@ -43,6 +48,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import sys
 from dataclasses import dataclass
 from importlib import resources
@@ -69,10 +75,14 @@ SPEC_V1_1 = "decision-certificate.v1.1"
 SPEC_V1_2 = "decision-certificate.v1.2"
 SPEC_V1_3 = "decision-certificate.v1.3"  # v1.2 + the automated options (P1) and cannot_tell hashed (C1)
 SPEC_V1_4 = "decision-certificate.v1.4"  # v1.3 + the cost risk `selective_cost` (Hoeffding-Bentkus)
+SPEC_V1_5 = "decision-certificate.v1.5"  # v1.4 + tenant and signer, signed over bytes that bind the tenant
 SPEC = SPEC_V1_2  # what this issuer writes by default
-SPECS = (SPEC_V1, SPEC_V1_1, SPEC_V1_2, SPEC_V1_3, SPEC_V1_4)
-V1_3_ON = (SPEC_V1_3, SPEC_V1_4)  # the specs with v1.3's fields
+SPECS = (SPEC_V1, SPEC_V1_1, SPEC_V1_2, SPEC_V1_3, SPEC_V1_4, SPEC_V1_5)
+V1_4_ON = (SPEC_V1_4, SPEC_V1_5)  # the specs with v1.4's fields
+V1_3_ON = (SPEC_V1_3, *V1_4_ON)  # the specs with v1.3's fields
 V1_2_ON = (SPEC_V1_2, *V1_3_ON)  # the specs with v1.2's fields
+TENANT_RE = re.compile(r"[A-Za-z0-9._:-]{1,128}")  # v1.5: a tenant id
+KEY_ID_RE = re.compile(r"ed25519:[0-9a-f]{16}")  # a key id's form, as v1.5's signer.host
 HISTOGRAM_BINS = 20  # v1.2: bins at the 20-quantiles of the temperature split's confidences
 ISSUER = {"tool": "decision-cert", "version": __version__}
 BAND_LEVEL = 0.95
@@ -123,10 +133,24 @@ def canonical(obj: Any) -> bytes:
     return rfc8785.dumps(obj)
 
 
-def sign(cert: dict[str, Any], key: Ed25519PrivateKey) -> dict[str, Any]:
+def signed_bytes(body: dict[str, Any], tenant: str | None = None) -> bytes:
+    """The bytes a certificate's signature covers: the JCS bytes of the body (the certificate without
+    `signature`) for v1 to v1.4; for v1.5, `"decision-cert/certificate.v1.5" 0x0A tenant 0x0A` before them,
+    with the body's own `tenant` unless `tenant` is given (spec v1.5 §3)."""
+    if body.get("spec") != SPEC_V1_5:
+        return canonical(body)
+    t = body.get("tenant") if tenant is None else tenant
+    if not isinstance(t, str) or not TENANT_RE.fullmatch(t):
+        raise CertError(f"tenant {t!r} must be 1 to 128 characters of A-Z a-z 0-9 . _ : -")
+    return f"decision-cert/certificate.v1.5\n{t}\n".encode() + canonical(body)
+
+
+def sign(cert: dict[str, Any], key: Ed25519PrivateKey, *, tenant: str | None = None) -> dict[str, Any]:
+    """`cert` signed with `key`. A v1.5 certificate is signed over its tenant-bound bytes (`signed_bytes`);
+    `tenant` overrides the certificate's own in the prefix (for test material only)."""
     body = {k: v for k, v in cert.items() if k != "signature"}
     body["signer_key_id"] = key_id(key.public_key())
-    return {**body, "signature": b64url(key.sign(canonical(body)))}
+    return {**body, "signature": b64url(key.sign(signed_bytes(body, tenant)))}
 
 
 def certificate_id(cert: dict[str, Any]) -> str:
@@ -437,6 +461,8 @@ def certify_decision(
     prior: rc.Prior | None = None,
     automate_options: list[str] | None = None,
     cost: dict[str, Any] | None = None,
+    tenant: str | None = None,
+    signer: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """(unsigned certificate, aggregate diagnostics) for one decision. Spec §1.1. Under v1.1 and
     v1.2 each test starts at the best cut on its own temperature-split cases; under v1, every test
@@ -451,14 +477,19 @@ def certify_decision(
     if recal is not None and spec not in V1_2_ON:
         raise CertError(f"decision '{decision}': the dr calibration map needs {SPEC_V1_2} or later")
     v13 = spec in V1_3_ON
-    v14 = spec == SPEC_V1_4
+    v14 = spec in V1_4_ON
+    v15 = spec == SPEC_V1_5
+    if v15:
+        check_tenant_signer(tenant, signer)
+    elif tenant is not None or signer is not None:
+        raise CertError(f"decision '{decision}': a tenant and signer need {SPEC_V1_5}")
     if automate_options is not None and not v13:
         raise CertError(f"decision '{decision}': automate_options needs {SPEC_V1_3} or later")
     matrix: np.ndarray | None = None  # set only for a selective_cost certificate
     c_max = 0
     if cost is not None:
         if not v14:
-            raise CertError(f"decision '{decision}': a cost needs {SPEC_V1_4}")
+            raise CertError(f"decision '{decision}': a cost needs {SPEC_V1_4} or later")
         if method != "ltt":
             raise CertError(f"decision '{decision}': a cost risk is certified with ltt, not {method}")
         m, c_max, equal = check_cost(cost, options, decision)
@@ -646,6 +677,9 @@ def certify_decision(
             else {"matrix": [[int(x) for x in row] for row in matrix], "c_max": c_max, "unit": cost.get("unit")}
         )
         cert["pvalue"] = ("hoeffding_bentkus" if matrix is not None else "binomial") if method == "ltt" else None
+    if v15:
+        cert["tenant"] = tenant
+        cert["signer"] = dict(signer or {})
     diag = {
         "n": len(cases),
         "n_unscored": sum(c.raw is None for c in cases),
@@ -661,6 +695,24 @@ def certify_decision(
         "_cases": per_case,
     }
     return cert, diag
+
+
+def check_tenant_signer(tenant: str | None, signer: dict[str, Any] | None) -> None:
+    """A v1.5 certificate's `tenant` (1 to 128 characters of `A-Z a-z 0-9 . _ : -`) and `signer`
+    (`{"mode": "operator"}`, or `{"mode": "hosted", "host": <the hosting service's key id>}`)."""
+    if tenant is None or not TENANT_RE.fullmatch(tenant):
+        raise CertError(f"{SPEC_V1_5} needs a tenant of 1 to 128 characters of A-Z a-z 0-9 . _ : -, not {tenant!r}")
+    ok = signer == {"mode": "operator"} or (
+        signer is not None
+        and set(signer) == {"mode", "host"}
+        and signer["mode"] == "hosted"
+        and isinstance(signer["host"], str)
+        and KEY_ID_RE.fullmatch(signer["host"]) is not None
+    )
+    if not ok:
+        raise CertError(
+            f'signer {signer!r} must be {{"mode": "operator"}} or {{"mode": "hosted", "host": "ed25519:<16 hex>"}}'
+        )
 
 
 def fit_dr(decision: str, recal: list[Case], cases: list[Case], prior: rc.Prior | None) -> CalMap:
@@ -813,12 +865,15 @@ def issue(
     prior: rc.Prior | None = None,
     automate_options: dict[str, list[str]] | None = None,
     costs: dict[str, dict[str, Any]] | None = None,
+    tenant: str | None = None,
+    signer: dict[str, Any] | None = None,
 ) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
     """(calibration file contents, aggregate diagnostics per decision). `spec` picks what is written:
     v1.2 by default, v1.3 (v1.2 plus the automated options in `automate_options`, keyed by decision
     id, default every option, and `cannot_tell` in `data_hash`), v1.1 (the same procedure, no
     confidence histogram), or v1
-    (`decision-certificate.v1`) to reproduce a v1 certificate. With `recal_rows` and `prior` (v1.2),
+    (`decision-certificate.v1`) to reproduce a v1 certificate. v1.5 also needs `tenant` and `signer`
+    (default `{"mode": "operator"}`), and signs over the tenant-bound bytes. With `recal_rows` and `prior` (v1.2),
     each decision's map is `dr`, fitted on those rows' labelled cases (`certify_decision`); `preds`
     covers them too."""
     if not 0 < alpha < 1 or not 0 < delta < 1:
@@ -863,6 +918,8 @@ def issue(
             prior=prior,
             automate_options=None if automate_options is None else automate_options.get(dec_id),
             cost=None if costs is None else costs.get(dec_id),
+            tenant=tenant,
+            signer=(signer or {"mode": "operator"}) if spec == SPEC_V1_5 else signer,
         )
         signed = sign(cert, key)
         jsonschema.validate(signed, schema(spec))
@@ -1044,16 +1101,35 @@ def main(argv: list[str] | None = None) -> None:
         "--cost",
         action="append",
         metavar="DECISION=COSTS.json",
-        help=f"a cost matrix for one decision ({SPEC_V1_4}; repeat per decision): the file is "
+        help=f"a cost matrix for one decision ({SPEC_V1_4} or later; repeat per decision): the file is "
         '{"matrix": [[...]], "unit": "USD" | null}, row = label, column = answered option',
     )
+    ap.add_argument(
+        "--tenant", help=f"the tenant the certificates are issued for ({SPEC_V1_5}): 1 to 128 of A-Z a-z 0-9 . _ : -"
+    )
+    ap.add_argument(
+        "--signer-mode",
+        choices=["operator", "hosted"],
+        help=f"who signs ({SPEC_V1_5}): operator, the tenant with its own key (default), or hosted, a hosting "
+        "service with a key it holds for this tenant only",
+    )
+    ap.add_argument("--host", help="--signer-mode hosted: the hosting service's own key id, ed25519:<16 hex>")
     a = ap.parse_args(argv)
     if a.map == "dr" and (a.recal_data is None or a.prior is None or a.spec not in V1_2_ON):
         ap.error(f"--map dr needs --recal-data, --prior and --spec {SPEC_V1_2} or later")
     if a.automate_options is not None and a.spec not in V1_3_ON:
         ap.error(f"--automate-options needs --spec {SPEC_V1_3} or later")
-    if a.cost is not None and a.spec != SPEC_V1_4:
-        ap.error(f"--cost needs --spec {SPEC_V1_4}")
+    if a.cost is not None and a.spec not in V1_4_ON:
+        ap.error(f"--cost needs --spec {SPEC_V1_4} or later")
+    if (a.spec == SPEC_V1_5) != (a.tenant is not None):
+        ap.error(f"--spec {SPEC_V1_5} and --tenant go together")
+    if a.signer_mode is not None and a.spec != SPEC_V1_5:
+        ap.error(f"--signer-mode needs --spec {SPEC_V1_5}")
+    if (a.signer_mode == "hosted") != (a.host is not None):
+        ap.error("--host goes with --signer-mode hosted, and is required by it")
+    signer = None
+    if a.spec == SPEC_V1_5:
+        signer = {"mode": "hosted", "host": a.host} if a.signer_mode == "hosted" else {"mode": "operator"}
     costs: dict[str, dict[str, Any]] | None = None
     if a.cost is not None:
         costs = {}
@@ -1094,6 +1170,8 @@ def main(argv: list[str] | None = None) -> None:
             prior=load_prior(a.prior) if a.prior else None,
             automate_options=automate,
             costs=costs,
+            tenant=a.tenant,
+            signer=signer,
         )
     except TooFewCases as e:
         print(f"{PROG} certify: {e}", file=sys.stderr)
