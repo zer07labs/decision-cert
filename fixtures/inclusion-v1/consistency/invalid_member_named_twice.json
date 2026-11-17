@@ -1,0 +1,13 @@
+{
+  "proof": [],
+  "spec": "decision-cert-consistency.v1",
+  "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+  "older": "log:b1ca2d78f40ef14d60690abe02823e7d\n3\nBdtzejq41boqNrRqoJ1kyeB30uym2MSJM/0kqDM1aYA=\n\n— log:b1ca2d78f40ef14d60690abe02823e7d M/x+PM5fWy1igLmevfsQiWfY1tWVbT0HL8phfo3r3IxEFAAzFtUv23IyrErgRAZJVXFYWMnQiNKzMVYvUeNdhbVWWw8=\n— witness.example/w1 9JQp8wAAAABrSdIDS5ZV1+qcxlQoVvMM2Gw05DQROJTGdiAlUD/CINXCwzlESGvUMx9I2Ms1/p3WmXRUWBSPxo7HrXkgOnvg/40VBw==\n",
+  "newer": "log:b1ca2d78f40ef14d60690abe02823e7d\n7\npWUVVOllMhuZaP4tR/KCQUhGncsbqmP7KBFMdK6j30I=\n\n— log:b1ca2d78f40ef14d60690abe02823e7d M/x+PBfqS7+3Tn2yT/RNV6G4+uO5bNW70iQFti3GYpoEJggGJCn8r/1B/0B5uJDRMeCRp+IxgZSL3cRBgaHz7k8kggc=\n— witness.example/w1 9JQp8wAAAABrSdIHizjRaYSLcr8KcAs04pXaCyFCwYGWXqUXpNYqfXn0n21zAMZyxhrqqlBd8NGbxZw9ZKIKpv8q/aSJ22Tsa/RuBw==\n",
+  "proof": [
+    "x3+AJ9Ki6thSKQubn2MHu1ARLhd5QJAVL//bvRY5YTs=",
+    "5r19YHvsd6QtVv7c307Mp2VJWf32waRz5UQvGYBua28=",
+    "+1lLc2LY3SKp6d+EhjayUtULb9WN8M68sh06dPGicgY=",
+    "fydD/lagm+GLojKb6h5tN+y8ZiY/vaYC0c59+rz1VYk="
+  ]
+}

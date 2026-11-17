@@ -1,0 +1,16 @@
+{
+  "spec": "decision-cert-inclusion.v1",
+  "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+  "leaf_index": 10,
+  "leaf": {
+    "kind": "attestation",
+    "attestation": "sha256:e14c44550a543b06d298b72081710ba7af07f00dbf8d402e739342009f25fcc0",
+    "certificate_id": "sha256:f167f9a38c92d10400ec13a17ba0383f4d0a65e0068f6ffa64d3e79634cf2417"
+  },
+  "proof": [
+    "DJ9dOkKSdGiUXqRPYY5mEEbs2ecm7tDe338NqIBqs+I=",
+    "yjuO7tzEuQpwwezURut3AlP4JeAblJBCPz00ZBWtvwc=",
+    "RuBfKh1++avPl5SEMBrXkxoHjUELARNPqQsIP+QC31s="
+  ],
+  "checkpoint": "log:b1ca2d78f40ef14d60690abe02823e7d\n12\nRjoOMAKi3r2vwFu/bjYO3t3R6ew8RvfsXUEDev3XsK8=\n\n— witness.example/rogue Sf74qAAAAABrSdIBxhBn86ivpsyNRFJ0epSinUuYr8RheBoEcExEJTTCOgAGdf+nUkioMiA/pcUwW7ZrHCKXNIEy/gn6kBKYjQSzAw==\n— log:b1ca2d78f40ef14d60690abe02823e7d M/x+PO78GyWHQ+DpLmX/umxJud2UkO67bnrshttONeidaghyBVCSTJLtPbP7kaduwlFG8UuuKMByrPeZvRs8kZwCVw8=\n— witness.example/w1 9JQp8wAAAABrSdIytgTtoqcipIAhVxBAfaa2QYBTFrTqZZw4JJdmKFs2xUYbBXjH0ukdzMfBPZ5gJNHT63LnMcxih9QPOAhp5DU7Ag==\n— witness.example/w1 dEt+NQAAAABrSdICDUNkzhiCVG9HvPjLJkEGL8SO7wNjYJSTjQEZsXESS4nt9KmVMUszgB/lBYBkgIFs81s371yAylpkWeVYGJ5lCA==\n— log:b1ca2d78f40ef14d60690abe02823e7d 9txKFTroK8C0D3Kl30aq+EbTx6wLXuIt/gXQOP0V5Q6YrR2ccIPrLVUHPJBLOKzG99JZ3V2Tp7PStxv3oF0iUqw+ZQ4=\n"
+}

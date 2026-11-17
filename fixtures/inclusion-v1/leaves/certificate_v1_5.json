@@ -1,0 +1,8 @@
+{
+  "kind": "certificate",
+  "certificate_id": "sha256:f167f9a38c92d10400ec13a17ba0383f4d0a65e0068f6ffa64d3e79634cf2417",
+  "signer_key_id": "ed25519:56475aa75463474c",
+  "spec": "decision-certificate.v1.5",
+  "fitted_at": "2026-10-25T12:00:00Z",
+  "tenant": "acme-bank"
+}

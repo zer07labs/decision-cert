@@ -17,17 +17,30 @@ recompute skipped); without `--keys` the verdict says the pack is consistent wit
 Exit 1: a check failed. Exit 2: usage error, the pack or keys file can't be read (missing, truncated,
 corrupt), or the pack reaches a read limit. An expired certificate is reported, not failed: a pack is
 often checked after the fact.
+
+`python -m decision_cert verify-bundle <bundle.json> --trust <log-trust.json>` and
+`python -m decision_cert verify-consistency <consistency.json> --trust <log-trust.json>` check an
+inclusion bundle or a consistency proof document (draft `decision-cert-inclusion.v1`) against one
+tenant's log trust configuration, and print one JSON verdict line on stdout: `{"verdict": "accepted",
+...}` with exit 0, or `{"verdict": "refused", "error": <error name>, "detail": ...}` with exit 1 (the
+reason also on stderr). Exit 2: usage error, an unreadable file, or a log trust configuration that is
+not I-JSON or not well formed (`trust_form`, on stderr). `verify-bundle` does not verify the bundle's
+certificate itself; `verify` does. The Rust `decision-cert verify-bundle` and `verify-consistency`
+behave the same.
 """
 
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Any
 
 from . import CertError, Invalid, loads, tenant_keys_from_json, timestamp, verify, verify_for_tenant
+from ._inclusion import ErrorName, InclusionError, LogTrust, parse_ijson, verify_bundle, verify_consistency
 from ._pack import DEFAULT_LIMITS, Limits, PackError, render, verify_pack
 
 
@@ -92,9 +105,36 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=d.members,
         help=f"Refuse a pack with more entries than this (default {d.members}).",
     )
+    vb = sub.add_parser(
+        "verify-bundle", help="Verify an inclusion bundle against a tenant's log trust configuration (draft)."
+    )
+    vb.add_argument("bundle", type=Path, help="The bundle, a `decision-cert-inclusion.v1` JSON object.")
+    vb.add_argument(
+        "--trust",
+        type=Path,
+        required=True,
+        help="The tenant's log trust configuration, a `decision-cert-log-trust.v1` JSON object.",
+    )
+    vc = sub.add_parser(
+        "verify-consistency",
+        help="Verify a consistency proof document against a tenant's log trust configuration (draft).",
+    )
+    vc.add_argument("doc", type=Path, help="The document, a `decision-cert-consistency.v1` JSON object.")
+    vc.add_argument(
+        "--trust",
+        type=Path,
+        required=True,
+        help="The tenant's log trust configuration, a `decision-cert-log-trust.v1` JSON object.",
+    )
     args = ap.parse_args(argv)  # exits 2 on a usage error
     if args.command == "verify-pack":
         return _verify_pack(args)
+    if args.command == "verify-bundle":
+        return _inclusion(args.bundle, args.trust, lambda v, t: verify_bundle(v, t).to_json(), ErrorName.BUNDLE_FORM)
+    if args.command == "verify-consistency":
+        return _inclusion(
+            args.doc, args.trust, lambda v, t: verify_consistency(v, t).to_json(), ErrorName.CONSISTENCY_FORM
+        )
 
     try:
         keys_text = args.keys.read_text(encoding="utf-8")
@@ -141,6 +181,44 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 1
     print(cert.id)
+    return 0
+
+
+def _json_line(v: Any) -> str:
+    """One JSON line as the crate prints it: members sorted, no spaces, non-ASCII as is."""
+    return json.dumps(v, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _inclusion(doc: Path, trust_path: Path, check: Callable[[Any, LogTrust], dict[str, Any]], form: ErrorName) -> int:
+    """`verify-bundle` and `verify-consistency`: one JSON verdict line on stdout, exit 0 or 1; exit 2 for an
+    unreadable file or a configuration that is not well formed."""
+    try:
+        trust_bytes = trust_path.read_bytes()
+    except OSError as e:
+        return _usage(f"{trust_path}: {e}")
+    try:
+        try:
+            trust_value = parse_ijson(trust_bytes.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError) as e:
+            raise InclusionError(ErrorName.TRUST_FORM, str(e)) from None
+        trust = LogTrust.from_json(trust_value)
+    except InclusionError as e:
+        return _usage(f"{trust_path}: {e}")
+    try:
+        doc_bytes = doc.read_bytes()
+    except OSError as e:
+        return _usage(f"{doc}: {e}")
+    try:
+        try:
+            value = parse_ijson(doc_bytes.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError) as e:
+            raise InclusionError(form, f"not I-JSON: {e}") from None
+        verdict = check(value, trust)
+    except InclusionError as e:
+        print(_json_line({"verdict": "refused", "error": str(e.name), "detail": e.detail}))
+        print(f"{doc}: {e}", file=sys.stderr)
+        return 1
+    print(_json_line({**verdict, "verdict": "accepted"}))
     return 0
 
 

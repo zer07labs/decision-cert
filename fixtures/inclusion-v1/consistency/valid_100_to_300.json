@@ -1,0 +1,16 @@
+{
+  "spec": "decision-cert-consistency.v1",
+  "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+  "older": "log:b1ca2d78f40ef14d60690abe02823e7d\n100\nak5ov5sB5Ym1Tyn1ebr25EDCJ8bOwaaUzqJkd16H/ww=\n\n— log:b1ca2d78f40ef14d60690abe02823e7d M/x+PPhCUR/O1kyknl6ePGBCNx8LIiqmetFBi5Z22RcYMDTVYxYTnk0YwbV6pntUGKtk8xnXcnVXNTI/mIzRBXPCYAk=\n— witness.example/w1 9JQp8wAAAABrSdJkpKn1GUEWlE71kM0W83YWhywsCNJovyUSiH7ApAdic9R9xQ76n6o/puHPAU/NrQWyW0roZ9VvKraTJ5bXZV4vDQ==\n",
+  "newer": "log:b1ca2d78f40ef14d60690abe02823e7d\n300\nRyztjWNuvMEVXQpnksaC8lQXk3YzdABfo07B9gtRraM=\n\n— log:b1ca2d78f40ef14d60690abe02823e7d M/x+PGAAztnnD67HURBQcLHOU0s5ItU/KQebmeLcjtU5T8HiK6C3TTSOnNlOSISn0LR0xg3dLl+zhyyO2Qt/F2NAEgI=\n— witness.example/w1 9JQp8wAAAABrSdMsapscnf9X39ZGbUyJ3PLxmczZ1l4ZK8kMYPreq0dzOUj0/O3Hd6l02lisRkUG34tKkVq05wrPSurtyWMI9jqLDA==\n",
+  "proof": [
+    "8z4Pigjaar1IuTMJC2x2TCdL5fJ31teDfs9XlW2ctvE=",
+    "24XE5Ap8cf2RHW0dgyqbg4SJ6tfrPuPlR16otN9AfbM=",
+    "inavGQucvz7TTz/xINBIOo/5ggs19TDvnJg2z7m9xX4=",
+    "6BfDqioSNu5UidZPX0j3Z/DzMMkibXfhdoCxdECBkd8=",
+    "IsHfrPse/ANlNesdCXeAtXlO5MKpA1Zv820oraucoXY=",
+    "6DVBfvMsWfsoUBPXikJ8Dpr4B3BPYyIW1+QfV4sBruA=",
+    "yxjQlBYFclI0aEb2gvD+GQlDyv4W+rw4ddOfPWOBXD0=",
+    "cVvvwzyPnN3/76AD8ruNS5BDKnpnWHXVwpTsviJF3vg="
+  ]
+}

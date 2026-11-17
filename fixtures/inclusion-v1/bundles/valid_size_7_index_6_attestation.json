@@ -1,0 +1,15 @@
+{
+  "spec": "decision-cert-inclusion.v1",
+  "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+  "leaf_index": 6,
+  "leaf": {
+    "kind": "attestation",
+    "attestation": "sha256:93a9126c5b7e2ba87479741fb18128c8b02a408dded1e11836bcf129f6b696d2",
+    "certificate_id": "sha256:f167f9a38c92d10400ec13a17ba0383f4d0a65e0068f6ffa64d3e79634cf2417"
+  },
+  "proof": [
+    "FfCV3aZt4jPTbvcuEl/w1GZKAsbMnhCf9wd39Ljw/9o=",
+    "xwkbcpwsI5DFqCJxON2z3hKyKVbGOoS3eSDQl85ZNqs="
+  ],
+  "checkpoint": "log:b1ca2d78f40ef14d60690abe02823e7d\n7\npWUVVOllMhuZaP4tR/KCQUhGncsbqmP7KBFMdK6j30I=\n\n— log:b1ca2d78f40ef14d60690abe02823e7d M/x+PBfqS7+3Tn2yT/RNV6G4+uO5bNW70iQFti3GYpoEJggGJCn8r/1B/0B5uJDRMeCRp+IxgZSL3cRBgaHz7k8kggc=\n— witness.example/w1 9JQp8wAAAABrSdIHizjRaYSLcr8KcAs04pXaCyFCwYGWXqUXpNYqfXn0n21zAMZyxhrqqlBd8NGbxZw9ZKIKpv8q/aSJ22Tsa/RuBw==\n"
+}

@@ -1,0 +1,17 @@
+{
+  "spec": "decision-cert-inclusion.v1",
+  "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+  "leaf_index": 5,
+  "leaf": {
+    "kind": "ledger_entry",
+    "ledger_id": "ledger:a126d763fa4af3508a2e80642e33f23d",
+    "seq": 5,
+    "entry": "sha256:3a6dc2f9046d21d5f5677420c31cb11f9e904706bc6add77008362e628bf6e64"
+  },
+  "proof": [
+    "t8pjYxg6IttrTHkcre/v0/j1x6BIzBEKErDkvw9XUTc=",
+    "vtpPgGIBY9HKm4BBTSoquv96CudxlgRMuM1fQ4fzCQE=",
+    "xwkbcpwsI5DFqCJxON2z3hKyKVbGOoS3eSDQl85ZNqs="
+  ],
+  "checkpoint": "log:b1ca2d78f40ef14d60690abe02823e7d\n8\nRuBfKh1++avPl5SEMBrXkxoHjUELARNPqQsIP+QC31s=\n\n— log:b1ca2d78f40ef14d60690abe02823e7d M/x+PAgxkzdOHfGVGm1vOQZOAWC+6CllcNjSFmpufo0OQuQCUjznlMfEIfUGd83Yk8e8wWJSEtRLUuhSqnnie100Kwo=\n— witness.example/w1 9JQp8wAAAABrSdIIyVhTb2S9l6A9Xe927+t5+tu/9kAPg1TSSwzjXeBCPZNc67UdllPoeHxNL42r6/FIsVVN4yppCHe7KTMuUD5ADw==\n"
+}

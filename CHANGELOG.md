@@ -20,6 +20,16 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
   `decision-cert verify-consistency <doc> --trust <config>`: one JSON verdict line on stdout, exit 0
   accepted, 1 refused (with the error name), 2 unreadable or a malformed configuration. The existing API,
   `verify`, and every fixture are unchanged.
+- **Inclusion v1 (draft), the Python verifier** (Phase 3): `decision_cert` gains the same checks with
+  the same names (`parse_ijson`, `Leaf`, `leaf_hash`, `parse_checkpoint`, `LogTrust`, `check_tenants`,
+  `verify_bundle`, `verify_consistency`, `InclusionVerdict`, `ConsistencyVerdict`, `ErrorName`,
+  `InclusionError`, `Policy`, `apply_policy`, `PolicyOutcome`), reusing its JCS, Ed25519, base64 and key
+  ID code, with no new dependency. `python -m decision_cert verify-bundle` and `verify-consistency`
+  print the same line with the same exit codes as the Rust CLI.
+- **`fixtures/inclusion-v1/`**, written from fixed seeds by `python/tools/gen_inclusion_fixtures.py`
+  (`--check` in CI): 231 files and 301 manifest cases, with expectations from the cases' construction.
+  CI checks both verifiers against every case, and both CLIs against each other on every document and on
+  random trees.
 
 ## 0.6.0 — unreleased (tag `v0.6.0` on the merge commit)
 

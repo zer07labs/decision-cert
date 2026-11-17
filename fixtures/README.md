@@ -20,6 +20,18 @@ RFC 8032 verification, as OpenSSL does it; a verifier must also reject a small-o
 
 Fixtures are never edited by hand. Keys and signatures here are public test material only.
 
+**inclusion-v1.** [`inclusion-v1/`](inclusion-v1/) is the set for the draft
+[`decision-cert-inclusion.v1`](../spec/drafts/decision-cert-inclusion.v1.md) (not frozen): proof
+bundles, consistency documents, log trust configurations and leaves over two synthetic logs, plus
+`manifest.json`, which lists every case with what a verifier must say about it, and the hash list
+`INCLUSION.sha256`. [`python/tools/gen_inclusion_fixtures.py`](../python/tools/gen_inclusion_fixtures.py)
+writes the whole set from fixed seeds; each expectation comes from how the case was built, not from
+running a verifier. The cases cover the RFC 9162 proof vectors, every error name of the draft's §14,
+the draft's negatives and clarifications, `m` = 2 and 3 with `t_proven`, and the three policies.
+The Rust test `rust/tests/inclusion_fixtures.rs` and the Python test `python/tests/test_inclusion.py`
+each check every case against the manifest; the Python test also runs both CLIs on every bundle and
+consistency document and compares their output lines.
+
 **v1.1.** [`v1.1/`](v1.1/) holds the reference issuer's set again with `spec`
 `decision-certificate.v1.1` (and the issuer's current name), its own `mutations/`, and
 `invalid_unknown_spec.json`: a signed certificate naming a spec no verifier knows. These are the

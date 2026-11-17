@@ -1,0 +1,17 @@
+{
+  "spec": "decision-cert-inclusion.v1",
+  "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+  "leaf_index": 4,
+  "leaf": {
+    "kind": "keyset",
+    "keyset_id": "keyset:2b75536b5741ade5e1a45de0fb638f83",
+    "seq": 4,
+    "keyset": "sha256:eda9ddf5a9ad9aaa6c75cb2c47068012a759111ab5af1d149477b1cdbddaa1cc"
+  },
+  "proof": [
+    "DhhDqKInw9wkL9viP8rCxmUfYe9+dlvqTg8egF0dh8Q=",
+    "vtpPgGIBY9HKm4BBTSoquv96CudxlgRMuM1fQ4fzCQE=",
+    "xwkbcpwsI5DFqCJxON2z3hKyKVbGOoS3eSDQl85ZNqs="
+  ],
+  "checkpoint": "log:b1ca2d78f40ef14d60690abe02823e7d\n8\nRuBfKh1++avPl5SEMBrXkxoHjUELARNPqQsIP+QC31s=\n\n— log:b1ca2d78f40ef14d60690abe02823e7d M/x+PAgxkzdOHfGVGm1vOQZOAWC+6CllcNjSFmpufo0OQuQCUjznlMfEIfUGd83Yk8e8wWJSEtRLUuhSqnnie100Kwo=\n— witness.example/w1 9JQp8wAAAABrSdIAUZWkWM6y1HRzRwTYdrBMsoOw6pRK09gBfc6c+zQEff/+XwXuEr5i8SERJeqpooHFmnb4reYRNm4mGYkpSPKxCg==\n— witness.example/w2 XB1mjQAAAABrSdIAQYPQ8tOJUFm55vsUPDVUz4ucUMIE+W4EwJKSE/+U+dL58Pa4N3lXSBAeGuPPRQpkaa4K3+ioSY8Gf/rW9agICw==\n— witness.example/w3 krQkmQAAAABrSdIAXt3M12QBQRhyLfC70Ol3G2RF6oB5x8tDolEK5fl+0YoYPIyqgptJgdDroQnlhJiS7cSBr+vtEkgO6nwpEK3dBg==\n"
+}
