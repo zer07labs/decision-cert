@@ -1,16 +1,14 @@
-//! `decision-cert-inclusion.v1` (draft): a tenant's transparency log, checked offline
-//! (spec/drafts/decision-cert-inclusion.v1.md).
+//! `decision-cert-inclusion.v1`: a tenant's transparency log, checked offline
+//! (spec/decision-cert-inclusion.v1.md).
 //!
 //! A log is an RFC 9162 Merkle tree over JCS-encoded leaves ([`Leaf`], [`leaf_hash`]). Its
 //! checkpoints are C2SP signed notes ([`parse_checkpoint`]) signed by the log's Ed25519 key and
 //! cosigned by witnesses (`cosignature/v1`). A bundle carries a leaf, its audit path and a cosigned
 //! checkpoint, and a consumer checks it against its log trust configuration ([`LogTrust`]) with
-//! [`verify_bundle`], in the order of the draft's §10, refusing at the first failure with that
+//! [`verify_bundle`], in the order of the spec's §10, refusing at the first failure with that
 //! check's error name ([`ErrorName`]). [`verify_consistency`] checks a consistency proof document
 //! between two checkpoints of one log, and [`apply_policy`] applies the configuration's `policy` to
 //! a certificate with or without a bundle.
-//!
-//! The draft is not frozen: this module follows it as it stands, and may change with it.
 //!
 //! A bundle does not replace the certificate's own verification: for a certificate leaf, verify the
 //! bundle's certificate with [`crate::verify_for_tenant`] (or [`crate::verify`]) as well.
@@ -64,7 +62,7 @@ pub type Hash = [u8; 32];
 // Errors
 // ---------------------------------------------------------------------------------------------
 
-/// The draft's error names (§14), one per check.
+/// The spec's error names (§14), one per check.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ErrorName {
     TrustForm,
@@ -274,7 +272,7 @@ fn split_point(n: usize) -> usize {
     k
 }
 
-/// RFC 9162 §2.1.1's MTH over leaf hashes; None for no leaves (this draft defines no empty tree).
+/// RFC 9162 §2.1.1's MTH over leaf hashes; None for no leaves (the spec defines no empty tree).
 pub fn root_hash(leaf_hashes: &[Hash]) -> Option<Hash> {
     match leaf_hashes.len() {
         0 => None,
@@ -343,7 +341,7 @@ pub fn consistency_path(leaf_hashes: &[Hash], older: usize) -> Option<Vec<Hash>>
     sub(older, leaf_hashes, true)
 }
 
-/// RFC 9162 §2.1.3.2 (the draft's §6): does `path` lead from `leaf_hash` at `index` to `root` in a
+/// RFC 9162 §2.1.3.2 (the spec's §6): does `path` lead from `leaf_hash` at `index` to `root` in a
 /// tree of `size` leaves?
 pub fn verify_inclusion_path(
     index: u64,
@@ -377,7 +375,7 @@ pub fn verify_inclusion_path(
     snode == 0 && r == *root
 }
 
-/// RFC 9162 §2.1.4.2 (the draft's §7.1): is the tree of `older` leaves with `older_root` a prefix of
+/// RFC 9162 §2.1.4.2 (the spec's §7.1): is the tree of `older` leaves with `older_root` a prefix of
 /// the tree of `newer` leaves with `newer_root`, by `path`? For `older` = `newer`, only an empty
 /// path between equal roots; `older` = 0 or `older` > `newer` never.
 pub fn verify_consistency_path(

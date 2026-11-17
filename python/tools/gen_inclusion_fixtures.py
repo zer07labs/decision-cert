@@ -1,5 +1,5 @@
-"""Generate `fixtures/inclusion-v1/`: the conformance set of the inclusion draft
-(spec/drafts/decision-cert-inclusion.v1.md), with its manifest `manifest.json` and its hash list
+"""Generate `fixtures/inclusion-v1/`: the conformance set of the inclusion spec
+(spec/decision-cert-inclusion.v1.md), with its manifest `manifest.json` and its hash list
 `INCLUSION.sha256`.
 
     cd python && uv run python tools/gen_inclusion_fixtures.py          # write
@@ -321,7 +321,7 @@ def rfc_cases() -> list[dict[str, Any]]:
         if i > 0:
             inc(f"{tag}_index_is_size", i, i, p, root, False)
     # §6: a path checks a size and root only together; the leftmost leaf's path in a tree of 3 leaves
-    # also leads to that root at size 4, the draft's own example.
+    # also leads to that root at size 4, the spec's own example.
     inc(
         "rfc9162_inclusion_0_in_3_as_size_4_same_root", 0, 4, [x.hex() for x in path(leaves[:3], 0)], RFC_ROOTS[2], True
     )
@@ -734,6 +734,8 @@ def build() -> FixtureSet:
     assert len(names) == len(set(names)), [n for n in names if names.count(n) > 1]
     seen = {c["expect"].get("error") for c in fs.cases if isinstance(c["expect"], dict)}
     assert set(ERROR_NAMES) <= seen, f"error names without a case: {set(ERROR_NAMES) - seen}"
+    # `draft` keeps the path the set was written against, so the frozen set stays byte-identical; the text is
+    # now spec/decision-cert-inclusion.v1.md.
     fs.put(
         "manifest.json", {"spec": SPEC_BUNDLE, "draft": "spec/drafts/decision-cert-inclusion.v1.md", "cases": fs.cases}
     )

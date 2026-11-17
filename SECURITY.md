@@ -13,7 +13,9 @@ timeline with you before anything is made public.
 
 **In scope:** a certificate that verifies when it should not (or fails when it should not) in the
 Rust crate or any verifier here; canonicalisation differences between implementations; signature or
-key-id handling; anything in the spec that lets two conforming verifiers disagree.
+key-id handling; an inclusion bundle or consistency proof (`spec/decision-cert-inclusion.v1.md`)
+that is accepted when it should be refused, or refused when it should be accepted; anything in a spec
+that lets two conforming verifiers disagree.
 **Out of scope:** what a certificate's numbers mean. A certificate describes a measured process and
 never promises an outcome (see `spec/decision-certificate.v1.md` §5).
 

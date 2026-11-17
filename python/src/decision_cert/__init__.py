@@ -28,7 +28,7 @@ every conformance fixture. A certificate describes a measured process; it never 
     report = verify_pack(Path("pack/"), keys)
     report.ok, [(c.name, c.status) for c in report.checks]
 
-    # inclusion v1 (draft, spec/drafts/decision-cert-inclusion.v1.md): a bundle checked offline against a
+    # inclusion v1 (spec/decision-cert-inclusion.v1.md): a bundle checked offline against a
     # tenant's log trust configuration; raises InclusionError with the error name (e.name) on refusal
     trust = LogTrust.from_json(parse_ijson(open("log-trust.json").read()))
     verdict = verify_bundle(parse_ijson(open("bundle.json").read()), trust)

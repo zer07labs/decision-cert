@@ -300,6 +300,15 @@ frozen from then on (corrections go in `spec/ERRATA.md`). Docs updated: `docs/ce
 
 **Done when** the owner says go for the freeze and the freeze PR is merged with CI green.
 
+**Status.** Freeze PR open; frozen on owner approval (pending). The text and schema are at
+[`spec/decision-cert-inclusion.v1.md`](../spec/decision-cert-inclusion.v1.md) and
+[`spec/decision-cert-inclusion.v1.schema.json`](../spec/decision-cert-inclusion.v1.schema.json), with
+editorial changes only; every fixture is byte-identical (`fixtures/inclusion-v1/manifest.json` keeps its
+`draft` member, the path it was written against). The PR also adds `interop/c2sp/` and the CI job
+`c2sp-interop`: an independent check of the set's checkpoints with the Go C2SP libraries
+(`golang.org/x/mod/sumdb/note`, `github.com/transparency-dev/formats`), informational
+(`continue-on-error`).
+
 ### Phase 7 — release
 
 A minor release (0.7.0) after the freeze: version bump and `CHANGELOG.md`. The owner pushes the tag;

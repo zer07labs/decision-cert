@@ -37,7 +37,7 @@ only, and writes only the calibration file and aggregate metrics (no case ids). 
 always signed with the operator's own key (`--key`).
 
 `--leaf-out leaves.jsonl` also writes each certificate's leaf record for the tenant's transparency log
-(draft spec/drafts/decision-cert-inclusion.v1.md): one JSON line per certificate, `{"certificate_id",
+(spec/decision-cert-inclusion.v1.md): one JSON line per certificate, `{"certificate_id",
 "leaf", "leaf_hash"}`, with no `backfilled` member: a newly issued certificate is not backfilled. The
 issuer never calls a log; whoever runs it appends each `leaf` and gives back its leaf index, and
 `python -m decision_cert bundle` bundles the certificate once a cosigned checkpoint includes it. A leaf
@@ -1126,7 +1126,7 @@ def main(argv: list[str] | None = None) -> None:
         "--leaf-out",
         type=Path,
         help="also write each certificate's leaf record (JSON Lines: certificate_id, leaf, leaf_hash) for the "
-        "tenant's log to append (inclusion draft)",
+        "tenant's log to append (decision-cert-inclusion.v1)",
     )
     a = ap.parse_args(argv)
     if a.map == "dr" and (a.recal_data is None or a.prior is None or a.spec not in V1_2_ON):

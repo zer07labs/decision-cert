@@ -1,4 +1,4 @@
-"""The issuer's side of `decision-cert-inclusion.v1` (draft, spec/drafts/decision-cert-inclusion.v1.md):
+"""The issuer's side of `decision-cert-inclusion.v1` (spec/decision-cert-inclusion.v1.md):
 the certificate leaf to append to a tenant's log, the backfill of certificates issued before the log
 existed, and the bundle written once a proof arrives.
 
@@ -11,7 +11,7 @@ the next cosigned checkpoint (`NotYetInCheckpoint`).
 A leaf record is a JSON object with exactly `certificate_id`, `leaf` (§3) and `leaf_hash` (§4, standard
 base64, the checkpoint's own encoding), and `"backfilled": true` for a backfilled certificate's record
 (`backfill_records`; an issued certificate's record has no `backfilled` member), written one per line
-(`leaf_records_text`). It is this repository's tooling format, not part of the draft: only `leaf` is
+(`leaf_records_text`). It is this repository's tooling format, not part of the spec: only `leaf` is
 appended to the log, so the mark never changes a leaf or its hash. The bundle carries it on
 (`bundle_certificate(..., backfilled=True)`, §8), and a consumer that knows the log's `started_at` marks
 the certificate from its `fitted_at` whatever the bundle says (§10, "Backfilled").

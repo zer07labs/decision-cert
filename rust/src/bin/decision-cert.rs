@@ -10,7 +10,7 @@
 //!
 //! `decision-cert verify-bundle <bundle.json> --trust <log-trust.json>` and
 //! `decision-cert verify-consistency <consistency.json> --trust <log-trust.json>` check an inclusion
-//! bundle or a consistency proof document (draft `decision-cert-inclusion.v1`) against one tenant's
+//! bundle or a consistency proof document (`decision-cert-inclusion.v1`) against one tenant's
 //! log trust configuration, and print one JSON verdict line on stdout: `{"verdict": "accepted", ...}`
 //! with exit 0, or `{"verdict": "refused", "error": <error name>, "detail": ...}` with exit 1 (the
 //! reason also on stderr). Exit 2: usage error, an unreadable file, or a log trust configuration that
@@ -50,7 +50,7 @@ enum Command {
         #[arg(long)]
         now: Option<String>,
     },
-    /// Verify an inclusion bundle against a tenant's log trust configuration (draft).
+    /// Verify an inclusion bundle against a tenant's log trust configuration.
     VerifyBundle {
         /// The bundle, a `decision-cert-inclusion.v1` JSON object.
         bundle: PathBuf,
@@ -58,7 +58,7 @@ enum Command {
         #[arg(long)]
         trust: PathBuf,
     },
-    /// Verify a consistency proof document against a tenant's log trust configuration (draft).
+    /// Verify a consistency proof document against a tenant's log trust configuration.
     VerifyConsistency {
         /// The document, a `decision-cert-consistency.v1` JSON object.
         doc: PathBuf,

@@ -74,7 +74,7 @@ def add_log_commands(lsub: Any) -> None:
 
 def add_witness_commands(sub: Any) -> None:
     """`witness init` and `witness cosign`."""
-    w = sub.add_parser("witness", help="The reference witness (draft).")
+    w = sub.add_parser("witness", help="The reference witness.")
     wsub = w.add_subparsers(dest="witness_command", required=True)
     p = wsub.add_parser("init", help="Create a witness's state file for one log.")
     p.add_argument("--state", type=Path, required=True)

@@ -1,6 +1,7 @@
 # decision-cert
 
-The open `decision-certificate.v1`, `v1.1`, `v1.2`, `v1.3`, `v1.4` and `v1.5` specs (frozen), the Rust verifier crate (`rust/`), the Python verifier
+The open `decision-certificate.v1`, `v1.1`, `v1.2`, `v1.3`, `v1.4` and `v1.5` specs (frozen), the transparency-log
+sidecar spec `decision-cert-inclusion.v1`, the Rust verifier crate (`rust/`), the Python verifier
 (`python/`), and the conformance fixtures. See [`README.md`](README.md).
 
 decision-cert depends on nothing else of ours. Consumers pin a released version (crates.io and
@@ -13,7 +14,8 @@ PyPI, both `decision-cert`) or a git revision. It holds no data and never calls 
 - **`spec/decision-certificate.v1.md` to `v1.5.md` are frozen**, with their fixture sets.
   A frozen spec's fields and their meaning never change; additions go in a new `spec` value.
   Corrections and clarifications go in `spec/ERRATA.md` as dated entries, never edits of the
-  frozen text.
+  frozen text. `spec/decision-cert-inclusion.v1.md`, its schema and `fixtures/inclusion-v1/` are
+  frozen the same way on owner approval (pending).
 - **Fixtures are never hand-edited.** The positive fixtures and `mutations/` come from the
   reference issuer via `python/tools/gen_positive_fixtures.py` (byte-identical, `--check` in CI); the negatives come from
   `python/tools/gen_negative_fixtures.py`. Any change updates `fixtures/FIXTURES.sha256` and every
@@ -38,7 +40,8 @@ PyPI, both `decision-cert`) or a git revision. It holds no data and never calls 
 | `cd python && uv run python tools/gen_positive_fixtures.py` | regenerate the reference issuer's fixtures (then the negatives, for the manifest) |
 | `cd python && uv run python tools/gen_negative_fixtures.py` | regenerate the negative fixtures and `fixtures/FIXTURES.sha256` |
 | `cd python && uv run python tools/gen_inclusion_fixtures.py` | regenerate `fixtures/inclusion-v1/` (trees, bundles, consistency documents, trust configurations, `manifest.json`, `INCLUSION.sha256`) from fixed seeds |
-| `cd python && uv run python -m decision_cert log init\|append\|checkpoint\|prove\|consistency\|info` / `witness init\|cosign` | the reference log and witness (draft inclusion v1, file-based, one tenant per log); see `docs/certificates.md` |
+| `cd python && uv run python -m decision_cert log init\|append\|checkpoint\|prove\|consistency\|info` / `witness init\|cosign` | the reference log and witness (inclusion v1, file-based, one tenant per log); see `docs/certificates.md` |
+| `cd interop/c2sp && go run . ../../fixtures/inclusion-v1` | the independent check of the inclusion checkpoints with the Go C2SP libraries (CI job `c2sp-interop`, informational) |
 | `cd python && uv run python tools/gen_demos.py` | rewrite `demo/example/` and `demo/DEMOS.sha256` |
 | `cd python && uv run python -m decision_cert verify-pack <pack> [--keys <keys>]` | verify an evidence pack ([`docs/evidence-pack.md`](docs/evidence-pack.md)) |
 | `cd python && uv run python tools/gen_pack_fixtures.py` | regenerate the evidence-pack fixtures in `python/tests/packs/` from the committed `issued/` certificates (`--issue` re-issues them; never hand-edit) |

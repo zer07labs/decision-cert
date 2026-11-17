@@ -1,5 +1,5 @@
-"""`decision-cert-inclusion.v1` (draft): a tenant's transparency log, checked offline
-(spec/drafts/decision-cert-inclusion.v1.md).
+"""`decision-cert-inclusion.v1`: a tenant's transparency log, checked offline
+(spec/decision-cert-inclusion.v1.md).
 
 A port of the Rust crate's `decision_cert::inclusion`, which is the reference: both give every file of
 `fixtures/inclusion-v1/` the same verdict, the same verdict JSON and the same error name.
@@ -8,12 +8,11 @@ A log is an RFC 9162 Merkle tree over JCS-encoded leaves (`Leaf`, `leaf_hash`). 
 C2SP signed notes (`parse_checkpoint`) signed by the log's Ed25519 key and cosigned by witnesses
 (`cosignature/v1`). A bundle carries a leaf, its audit path and a cosigned checkpoint, and a consumer
 checks it against its log trust configuration (`LogTrust`) with `verify_bundle`, in the order of the
-draft's §10, refusing at the first failure with that check's error name (`ErrorName`).
+spec's §10, refusing at the first failure with that check's error name (`ErrorName`).
 `verify_consistency` checks a consistency proof document between two checkpoints of one log, and
 `apply_policy` applies the configuration's `policy` to a certificate with or without a bundle.
 
-The draft is not frozen: this module follows it as it stands, and may change with it. A bundle does
-not replace the certificate's own verification: for a certificate leaf, verify the bundle's
+A bundle does not replace the certificate's own verification: for a certificate leaf, verify the bundle's
 certificate with `verify_for_tenant` (or `verify`) as well.
 
 The functions here take parsed JSON. A document's I-JSON rule (no member named twice) cannot be
@@ -80,7 +79,7 @@ _MAX_U64 = 2**64 - 1
 
 
 class ErrorName(StrEnum):
-    """The draft's error names (§14), one per check."""
+    """The spec's error names (§14), one per check."""
 
     TRUST_FORM = "trust_form"
     TRUST_CROSS_TENANT = "trust_cross_tenant"
@@ -196,7 +195,7 @@ def _split_point(n: int) -> int:
 
 
 def root_hash(leaf_hashes: Sequence[bytes]) -> bytes | None:
-    """RFC 9162 §2.1.1's MTH over leaf hashes; None for no leaves (the draft defines no empty tree)."""
+    """RFC 9162 §2.1.1's MTH over leaf hashes; None for no leaves (the spec defines no empty tree)."""
     n = len(leaf_hashes)
     if n == 0:
         return None
@@ -249,7 +248,7 @@ def consistency_path(leaf_hashes: Sequence[bytes], older: int) -> list[bytes] | 
 
 
 def verify_inclusion_path(index: int, size: int, leaf_hash: bytes, path: Sequence[bytes], root: bytes) -> bool:
-    """RFC 9162 §2.1.3.2 (the draft's §6): does `path` lead from `leaf_hash` at `index` to `root` in a
+    """RFC 9162 §2.1.3.2 (the spec's §6): does `path` lead from `leaf_hash` at `index` to `root` in a
     tree of `size` leaves?"""
     if index >= size:
         return False
@@ -273,7 +272,7 @@ def verify_inclusion_path(index: int, size: int, leaf_hash: bytes, path: Sequenc
 def verify_consistency_path(
     older: int, newer: int, older_root: bytes, newer_root: bytes, path: Sequence[bytes]
 ) -> bool:
-    """RFC 9162 §2.1.4.2 (the draft's §7.1): is the tree of `older` leaves with `older_root` a prefix of
+    """RFC 9162 §2.1.4.2 (the spec's §7.1): is the tree of `older` leaves with `older_root` a prefix of
     the tree of `newer` leaves with `newer_root`, by `path`? For `older` = `newer`, only an empty path
     between equal roots; `older` = 0 or `older` > `newer` never."""
     if older == 0 or older > newer:

@@ -68,10 +68,11 @@ certificate and its expiry.
 
 | Path | What |
 |---|---|
-| [`spec/`](spec/) | [`decision-certificate.v1.5.md`](spec/decision-certificate.v1.5.md) (**frozen** 2026-11-17), [`decision-certificate.v1.4.md`](spec/decision-certificate.v1.4.md) and [`decision-certificate.v1.3.md`](spec/decision-certificate.v1.3.md) (**frozen** 2026-11-12), [`decision-certificate.v1.2.md`](spec/decision-certificate.v1.2.md) (**frozen** 2026-11-08), [`decision-certificate.v1.1.md`](spec/decision-certificate.v1.1.md) (**frozen** 2026-11-08), [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (**frozen** 2026-10-25), and a JSON Schema for each |
-| [`rust/`](rust/) | the `decision-cert` crate: `verify`, `canonical`, `certificate_id`, `key_id`, segment thresholds, expiry, the v1.2 calibration maps (`probabilities`, `confidence`) and shift score, and `inclusion`, the verifier for the draft transparency-log inclusion proofs ([`spec/drafts/decision-cert-inclusion.v1.md`](spec/drafts/decision-cert-inclusion.v1.md): `verify_bundle`, `verify_consistency`, `apply_policy`) |
+| [`spec/`](spec/) | [`decision-cert-inclusion.v1.md`](spec/decision-cert-inclusion.v1.md), the transparency-log sidecar (frozen on owner approval (pending)), [`decision-certificate.v1.5.md`](spec/decision-certificate.v1.5.md) (**frozen** 2026-11-17), [`decision-certificate.v1.4.md`](spec/decision-certificate.v1.4.md) and [`decision-certificate.v1.3.md`](spec/decision-certificate.v1.3.md) (**frozen** 2026-11-12), [`decision-certificate.v1.2.md`](spec/decision-certificate.v1.2.md) (**frozen** 2026-11-08), [`decision-certificate.v1.1.md`](spec/decision-certificate.v1.1.md) (**frozen** 2026-11-08), [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (**frozen** 2026-10-25), and a JSON Schema for each |
+| [`rust/`](rust/) | the `decision-cert` crate: `verify`, `canonical`, `certificate_id`, `key_id`, segment thresholds, expiry, the v1.2 calibration maps (`probabilities`, `confidence`) and shift score, and `inclusion`, the verifier for the transparency-log inclusion proofs ([`spec/decision-cert-inclusion.v1.md`](spec/decision-cert-inclusion.v1.md): `verify_bundle`, `verify_consistency`, `apply_policy`) |
 | [`python/`](python/) | a pure-Python verifier (`decision_cert`), a port of the crate that passes the same fixtures, the inclusion verifier included |
 | [`fixtures/`](fixtures/) | conformance fixtures: signed certificates with their canonical bytes, ids and expected verdicts, plus `mutations/schema_invalid.json`, schema-invalid certificates a verifier must reject; v1 at the top level, v1.1 in `fixtures/v1.1/`, v1.2 in `fixtures/v1.2/`, v1.3 in `fixtures/v1.3/`, v1.4 in `fixtures/v1.4/`, v1.5 in `fixtures/v1.5/` |
+| [`interop/c2sp/`](interop/c2sp/) | an independent check of the inclusion fixtures' checkpoints with the Go C2SP libraries (CI job `c2sp-interop`) |
 | [`docs/certificates.md`](docs/certificates.md) | how a certificate is issued, verified and applied |
 | [`docs/credit-approval.md`](docs/credit-approval.md) | a profile: one certificate per credit-approval deployment, with the label-free drift alarm and an audit sample for selective labels |
 | [`docs/method.md`](docs/method.md) | the method explained: how the threshold is chosen, what the claim is, what the numbers describe, and the limits |
@@ -105,9 +106,9 @@ pip install decision-cert
 python -m decision_cert verify cert.json --keys trusted-keys.json
 ```
 
-Both CLIs also check the draft inclusion documents against a tenant's log trust configuration,
-printing the same JSON verdict line (exit 0 accepted, 1 refused with the draft's error name, 2
-unreadable or a malformed configuration). The draft is not frozen.
+Both CLIs also check the inclusion documents ([`decision-cert-inclusion.v1`](spec/decision-cert-inclusion.v1.md))
+against a tenant's log trust configuration, printing the same JSON verdict line (exit 0 accepted, 1
+refused with the spec's error name, 2 unreadable or a malformed configuration).
 
 ```bash
 decision-cert verify-bundle bundle.json --trust log-trust.json
@@ -118,7 +119,7 @@ python -m decision_cert verify-bundle bundle.json --trust log-trust.json
 The issuer's side (`certify --leaf-out`, `python -m decision_cert bundle` and `log backfill`), and the
 reference log and witness (`log init`, `append`, `checkpoint`, `prove`, `consistency`, `witness cosign`),
 are in
-[`docs/certificates.md`](docs/certificates.md#recording-it-in-the-tenants-log-draft).
+[`docs/certificates.md`](docs/certificates.md#recording-it-in-the-tenants-log).
 
 Or in Python:
 
