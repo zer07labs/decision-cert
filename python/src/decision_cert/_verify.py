@@ -38,9 +38,17 @@ SPEC_V1_2 = "decision-certificate.v1.2"
 SPEC_V1_3 = "decision-certificate.v1.3"
 #: The `spec` of a v1.4 certificate: v1.3, plus the cost risk `selective_cost`.
 SPEC_V1_4 = "decision-certificate.v1.4"
+#: The `spec` of a v1.5 certificate: v1.4, plus `tenant` and `signer`, signed over bytes that bind
+#: the tenant.
+SPEC_V1_5 = "decision-certificate.v1.5"
 #: Every `spec` this verifier accepts. v1 and v1.1 have the same fields; v1.2 adds some
-#: (`V1_2_FIELDS`), v1.3 more (`V1_3_FIELDS`), v1.4 more again (`V1_4_FIELDS`).
-SPECS = (SPEC, SPEC_V1_1, SPEC_V1_2, SPEC_V1_3, SPEC_V1_4)
+#: (`V1_2_FIELDS`), v1.3 more (`V1_3_FIELDS`), v1.4 more again (`V1_4_FIELDS`), v1.5 more again
+#: (`V1_5_FIELDS`).
+SPECS = (SPEC, SPEC_V1_1, SPEC_V1_2, SPEC_V1_3, SPEC_V1_4, SPEC_V1_5)
+#: The context string a v1.5 signature's bytes start with (spec v1.5 §3).
+CONTEXT_V1_5 = "decision-cert/certificate.v1.5"
+#: The longest `tenant` (spec v1.5 §2).
+MAX_TENANT = 128
 #: The fields a v1.2 or v1.3 certificate has and a v1 or v1.1 certificate must not: top level, and
 #: per segment.
 V1_2_FIELDS = (("confidence_bins", "confidence_histogram"), ("confidence_histogram",))
@@ -53,6 +61,8 @@ V1_4_FIELDS = (
     ("loss_sum", "realized_cost"),
     ("loss_sum", "realized_cost"),
 )
+#: The fields a v1.5 certificate has and an earlier one must not (top level only).
+V1_5_FIELDS = ("tenant", "signer")
 MAX_C = 10**6  # v1.4: the largest c_max
 #: Most bins a `confidence_bins` may define.
 MAX_BINS = 100
@@ -86,6 +96,21 @@ class BadKey(CertError):
 class BadSignature(CertError):
     def __init__(self) -> None:
         super().__init__("certificate signature does not verify")
+
+
+class WrongTenant(CertError):
+    """v1.5 check 1: the certificate's `tenant` is not the tenant the verifier expects."""
+
+    def __init__(self, tenant: str) -> None:
+        super().__init__(f"certificate is for tenant {tenant}, not the expected tenant")
+
+
+class KeyMode(CertError):
+    """v1.5 check 3 (and an earlier certificate under a hosted key): the key's entry does not allow
+    the certificate's signer mode, or its `host` is not the certificate's."""
+
+    def __init__(self, key_id: str) -> None:
+        super().__init__(f"trusted key {key_id} may not sign in this mode")
 
 
 class _TypeError(Exception):
@@ -279,8 +304,10 @@ _certificate = _struct(
         "pvalue": _nullable(_string),
         "loss_sum": _nullable(_u64),
         "realized_cost": _nullable(_f64),
+        "tenant": _string,
+        "signer": _struct("Signer", {"mode": _string, "host": _string}, optional=("host",)),
     },
-    optional=V1_2_FIELDS[0] + V1_3_FIELDS[0] + V1_4_FIELDS[0],
+    optional=V1_2_FIELDS[0] + V1_3_FIELDS[0] + V1_4_FIELDS[0] + V1_5_FIELDS,
 )
 
 
@@ -332,7 +359,7 @@ def _check(c: Mapping[str, Any]) -> None:
     if c["spec"] not in SPECS:
         raise bad(
             "spec is not decision-certificate.v1, decision-certificate.v1.1, decision-certificate.v1.2, "
-            "decision-certificate.v1.3 or decision-certificate.v1.4"
+            "decision-certificate.v1.3, decision-certificate.v1.4 or decision-certificate.v1.5"
         )
     _check_fields_for_spec(c)
     opts = c["options"]
@@ -341,7 +368,8 @@ def _check(c: Mapping[str, Any]) -> None:
     if not all((c["domain"], c["decision"], c["calibration_map"]["kind"], c["issuer"]["tool"], c["issuer"]["version"])):
         raise bad("domain, decision, calibration_map.kind and issuer must be non-empty")
     method, risk, delta, ucb = c["method"], c["risk"], c["delta"], c["ucb"]
-    v14 = c["spec"] == SPEC_V1_4
+    v15 = c["spec"] == SPEC_V1_5
+    v14 = c["spec"] == SPEC_V1_4 or v15
     ltt_risks = ("selective_error", "selective_cost") if v14 else ("selective_error",)
     if not (
         (method == "ltt" and risk in ltt_risks and delta is not None and _open(delta))
@@ -379,8 +407,7 @@ def _check(c: Mapping[str, Any]) -> None:
         raise bad("model_id must be <backend>/<model>@<version>")
     if not _sha256_ok(c["data_hash"]) or (c["manifest_hash"] is not None and not _sha256_ok(c["manifest_hash"])):
         raise bad("data_hash and manifest_hash must be sha256:<64 hex>")
-    kid = c["signer_key_id"]
-    if not (kid.startswith("ed25519:") and len(kid) == 24 and _lower_hex(kid[8:])):
+    if not _key_id_form(c["signer_key_id"]):
         raise bad("signer_key_id must be ed25519:<16 hex>")
     sig = c["signature"]
     if len(sig) != 86 or not set(sig) <= _B64URL:
@@ -390,14 +417,36 @@ def _check(c: Mapping[str, Any]) -> None:
     if c["window"] is not None:
         timestamp(c["window"]["start"])
         timestamp(c["window"]["end"])
-    if c["spec"] in (SPEC_V1_2, SPEC_V1_3, SPEC_V1_4):
+    if c["spec"] in (SPEC_V1_2, SPEC_V1_3, SPEC_V1_4, SPEC_V1_5):
         _check_histograms(c)
         if (msg := _map.check(c["calibration_map"], len(opts))) is not None:
             raise Invalid(msg)
-    if c["spec"] in (SPEC_V1_3, SPEC_V1_4):
+    if c["spec"] in (SPEC_V1_3, SPEC_V1_4, SPEC_V1_5):
         _check_automated(c)
     if v14:
         _check_cost(c)
+    if v15:
+        if not _tenant_ok(c["tenant"]):
+            raise bad(f"tenant must be 1 to {MAX_TENANT} characters of A-Z a-z 0-9 . _ : -")
+        signer = c["signer"]
+        mode, host = signer["mode"], signer.get("host")
+        if not (
+            (mode == "operator" and host is None) or (mode == "hosted" and host is not None and _key_id_form(host))
+        ):
+            raise bad('signer must be {"mode": "operator"} or {"mode": "hosted", "host": "ed25519:<16 hex>"}')
+
+
+_TENANT_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._:-")
+
+
+def _tenant_ok(t: Any) -> bool:
+    """1 to 128 characters of `A-Z a-z 0-9 . _ : -` (spec v1.5 §2)."""
+    return isinstance(t, str) and 1 <= len(t) <= MAX_TENANT and set(t) <= _TENANT_CHARS
+
+
+def _key_id_form(s: str) -> bool:
+    """`ed25519:` and 16 lowercase hex characters: a key id's form."""
+    return s.startswith("ed25519:") and len(s) == 24 and _lower_hex(s[8:])
 
 
 def _check_fields_for_spec(c: Mapping[str, Any]) -> None:
@@ -405,10 +454,12 @@ def _check_fields_for_spec(c: Mapping[str, Any]) -> None:
     earlier certificate none of them, at the top level and in every segment. A certificate whose
     fields belong to another spec is refused as a spec it is not, so a v1.1-shaped certificate naming
     v1.2, or a v1.2-shaped one naming v1.3, is still refused as an unknown spec."""
-    v14 = c["spec"] == SPEC_V1_4
+    v15 = c["spec"] == SPEC_V1_5
+    v14 = c["spec"] == SPEC_V1_4 or v15
     v13 = c["spec"] == SPEC_V1_3 or v14
     v12 = c["spec"] == SPEC_V1_2 or v13
     top = [(f, v12) for f in V1_2_FIELDS[0]] + [(f, v13) for f in V1_3_FIELDS[0]] + [(f, v14) for f in V1_4_FIELDS[0]]
+    top += [(f, v15) for f in V1_5_FIELDS]
     per_segment = (
         [(f, v12) for f in V1_2_FIELDS[1]] + [(f, v13) for f in V1_3_FIELDS[1]] + [(f, v14) for f in V1_4_FIELDS[1]]
     )
@@ -701,6 +752,18 @@ class Verified:
         (spec v1.4 §4), and reports the bound as `alpha * c_max` in `unit`."""
         return self._typed.get("cost")
 
+    def tenant(self) -> str | None:
+        """A v1.5 certificate's tenant (equal to the expected tenant it was verified with); None before
+        v1.5."""
+        t = self._typed.get("tenant")
+        return None if t is None else str(t)
+
+    def signer(self) -> Mapping[str, Any] | None:
+        """Who signed a v1.5 certificate, `{"mode": "operator"}` or `{"mode": "hosted", "host": ...}`;
+        None before v1.5."""
+        signer: Mapping[str, Any] | None = self._typed.get("signer")
+        return signer
+
     def probabilities(self, scores: Sequence[float]) -> tuple[float, ...] | None:
         """The probabilities the certificate's calibration map gives a case's raw scores, one per
         option (spec v1.2 §1, `decision_cert.probabilities`). None when the map's kind is not one
@@ -708,7 +771,7 @@ class Verified:
         have one score per option, or the map is `dr` in a certificate before v1.2, which did not
         define it. A consumer refuses a certificate whose map it does not apply (spec v1.2 §4)."""
         m = self._typed["calibration_map"]
-        if m["kind"] != "temperature" and self._typed["spec"] not in (SPEC_V1_2, SPEC_V1_3, SPEC_V1_4):
+        if m["kind"] != "temperature" and self._typed["spec"] not in (SPEC_V1_2, SPEC_V1_3, SPEC_V1_4, SPEC_V1_5):
             return None
         if len(scores) != len(self._typed["options"]):
             return None
@@ -729,33 +792,140 @@ class Verified:
         return None if t is None else float(t)
 
 
-def verify(v: Any, keys: Mapping[str, str]) -> Verified:
-    """Verify `v` (a parsed JSON value) against `keys` (key id → base64url raw public key) and read it.
-
-    Raises `Invalid`, `UntrustedKey`, `BadKey` or `BadSignature`, in that order of checking.
-    """
+def _read(v: Any) -> Mapping[str, Any]:
+    """The typed, checked certificate."""
     if not isinstance(v, Mapping):
         raise Invalid("not a JSON object")
     try:
-        typed = _certificate(v)
+        typed: Mapping[str, Any] = _certificate(v)
     except _TypeError as e:
         raise Invalid(str(e)) from None
     _check(typed)
+    return typed
 
-    kid = typed["signer_key_id"]
-    if kid not in keys:
-        raise UntrustedKey(kid)
-    raw = b64url_decode(keys[kid])
+
+def _public_key(raw_b64: Any, kid: str) -> bytes:
+    """A trusted key's raw public key, which must hash to `kid`."""
+    raw = b64url_decode(raw_b64)
     if raw is None or len(raw) != 32 or _ed25519.decode(raw) is None or key_id(raw) != kid:
         raise BadKey(kid)
+    return raw
+
+
+def _bare_body(v: Mapping[str, Any]) -> bytes:
+    return canonical({k: x for k, x in v.items() if k != "signature"})
+
+
+def _check_signature(raw: bytes, typed: Mapping[str, Any], msg: bytes) -> None:
     sig = b64url_decode(typed["signature"])
     if sig is None or len(sig) != 64:
         raise BadSignature()
-    body = {k: x for k, x in v.items() if k != "signature"}
-    if not _verify_strict(raw, sig, canonical(body)):
+    if not _verify_strict(raw, sig, msg):
         raise BadSignature()
 
+
+def _verified(v: Mapping[str, Any], typed: Mapping[str, Any]) -> Verified:
     return Verified(id=certificate_id(v), cert=v, expires_at=timestamp(typed["expires_at"]), _typed=typed)
+
+
+def signed_bytes_v1_5(tenant: str, body_jcs: bytes) -> bytes:
+    """The bytes a v1.5 signature covers: `"decision-cert/certificate.v1.5" 0x0A tenant 0x0A JCS(body)`,
+    the body being the certificate without `signature` (spec v1.5 §3)."""
+    return f"{CONTEXT_V1_5}\n{tenant}\n".encode() + body_jcs
+
+
+def verify(v: Any, keys: Mapping[str, str]) -> Verified:
+    """Verify `v` (a parsed JSON value) against `keys` (key id → base64url raw public key) and read it.
+
+    For v1 to v1.4. A v1.5 certificate binds a tenant, so it is refused here; verify it with the tenant
+    the consumer expects, `verify_for_tenant`.
+
+    Raises `Invalid`, `UntrustedKey`, `BadKey` or `BadSignature`, in that order of checking.
+    """
+    typed = _read(v)
+    if typed["spec"] == SPEC_V1_5:
+        raise Invalid("a v1.5 certificate is verified with its expected tenant (verify_for_tenant)")
+    kid = typed["signer_key_id"]
+    if kid not in keys:
+        raise UntrustedKey(kid)
+    raw = _public_key(keys[kid], kid)
+    _check_signature(raw, typed, _bare_body(v))
+    return _verified(v, typed)
+
+
+@dataclass(frozen=True)
+class TrustedKey:
+    """A trusted certificate-signing key of one tenant: the base64url raw Ed25519 public key, and the
+    mode it may sign in, `operator` or `hosted` by the hosting service whose own key id is `host`."""
+
+    key: str
+    mode: str = "operator"
+    host: str | None = None
+
+
+def tenant_keys_from_json(v: Any) -> dict[str, TrustedKey]:
+    """A tenant's trusted keys from a JSON object of key id → entry. An entry is a bare base64url string
+    (an `operator` key, as in a v1 to v1.4 key map), `{"key": ..., "mode": "operator"}`, or
+    `{"key": ..., "mode": "hosted", "host": "ed25519:<16 lowercase hex>"}` (spec v1.5 §4). Any other
+    entry, an unknown field, or a `host` not in that form raises `BadKey`. The key is checked against
+    its id when a certificate is verified, as in `verify`."""
+    if not isinstance(v, Mapping):
+        raise Invalid("trusted keys are not a JSON object of key id -> key entry")
+    out: dict[str, TrustedKey] = {}
+    for kid, entry in sorted(v.items()):
+        if isinstance(entry, str):
+            out[kid] = TrustedKey(entry)
+            continue
+        if not isinstance(entry, Mapping) or not set(entry) <= {"key", "mode", "host"}:
+            raise BadKey(kid)
+        key, mode, host = entry.get("key"), entry.get("mode"), entry.get("host", None)
+        if not isinstance(key, str):
+            raise BadKey(kid)
+        if mode == "operator" and "host" not in entry:
+            out[kid] = TrustedKey(key)
+        elif mode == "hosted" and isinstance(host, str) and _key_id_form(host):
+            out[kid] = TrustedKey(key, "hosted", host)
+        else:
+            raise BadKey(kid)
+    return out
+
+
+def verify_for_tenant(v: Any, tenant: str, keys: Mapping[str, TrustedKey]) -> Verified:
+    """Verify `v` for the tenant the consumer expects, against that tenant's moded keys
+    (`tenant_keys_from_json`), and read it (spec v1.5 §4).
+
+    A v1.5 certificate: its `tenant` equals `tenant` (check 1, `WrongTenant`); its key is in `keys` and
+    hashes to its id (check 2, `UntrustedKey`, `BadKey`); the key's entry allows the certificate's signer
+    mode, a hosted entry with the certificate's `host` (check 3, `KeyMode`); and the signature verifies
+    strictly over the v1.5 signed bytes built with the expected `tenant` (check 4, `BadSignature`). A v1
+    to v1.4 certificate binds no tenant: it verifies as with `verify`, and only under an `operator` entry.
+    """
+    if not _tenant_ok(tenant):
+        raise Invalid(f"the expected tenant must be 1 to {MAX_TENANT} characters of A-Z a-z 0-9 . _ : -")
+    typed = _read(v)
+    kid = typed["signer_key_id"]
+    if typed["spec"] != SPEC_V1_5:
+        if kid not in keys:
+            raise UntrustedKey(kid)
+        raw = _public_key(keys[kid].key, kid)
+        if keys[kid].mode != "operator":
+            raise KeyMode(kid)
+        _check_signature(raw, typed, _bare_body(v))
+        return _verified(v, typed)
+    if typed["tenant"] != tenant:
+        raise WrongTenant(typed["tenant"])
+    if kid not in keys:
+        raise UntrustedKey(kid)
+    entry = keys[kid]
+    raw = _public_key(entry.key, kid)
+    signer = typed["signer"]
+    allowed = (entry.mode == "operator" and signer["mode"] == "operator") or (
+        entry.mode == "hosted" and signer["mode"] == "hosted" and signer.get("host") == entry.host
+    )
+    if not allowed:
+        raise KeyMode(kid)
+    _check_signature(raw, typed, signed_bytes_v1_5(tenant, _bare_body(v)))
+    return _verified(v, typed)
 
 
 def is_expired(cert: Verified, now: dt.datetime) -> bool:
