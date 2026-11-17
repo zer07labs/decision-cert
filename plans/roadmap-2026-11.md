@@ -123,6 +123,14 @@ cost of the answered cases ([design](../spec/drafts/cost-weighted-abstention.md)
 [study](../spec/drafts/cost-study.md)). Both were frozen on 2026-11-12 (founder go) and ship in 0.5.0; v1 to v1.2
 and their fixtures are unchanged, and issuers still write v1.2 unless asked.
 
+## Phase 7 — spec v1.5
+
+v1.5 adds to v1.4 the `tenant` a certificate is issued for and the `signer` (the tenant itself, or a hosting
+service that names its own key id), and binds the tenant into the signed bytes, so a verifier checks a certificate
+for the tenant it expects ([spec](../spec/decision-certificate.v1.5.md), [draft and the owner's
+answers](../spec/drafts/decision-certificate.v1.5.md)). Frozen on 2026-11-17 (owner go) and ships in 0.6.0; v1 to
+v1.4 and their fixtures are unchanged, and issuers still write v1.2 unless asked.
+
 ## v1.3 draft items (design only)
 
 [`spec/drafts/decision-certificate.v1.3.md`](../spec/drafts/decision-certificate.v1.3.md) collects

@@ -66,7 +66,7 @@ from ._verify import (
     verify_for_tenant,
 )
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 __all__ = [
     "ABSTAIN_ALL",
