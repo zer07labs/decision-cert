@@ -98,8 +98,9 @@ A draft at `spec/drafts/decision-cert-inclusion.v1.md` with a draft schema
    certificate that its `tenant` equals the leaf's and the expected tenant; that `log_id` is one of the
    expected tenant's logs; the audit path from the leaf hash at `leaf_index` to the checkpoint's root;
    the log's signature; at least `m` cosignatures from distinct trusted witnesses (untrusted ones are
-   ignored, a witness counts once). The verdict reports `t_proven`, the earliest cosignature time among
-   the trusted witnesses counted, for K1's compromise rule.
+   ignored; a checkpoint with two lines from one key is refused as malformed). The verdict reports
+   `t_proven`, the `m`-th earliest cosignature time among the trusted witnesses counted, for K1's
+   compromise rule.
 
 **Done when** the draft and its schema are merged, every member above has a stated form and every
 check a stated refusal, and the draft lists its open questions (none expected beyond the ones below).
@@ -154,7 +155,8 @@ a backfilled certificate.
 - the checkpoint's log signature wrong; signed by a log key the tenant does not trust; origin not the
   bundle's `log_id`; a malformed note (missing final newline, extra line, non-canonical base64);
 - too few cosignatures for `m`; a cosignature from an untrusted witness (ignored, then short of `m`);
-  one witness's cosignature twice (counted once); a cosignature over another checkpoint;
+  one witness's cosignature twice (refused: two lines from one key, `checkpoint_form`); a
+  cosignature over another checkpoint;
 - a consistency proof that does not extend the older checkpoint; a newer size smaller than the older;
   two checkpoints of one size with different roots (a split view);
 - a leaf for another certificate (`certificate_id` mismatch); a leaf whose `signer_key_id`, `spec` or

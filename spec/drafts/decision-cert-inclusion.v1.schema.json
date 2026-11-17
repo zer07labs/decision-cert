@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/zer07labs/decision-cert/spec/drafts/decision-cert-inclusion.v1.schema.json",
+  "title": "decision-cert-inclusion.v1 (draft)",
+  "description": "Draft. See decision-cert-inclusion.v1.md. One schema for the three documents it defines, told apart by spec: the bundle (decision-cert-inclusion.v1), the consistency proof document (decision-cert-consistency.v1) and the log trust configuration (decision-cert-log-trust.v1); the leaves are in $defs. Unknown members are rejected. Verifiers also check what a schema cannot express: I-JSON (no duplicate member names, integers written without fraction or exponent); times name real calendar dates; base64 decodes canonically; certificate is present exactly when leaf.kind is certificate; the certificate leaf's members equal the certificate's, and tenant is present exactly for a v1.5 certificate; a checkpoint is a well-formed C2SP signed note of exactly three text lines with 1 to 100 signature lines, no two with the same key name and key ID (§5.1); key ids hash from their keys, no log id, log key, witness name or witness key repeats, no witness key is a log key, and m is at most the number of witnesses (§9); and every check of §10.",
+  "oneOf": [
+    { "$ref": "#/$defs/bundle" },
+    { "$ref": "#/$defs/consistency" },
+    { "$ref": "#/$defs/log_trust" }
+  ],
+  "$defs": {
+    "uint53": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "doc_hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "key_id": {
+      "type": "string",
+      "pattern": "^ed25519:[0-9a-f]{16}$"
+    },
+    "public_key": {
+      "description": "Ed25519 public key, base64url without padding (32 bytes).",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$"
+    },
+    "log_id": {
+      "type": "string",
+      "pattern": "^log:[0-9a-f]{32}$"
+    },
+    "tenant": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+    },
+    "time": {
+      "type": "string",
+      "pattern": "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])T([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\dZ$"
+    },
+    "c2sp_name": {
+      "description": "A C2SP key name or cosigner name: 1 to 255 printable ASCII characters other than '+'.",
+      "type": "string",
+      "pattern": "^[!-*,-~]{1,255}$"
+    },
+    "node_hash": {
+      "description": "A 32-byte node hash in canonical standard base64 with padding, the checkpoint's encoding.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$"
+    },
+    "path": {
+      "type": "array",
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/node_hash" }
+    },
+    "checkpoint": {
+      "description": "The full C2SP signed-note text of a checkpoint (§5.1): origin, tree size, root hash, a blank line, then 1 to 100 signature lines, each ending in a newline.",
+      "type": "string",
+      "pattern": "^log:[0-9a-f]{32}\\n(0|[1-9][0-9]{0,19})\\n[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=\\n\\n(— [!-*,-~]{1,255} [A-Za-z0-9+/]+={0,2}\\n){1,100}$"
+    },
+    "leaf_certificate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "certificate_id", "signer_key_id", "spec", "fitted_at"],
+      "properties": {
+        "kind": { "const": "certificate" },
+        "certificate_id": { "$ref": "#/$defs/doc_hash" },
+        "signer_key_id": { "$ref": "#/$defs/key_id" },
+        "spec": {
+          "enum": [
+            "decision-certificate.v1",
+            "decision-certificate.v1.1",
+            "decision-certificate.v1.2",
+            "decision-certificate.v1.3",
+            "decision-certificate.v1.4",
+            "decision-certificate.v1.5"
+          ]
+        },
+        "fitted_at": { "$ref": "#/$defs/time" },
+        "tenant": { "$ref": "#/$defs/tenant" }
+      },
+      "if": {
+        "properties": { "spec": { "const": "decision-certificate.v1.5" } }
+      },
+      "then": { "required": ["tenant"] },
+      "else": { "not": { "required": ["tenant"] } }
+    },
+    "leaf_ledger_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "ledger_id", "seq", "entry"],
+      "properties": {
+        "kind": { "const": "ledger_entry" },
+        "ledger_id": { "type": "string", "pattern": "^ledger:[0-9a-f]{32}$" },
+        "seq": { "$ref": "#/$defs/uint53" },
+        "entry": { "$ref": "#/$defs/doc_hash" }
+      }
+    },
+    "leaf_keyset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "keyset_id", "seq", "keyset"],
+      "properties": {
+        "kind": { "const": "keyset" },
+        "keyset_id": { "type": "string", "pattern": "^keyset:[0-9a-f]{32}$" },
+        "seq": { "$ref": "#/$defs/uint53" },
+        "keyset": { "$ref": "#/$defs/doc_hash" }
+      }
+    },
+    "leaf_attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "attestation", "certificate_id"],
+      "properties": {
+        "kind": { "const": "attestation" },
+        "attestation": { "$ref": "#/$defs/doc_hash" },
+        "certificate_id": { "$ref": "#/$defs/doc_hash" }
+      }
+    },
+    "leaf_audit_head": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "tenant", "chain", "seq", "digest", "observed_at"],
+      "properties": {
+        "kind": { "const": "audit_head" },
+        "tenant": { "$ref": "#/$defs/tenant" },
+        "chain": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,128}$" },
+        "seq": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "digest": { "$ref": "#/$defs/doc_hash" },
+        "observed_at": { "$ref": "#/$defs/time" }
+      }
+    },
+    "leaf": {
+      "oneOf": [
+        { "$ref": "#/$defs/leaf_certificate" },
+        { "$ref": "#/$defs/leaf_ledger_entry" },
+        { "$ref": "#/$defs/leaf_keyset" },
+        { "$ref": "#/$defs/leaf_attestation" },
+        { "$ref": "#/$defs/leaf_audit_head" }
+      ]
+    },
+    "bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spec", "log_id", "leaf_index", "leaf", "proof", "checkpoint"],
+      "properties": {
+        "spec": { "const": "decision-cert-inclusion.v1" },
+        "log_id": { "$ref": "#/$defs/log_id" },
+        "leaf_index": { "$ref": "#/$defs/uint53" },
+        "leaf": { "$ref": "#/$defs/leaf" },
+        "proof": { "$ref": "#/$defs/path" },
+        "checkpoint": { "$ref": "#/$defs/checkpoint" },
+        "certificate": {
+          "description": "The certificate as issued; verified under its own spec and schema.",
+          "type": "object"
+        }
+      },
+      "if": {
+        "properties": { "leaf": { "properties": { "kind": { "const": "certificate" } } } }
+      },
+      "then": { "required": ["certificate"] },
+      "else": { "not": { "required": ["certificate"] } }
+    },
+    "consistency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spec", "log_id", "older", "newer", "proof"],
+      "properties": {
+        "spec": { "const": "decision-cert-consistency.v1" },
+        "log_id": { "$ref": "#/$defs/log_id" },
+        "older": { "$ref": "#/$defs/checkpoint" },
+        "newer": { "$ref": "#/$defs/checkpoint" },
+        "proof": { "$ref": "#/$defs/path" }
+      }
+    },
+    "log_trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spec", "tenant", "logs", "witnesses"],
+      "properties": {
+        "spec": { "const": "decision-cert-log-trust.v1" },
+        "tenant": { "$ref": "#/$defs/tenant" },
+        "logs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["log_id", "key_name", "key_id", "key"],
+            "properties": {
+              "log_id": { "$ref": "#/$defs/log_id" },
+              "key_name": { "$ref": "#/$defs/c2sp_name" },
+              "key_id": { "$ref": "#/$defs/key_id" },
+              "key": { "$ref": "#/$defs/public_key" }
+            }
+          }
+        },
+        "witnesses": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "key_id", "key"],
+            "properties": {
+              "name": { "$ref": "#/$defs/c2sp_name" },
+              "key_id": { "$ref": "#/$defs/key_id" },
+              "key": { "$ref": "#/$defs/public_key" }
+            }
+          }
+        },
+        "m": { "type": "integer", "minimum": 1, "default": 1 },
+        "policy": { "enum": ["off", "warn", "refuse"], "default": "warn" }
+      }
+    }
+  }
+}
