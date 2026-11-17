@@ -53,6 +53,18 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
   cases (22 new); the existing documents are byte-identical, and the expected verdicts of certificate
   leaves gain `"backfilled": false, "backfilled_by": []`.
 
+- **Inclusion v1 (draft): the reference log and witness** (Phase 5): file-based, one tenant per log,
+  in the C2SP `tlog-tiles` layout. `python -m decision_cert log init`, `info`, `append`, `checkpoint`,
+  `prove` and `consistency` (beside `log backfill`), and `witness init` and `cosign`. `log append` keeps
+  each record's `backfilled` mark in the log's own records and refuses another tenant's leaves; the
+  first append sets the log's `started_at`, which `log info` prints in a ready trust entry; `log
+  checkpoint` signs on the cadence (hourly by default); `log prove` exits 3 until a checkpoint includes
+  the leaf; `witness cosign` refuses `size_regression`, `split_view` and a larger tree without a
+  consistency path. Python API: `FileLog`, `FileWitness`, `LogError`, `NotIncludedYet`,
+  `log_signature_line`, `cosignature_line`, `trust_config`. No new dependency. The inclusion generator
+  builds acme-bank's log through `FileLog`; every fixture is byte-identical. CI runs the end-to-end test
+  (init to verify in both CLIs, consistency, a forked log refused) as its own step in the `python` job.
+
 ## 0.6.0 — unreleased (tag `v0.6.0` on the merge commit)
 
 Spec v1.5: frozen, verified, issued. Verifiers accept v1 to v1.5; v1 to v1.4 certificates, fixtures and

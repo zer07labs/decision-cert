@@ -38,6 +38,7 @@ PyPI, both `decision-cert`) or a git revision. It holds no data and never calls 
 | `cd python && uv run python tools/gen_positive_fixtures.py` | regenerate the reference issuer's fixtures (then the negatives, for the manifest) |
 | `cd python && uv run python tools/gen_negative_fixtures.py` | regenerate the negative fixtures and `fixtures/FIXTURES.sha256` |
 | `cd python && uv run python tools/gen_inclusion_fixtures.py` | regenerate `fixtures/inclusion-v1/` (trees, bundles, consistency documents, trust configurations, `manifest.json`, `INCLUSION.sha256`) from fixed seeds |
+| `cd python && uv run python -m decision_cert log init\|append\|checkpoint\|prove\|consistency\|info` / `witness init\|cosign` | the reference log and witness (draft inclusion v1, file-based, one tenant per log); see `docs/certificates.md` |
 | `cd python && uv run python tools/gen_demos.py` | rewrite `demo/example/` and `demo/DEMOS.sha256` |
 | `cd python && uv run python -m decision_cert verify-pack <pack> [--keys <keys>]` | verify an evidence pack ([`docs/evidence-pack.md`](docs/evidence-pack.md)) |
 | `cd python && uv run python tools/gen_pack_fixtures.py` | regenerate the evidence-pack fixtures in `python/tests/packs/` from the committed `issued/` certificates (`--issue` re-issues them; never hand-edit) |
