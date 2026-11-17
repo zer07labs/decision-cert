@@ -1,8 +1,8 @@
 > **Draft, not frozen.** Phase 1 of the build plan
 > [`plans/transparency-log-2026-11.md`](../../plans/transparency-log-2026-11.md), on the design
 > [`docs/design/transparency-log.md`](../../docs/design/transparency-log.md) and the owner's decisions
-> of 2026-11-17 ([Decision log](#decision-log)). Nothing here is implemented yet, and the text may
-> change until the owner approves the freeze, when it moves to `spec/decision-cert-inclusion.v1.md`
+> of 2026-11-17 ([Decision log](#decision-log)). The Rust verifier (`decision_cert::inclusion`) implements
+> it; the Python verifier, fixtures, issuer tooling and reference log follow. The text may change until the owner approves the freeze, when it moves to `spec/decision-cert-inclusion.v1.md`
 > (plan, Phase 6). The certificate specs v1 to v1.5 are frozen and unchanged by it.
 
 # Decision certificate inclusion, v1 (draft): a tenant's transparency log
@@ -45,7 +45,8 @@ described in BCP 14 ([RFC 2119](https://www.rfc-editor.org/rfc/rfc2119),
   A 32-byte hash is therefore exactly 44 characters, the 43rd one of `AEIMQUYcgkosw048`, and the
   44th `=`. **base64url** is RFC 4648 §5 without padding, as public keys are written today.
 - **Times** in JSON are UTC in the strict form `YYYY-MM-DDTHH:MM:SSZ`, as `fitted_at` is, naming a
-  real calendar date with hours 00 to 23, minutes 00 to 59 and seconds 00 to 59.
+  real calendar date with hours 00 to 23, minutes 00 to 59 and seconds 00 to 59. A time with seconds
+  `60` (a leap second) is out of this form and refused: in a leaf, as `leaf_form`.
 - **Ed25519** signatures are [RFC 8032](https://www.rfc-editor.org/rfc/rfc8032) signatures, verified
   strictly as certificates are (spec v1.2 §3): a verifier also rejects a small-order public key, a
   small-order `R`, and `S` at or above the group order.
@@ -202,7 +203,9 @@ c2sp.org/signed-note@v1.1.0). In this version its form is fixed exactly:
 ```
 
 - **Note text.** Exactly three lines, each ending in a newline (U+000A):
-  1. the **origin**, which MUST be the log's `log_id`;
+  1. the **origin**, a non-empty line, which MUST be the log's `log_id`. Its value is not part of the
+     note's form: an origin other than the document's `log_id` is `origin_mismatch` (§10, check 8),
+     not `checkpoint_form`;
   2. the **tree size**, the number of leaves, in ASCII decimal with no leading zeros, at least 1 and
      at most 2^64 − 1;
   3. the **root hash**, the base64 of the tree's 32-byte root (§4).
@@ -220,7 +223,10 @@ c2sp.org/signed-note@v1.1.0). In this version its form is fixed exactly:
   a witness's or the log's, is refused, however many of them verify.
 
 A verifier refuses a checkpoint that breaks any rule of this section as `checkpoint_form`, whether or
-not the broken line belongs to a trusted key.
+not the broken line belongs to a trusted key. A malformed checkpoint is always `checkpoint_form` (§10,
+check 7), never `bundle_form`: the bundle's form check (check 2) and the consistency document's (§7.2)
+require only that a checkpoint member is a JSON string, and every rule of this section is checked at
+check 7.
 
 ### 5.2 The log's signature
 
@@ -305,8 +311,12 @@ A verifier checks it with the algorithm of RFC 9162 §2.1.3.2, with `hash` = `le
    3. right-shift `fn` and `sn` once.
 4. Succeed only if `sn` = 0 and `r` equals `root_hash`.
 
-A path for another index, for another tree size, or one hash short or long fails this check
-(`bad_proof`).
+A path for another index, or one hash short or long, fails this check (`bad_proof`), and so does a
+path checked against another tree's root. The algorithm does not bind the tree size on its own: a path
+can verify for another tree size when that size's root is the same value (the leftmost leaf's path in
+trees of 3 and 4 leaves, against one root, is an example). This is not a gap: the size and the root are
+both lines of the signed checkpoint (§5.1), so a verifier checks a path only against a size and root
+the log signed together, and a different size comes with its own root.
 
 ## 7. The consistency proof
 
@@ -351,8 +361,10 @@ A verifier, given the expected tenant's configuration (§9), checks in order: th
 (`consistency_form`); that `log_id` is one of the expected tenant's logs (`unknown_log`); each
 checkpoint's form (`checkpoint_form`) and origin (`origin_mismatch`); each checkpoint's log signature
 under that log's key (`log_signature_missing`, `bad_log_signature`); then the sizes and the path
-(`size_regression`, `split_view`, `bad_consistency_proof`). It does not require cosignatures: a witness
-checks a consistency proof to a checkpoint it has not yet cosigned. Its verdict names `log_id` and the
+(`size_regression`, `split_view`, `bad_consistency_proof`). It does not require cosignatures, and it
+does not check witness lines (a witness checks a consistency proof to a checkpoint it has not yet
+cosigned): a line that matches a trusted witness is ignored there, whether or not it verifies. Only the
+log's lines, and the form of every line (§5.1), are checked. Its verdict names `log_id` and the
 two sizes.
 
 ## 8. The bundle
@@ -442,7 +454,7 @@ order, and refuses at the first failure with that check's error name:
 | # | Check | Error |
 |---|---|---|
 | 1 | The configuration is well formed (§9) | `trust_form` |
-| 2 | The bundle is well formed: I-JSON, `spec` is `decision-cert-inclusion.v1`, exactly the members of §8 in their forms, and `certificate` present if and only if `leaf.kind` is `certificate` | `bundle_form` |
+| 2 | The bundle is well formed: I-JSON, `spec` is `decision-cert-inclusion.v1`, exactly the members of §8 in their forms (`leaf` a JSON object and `checkpoint` a JSON string, their contents checked at checks 3 and 7), and `certificate` present if and only if `leaf.kind` is `certificate`: a `certificate` beside a leaf of another kind, an unknown kind or no `kind` is refused here | `bundle_form` |
 | 3 | The leaf is well formed (§3) | `leaf_form` |
 | 4 | For a `certificate` leaf: `certificate_id` is the bundle certificate's document hash, and `signer_key_id`, `spec`, `fitted_at` (and for v1.5 `tenant`) equal the certificate's | `leaf_mismatch` |
 | 5 | For a v1.5 `certificate` leaf, and for an `audit_head` leaf: the leaf's `tenant` (equal, by check 4, to a v1.5 certificate's) equals the configuration's `tenant` | `tenant_mismatch` |
@@ -463,7 +475,8 @@ the bundle certificate's id equals that certificate's id; otherwise it refuses t
 
 **The verdict.** On success the verdict reports: `log_id`; the checkpoint's tree size and root hash;
 `leaf_index` and the leaf's `kind`; for a certificate leaf, `certificate_id`; the counted witnesses, each
-with its name, key id and cosignature time; and **`t_proven`**, as a time (§0).
+with its name, key id and cosignature time, listed in ascending order of cosignature time and, for equal
+times, of name (ASCII order); and **`t_proven`**, as a time (§0).
 
 **`t_proven`** is the `m`-th earliest cosignature time among the counted witnesses: sort their times
 in ascending order and take the `m`-th (counting from 1). It is the earliest time by which `m`
@@ -484,6 +497,10 @@ The configuration's `policy` says what a consumer does when it loads a certifica
 | `off` | load; no inclusion check | not checked; load | not checked; load |
 | `warn` (default) | load, with a warning `inclusion_missing` naming `certificate_id` | load, with the verdict | **refuse**, with the failing check's error |
 | `refuse` | **refuse**: `inclusion_missing` | load, with the verdict | **refuse**, with the failing check's error |
+
+The "no bundle" rows are a consumer's library policy (`apply_policy` in the reference verifiers): a
+command that checks a bundle, such as `verify-bundle`, is always given one, and reports that bundle's
+verdict.
 
 `warn` covers a **missing** bundle only. A bundle that is present but fails is refused under `warn`
 and `refuse` alike. Under `off`, the consumer does not look at bundles. In every row the certificate
@@ -565,6 +582,7 @@ Implementations name their errors as they choose, and map each to one of these n
 | 2026-11-17 | `t_proven` | Maintainers: `t_proven` is the `m`-th earliest cosignature time among the counted witnesses, not the earliest, so that `m` witnesses, not one, set it; it is the earliest at `m` = 1 (§10). The verdict also reports every counted witness's time. |
 | 2026-11-17 | duplicate lines | Maintainers: a checkpoint with two or more signature lines with the same key name and key ID (one witness's key, or the log's) is refused as `checkpoint_form`, as c2sp.org/tlog-checkpoint@v1.1.0 requires, rather than counting the witness once (§5.1, §5.4). |
 | 2026-11-17 | schema | Maintainers: one draft schema file covering the bundle, the leaves, the consistency proof document and the trust configuration, moving to `spec/` with this text at the freeze. |
+| 2026-11-17 | clarifications | Maintainers: clarifications from the reference verifier (the Rust crate), with no change of meaning: (1) a malformed checkpoint is `checkpoint_form` at check 7, never `bundle_form`; check 2 and §7.2 take a checkpoint as a string, and an origin other than `log_id` is `origin_mismatch` (§5.1, §10; the schema's checkpoint pattern is dropped to match); (2) a `certificate` beside a non-certificate or unknown leaf kind is `bundle_form` at check 2; (3) witness lines in a consistency proof document are not checked (§7.2); (4) the verdict lists counted witnesses by cosignature time, then name (§10); (5) §6 states that a path can verify for another size with the same root, and why the signed checkpoint makes that no gap; (6) leaf times with seconds `60` are refused (§0). Also: the "no bundle" policy rows are a library policy; `verify-bundle` always takes a bundle (§11). |
 
 ## Open questions
 
