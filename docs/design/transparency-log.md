@@ -156,15 +156,15 @@ log. Seeing what else is in it is the auditor's job, inside the tenant's scope.
 |---|---|---|
 | Leaves, certificates, ledger entries, attestations | Nobody outside the tenant, except the auditor the tenant exports to | — |
 | Inclusion proofs | Whoever the tenant gives the certificate to | The proof's node hashes reveal nothing about other leaves without those leaves. |
-| Checkpoints (log id, size, root hash) | The tenant's witnesses | The number of leaves, so roughly how active the tenant's issuance is. No certificate, id or name. |
-| Blind anchors (optional, owner decision) | A public log | Nothing: a hiding commitment (below). |
+| Checkpoints (log id, size, root hash) | The tenant's witnesses | The number of leaves, so roughly how active the tenant's issuance is. No certificate, id or name. The log does not pad it (owner, 2026-11-17). |
+| Blind anchors (not now, owner 2026-11-17) | A public log | Nothing: a hiding commitment (below). |
 
 **The optional blind anchor.** To gain public ordering without a public view, the tenant could
 publish only `sha256(nonce ‖ checkpoint)`, with a fresh 32-byte nonce kept in its scope, to a public
 log. Nobody without the nonce learns anything from it, and fresh nonces make anchors unlinkable to
 each other. Only the tenant's auditor, given the nonce, can check it. It adds little over honest
-witnesses, and it is still a public artefact whose timing is visible. **Off unless the owner
-decides otherwise.**
+witnesses, and it is still a public artefact whose timing is visible. **Not now** (owner,
+2026-11-17): no anchors are published; the design is kept for a later decision.
 
 ## Composition with frozen certificates
 
@@ -200,13 +200,11 @@ decides otherwise.**
 - **Q6. Checkpoint cadence?** Hourly by default, configurable.
 - **Q7. Old certificates?** Backfilled into the tenant's log when it starts, with no early time
   evidence for them.
+- **Q2. Blind anchors under tenant-only?** Not now.
+- **Q3. Tree size: is the number of leaves a witness sees acceptable, or should the log pad it?**
+  Acceptable; no padding.
 
 These answers record design choices only. No code and no spec freeze are approved.
-
-## Open questions
-
-- **Q2. Blind anchors.** Allowed under tenant-only, or not (recommended: not now)?
-- **Q3. Tree size.** Is the number of leaves a witness sees acceptable, or should the log pad it?
 
 ## What an implementation would touch
 
