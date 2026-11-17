@@ -1,6 +1,6 @@
 # Decision certificate inclusion, v1: a tenant's transparency log
 
-Status: **frozen on owner approval (pending)**.
+Status: **frozen** (2026-11-17).
 
 This document was drafted as Phase 1 of the build plan
 [`plans/transparency-log-2026-11.md`](../plans/transparency-log-2026-11.md), on the design
@@ -636,7 +636,7 @@ Implementations name their errors as they choose, and map each to one of these n
 | 2026-11-17 | schema | Maintainers: one draft schema file covering the bundle, the leaves, the consistency proof document and the trust configuration, moving to `spec/` with this text at the freeze. |
 | 2026-11-17 | clarifications | Maintainers: clarifications from the reference verifier (the Rust crate), with no change of meaning: (1) a malformed checkpoint is `checkpoint_form` at check 7, never `bundle_form`; check 2 and §7.2 take a checkpoint as a string, and an origin other than `log_id` is `origin_mismatch` (§5.1, §10; the schema's checkpoint pattern is dropped to match); (2) a `certificate` beside a non-certificate or unknown leaf kind is `bundle_form` at check 2; (3) witness lines in a consistency proof document are not checked (§7.2); (4) the verdict lists counted witnesses by cosignature time, then name (§10); (5) §6 states that a path can verify for another size with the same root, and why the signed checkpoint makes that no gap; (6) leaf times with seconds `60` are refused (§0). Also: the "no bundle" policy rows are a library policy; `verify-bundle` always takes a bundle (§11). |
 | 2026-11-17 | backfilled mark | Owner: backfilled certificates are added **marked as backfilled**: a reader must see plainly that a certificate was backfilled, beyond the absence of early time evidence. Constraint: the leaf stays byte-identical, with no new leaf member, so every leaf and leaf hash is unchanged. Maintainers' design: the bundle's OPTIONAL `backfilled: true` (the bundler's statement, unauthenticated, §8), the configuration's OPTIONAL per-log `started_at` (trusted input, the authenticated basis, §9), and the verdict's `backfilled` and `backfilled_by` for a certificate leaf (§10). A mark, never a refusal; this replaces "nothing marks it" in §12. |
-| pending | freeze | Freeze: pending owner approval. The text and its schema move from `spec/drafts/` to `spec/`, with editorial changes only (this status, the title, relative links, and "draft" wording); no member, form, check or error name changes. |
+| 2026-11-17 | freeze | Owner: frozen. The text and its schema move from `spec/drafts/` to `spec/`, with editorial changes only (this status, the title, relative links, and "draft" wording); no member, form, check or error name changes. |
 
 ## Open questions
 

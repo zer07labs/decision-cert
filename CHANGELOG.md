@@ -5,7 +5,7 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
 
 ## Unreleased
 
-- **`decision-cert-inclusion.v1` frozen** (plan `plans/transparency-log-2026-11.md`, Phase 6; owner approval (pending)):
+- **`decision-cert-inclusion.v1` frozen** (plan `plans/transparency-log-2026-11.md`, Phase 6; owner approval 2026-11-17):
   the text and its schema move from `spec/drafts/` to
   [`spec/decision-cert-inclusion.v1.md`](spec/decision-cert-inclusion.v1.md) and
   [`spec/decision-cert-inclusion.v1.schema.json`](spec/decision-cert-inclusion.v1.schema.json) (the schema's `$id`

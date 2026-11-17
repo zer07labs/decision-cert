@@ -300,7 +300,7 @@ frozen from then on (corrections go in `spec/ERRATA.md`). Docs updated: `docs/ce
 
 **Done when** the owner says go for the freeze and the freeze PR is merged with CI green.
 
-**Status.** Freeze PR open; frozen on owner approval (pending). The text and schema are at
+**Status.** Frozen 2026-11-17 on owner approval. The text and schema are at
 [`spec/decision-cert-inclusion.v1.md`](../spec/decision-cert-inclusion.v1.md) and
 [`spec/decision-cert-inclusion.v1.schema.json`](../spec/decision-cert-inclusion.v1.schema.json), with
 editorial changes only. `fixtures/inclusion-v1/manifest.json`'s `draft` member now names the frozen path

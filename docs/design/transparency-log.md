@@ -4,7 +4,7 @@
 > open questions recorded below ([Decided](#decided-owner-2026-11-17), 2026-11-17), and built under the
 > [build plan](../../plans/transparency-log-2026-11.md): the spec
 > [`decision-cert-inclusion.v1`](../../spec/decision-cert-inclusion.v1.md)
-> (frozen on owner approval (pending)), both verifiers, `fixtures/inclusion-v1/`, the issuer's bundling
+> (**frozen** 2026-11-17), both verifiers, `fixtures/inclusion-v1/`, the issuer's bundling
 > and the reference log and witness. Where this design and the spec differ (the CLI command names and
 > the fixtures directory, for example), the spec and the code are what was built. No third party has
 > been contacted. Tracks [#28](https://github.com/zer07labs/decision-cert/issues/28). Shared rules: [README](README.md).

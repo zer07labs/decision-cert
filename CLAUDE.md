@@ -15,7 +15,7 @@ PyPI, both `decision-cert`) or a git revision. It holds no data and never calls 
   A frozen spec's fields and their meaning never change; additions go in a new `spec` value.
   Corrections and clarifications go in `spec/ERRATA.md` as dated entries, never edits of the
   frozen text. `spec/decision-cert-inclusion.v1.md`, its schema and `fixtures/inclusion-v1/` are
-  frozen the same way on owner approval (pending).
+  frozen the same way on owner approval (2026-11-17).
 - **Fixtures are never hand-edited.** The positive fixtures and `mutations/` come from the
   reference issuer via `python/tools/gen_positive_fixtures.py` (byte-identical, `--check` in CI); the negatives come from
   `python/tools/gen_negative_fixtures.py`. Any change updates `fixtures/FIXTURES.sha256` and every
