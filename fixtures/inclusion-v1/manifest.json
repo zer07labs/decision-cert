@@ -1,0 +1,3629 @@
+{
+  "spec": "decision-cert-inclusion.v1",
+  "draft": "spec/drafts/decision-cert-inclusion.v1.md",
+  "cases": [
+    {
+      "name": "rfc9162_inclusion_0_in_1",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "",
+      "leaf_index": 0,
+      "tree_size": 1,
+      "path": [],
+      "root": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "expect": true
+    },
+    {
+      "name": "rfc9162_inclusion_0_in_1_long",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "",
+      "leaf_index": 0,
+      "tree_size": 1,
+      "path": [
+        "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+      ],
+      "root": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_0_in_1_other_root",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "",
+      "leaf_index": 0,
+      "tree_size": 1,
+      "path": [],
+      "root": "6f340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_0_in_8",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "",
+      "leaf_index": 0,
+      "tree_size": 8,
+      "path": [
+        "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"
+      ],
+      "root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expect": true
+    },
+    {
+      "name": "rfc9162_inclusion_0_in_8_altered",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "",
+      "leaf_index": 0,
+      "tree_size": 8,
+      "path": [
+        "97a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"
+      ],
+      "root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_0_in_8_short",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "",
+      "leaf_index": 0,
+      "tree_size": 8,
+      "path": [
+        "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e"
+      ],
+      "root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_0_in_8_long",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "",
+      "leaf_index": 0,
+      "tree_size": 8,
+      "path": [
+        "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4",
+        "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328"
+      ],
+      "root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_0_in_8_other_root",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "",
+      "leaf_index": 0,
+      "tree_size": 8,
+      "path": [
+        "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"
+      ],
+      "root": "5cc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_5_in_8",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "40414243",
+      "leaf_index": 5,
+      "tree_size": 8,
+      "path": [
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expect": true
+    },
+    {
+      "name": "rfc9162_inclusion_5_in_8_altered",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "40414243",
+      "leaf_index": 5,
+      "tree_size": 8,
+      "path": [
+        "bd1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_5_in_8_short",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "40414243",
+      "leaf_index": 5,
+      "tree_size": 8,
+      "path": [
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0"
+      ],
+      "root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_5_in_8_long",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "40414243",
+      "leaf_index": 5,
+      "tree_size": 8,
+      "path": [
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7",
+        "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328"
+      ],
+      "root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_5_in_8_other_root",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "40414243",
+      "leaf_index": 5,
+      "tree_size": 8,
+      "path": [
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "root": "5cc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_5_in_8_index_is_size",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "40414243",
+      "leaf_index": 5,
+      "tree_size": 5,
+      "path": [
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_2_in_3",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "10",
+      "leaf_index": 2,
+      "tree_size": 3,
+      "path": [
+        "fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125"
+      ],
+      "root": "aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77",
+      "expect": true
+    },
+    {
+      "name": "rfc9162_inclusion_2_in_3_altered",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "10",
+      "leaf_index": 2,
+      "tree_size": 3,
+      "path": [
+        "fbc54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125"
+      ],
+      "root": "aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_2_in_3_short",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "10",
+      "leaf_index": 2,
+      "tree_size": 3,
+      "path": [],
+      "root": "aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_2_in_3_long",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "10",
+      "leaf_index": 2,
+      "tree_size": 3,
+      "path": [
+        "fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125",
+        "aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77"
+      ],
+      "root": "aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_2_in_3_other_root",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "10",
+      "leaf_index": 2,
+      "tree_size": 3,
+      "path": [
+        "fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125"
+      ],
+      "root": "afb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_2_in_3_index_is_size",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "10",
+      "leaf_index": 2,
+      "tree_size": 2,
+      "path": [
+        "fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125"
+      ],
+      "root": "aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_1_in_5",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "00",
+      "leaf_index": 1,
+      "tree_size": 5,
+      "path": [
+        "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b"
+      ],
+      "root": "4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
+      "expect": true
+    },
+    {
+      "name": "rfc9162_inclusion_1_in_5_altered",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "00",
+      "leaf_index": 1,
+      "tree_size": 5,
+      "path": [
+        "6f340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b"
+      ],
+      "root": "4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_1_in_5_short",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "00",
+      "leaf_index": 1,
+      "tree_size": 5,
+      "path": [
+        "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e"
+      ],
+      "root": "4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_1_in_5_long",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "00",
+      "leaf_index": 1,
+      "tree_size": 5,
+      "path": [
+        "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+        "4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4"
+      ],
+      "root": "4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_1_in_5_other_root",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "00",
+      "leaf_index": 1,
+      "tree_size": 5,
+      "path": [
+        "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b"
+      ],
+      "root": "4f3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_1_in_5_index_is_size",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "00",
+      "leaf_index": 1,
+      "tree_size": 1,
+      "path": [
+        "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b"
+      ],
+      "root": "4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
+      "expect": false
+    },
+    {
+      "name": "rfc9162_inclusion_0_in_3_as_size_4_same_root",
+      "check": "rfc9162_inclusion",
+      "leaf_input": "",
+      "leaf_index": 0,
+      "tree_size": 4,
+      "path": [
+        "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+        "0298d122906dcfc10892cb53a73992fc5b9f493ea4c9badb27b791b4127a7fe7"
+      ],
+      "root": "aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77",
+      "expect": true
+    },
+    {
+      "name": "rfc9162_consistency_1_to_1",
+      "check": "rfc9162_consistency",
+      "older": 1,
+      "newer": 1,
+      "older_root": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "newer_root": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "path": [],
+      "expect": true
+    },
+    {
+      "name": "rfc9162_consistency_1_to_1_long",
+      "check": "rfc9162_consistency",
+      "older": 1,
+      "newer": 1,
+      "older_root": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "newer_root": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "path": [
+        "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_1_to_1_wrong_older_root",
+      "check": "rfc9162_consistency",
+      "older": 1,
+      "newer": 1,
+      "older_root": "6f340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "newer_root": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "path": [],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_1_to_1_wrong_newer_root",
+      "check": "rfc9162_consistency",
+      "older": 1,
+      "newer": 1,
+      "older_root": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "newer_root": "6f340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "path": [],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_1_to_8",
+      "check": "rfc9162_consistency",
+      "older": 1,
+      "newer": 8,
+      "older_root": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "newer_root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "path": [
+        "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"
+      ],
+      "expect": true
+    },
+    {
+      "name": "rfc9162_consistency_1_to_8_altered",
+      "check": "rfc9162_consistency",
+      "older": 1,
+      "newer": 8,
+      "older_root": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "newer_root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "path": [
+        "97a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_1_to_8_short",
+      "check": "rfc9162_consistency",
+      "older": 1,
+      "newer": 8,
+      "older_root": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "newer_root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "path": [
+        "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_1_to_8_long",
+      "check": "rfc9162_consistency",
+      "older": 1,
+      "newer": 8,
+      "older_root": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "newer_root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "path": [
+        "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4",
+        "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_1_to_8_wrong_older_root",
+      "check": "rfc9162_consistency",
+      "older": 1,
+      "newer": 8,
+      "older_root": "6f340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "newer_root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "path": [
+        "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_1_to_8_wrong_newer_root",
+      "check": "rfc9162_consistency",
+      "older": 1,
+      "newer": 8,
+      "older_root": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "newer_root": "5cc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "path": [
+        "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_1_to_8_reversed",
+      "check": "rfc9162_consistency",
+      "older": 8,
+      "newer": 1,
+      "older_root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "newer_root": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "path": [
+        "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_6_to_8",
+      "check": "rfc9162_consistency",
+      "older": 6,
+      "newer": 8,
+      "older_root": "76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+      "newer_root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "path": [
+        "0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "expect": true
+    },
+    {
+      "name": "rfc9162_consistency_6_to_8_altered",
+      "check": "rfc9162_consistency",
+      "older": 6,
+      "newer": 8,
+      "older_root": "76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+      "newer_root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "path": [
+        "0fbc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_6_to_8_short",
+      "check": "rfc9162_consistency",
+      "older": 6,
+      "newer": 8,
+      "older_root": "76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+      "newer_root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "path": [
+        "0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_6_to_8_long",
+      "check": "rfc9162_consistency",
+      "older": 6,
+      "newer": 8,
+      "older_root": "76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+      "newer_root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "path": [
+        "0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7",
+        "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_6_to_8_wrong_older_root",
+      "check": "rfc9162_consistency",
+      "older": 6,
+      "newer": 8,
+      "older_root": "77e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+      "newer_root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "path": [
+        "0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_6_to_8_wrong_newer_root",
+      "check": "rfc9162_consistency",
+      "older": 6,
+      "newer": 8,
+      "older_root": "76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+      "newer_root": "5cc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "path": [
+        "0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_6_to_8_reversed",
+      "check": "rfc9162_consistency",
+      "older": 8,
+      "newer": 6,
+      "older_root": "5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+      "newer_root": "76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+      "path": [
+        "0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
+        "ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_2_to_5",
+      "check": "rfc9162_consistency",
+      "older": 2,
+      "newer": 5,
+      "older_root": "fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125",
+      "newer_root": "4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
+      "path": [
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b"
+      ],
+      "expect": true
+    },
+    {
+      "name": "rfc9162_consistency_2_to_5_altered",
+      "check": "rfc9162_consistency",
+      "older": 2,
+      "newer": 5,
+      "older_root": "fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125",
+      "newer_root": "4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
+      "path": [
+        "5e083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_2_to_5_short",
+      "check": "rfc9162_consistency",
+      "older": 2,
+      "newer": 5,
+      "older_root": "fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125",
+      "newer_root": "4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
+      "path": [
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_2_to_5_long",
+      "check": "rfc9162_consistency",
+      "older": 2,
+      "newer": 5,
+      "older_root": "fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125",
+      "newer_root": "4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
+      "path": [
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+        "4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_2_to_5_wrong_older_root",
+      "check": "rfc9162_consistency",
+      "older": 2,
+      "newer": 5,
+      "older_root": "fbc54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125",
+      "newer_root": "4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
+      "path": [
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_2_to_5_wrong_newer_root",
+      "check": "rfc9162_consistency",
+      "older": 2,
+      "newer": 5,
+      "older_root": "fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125",
+      "newer_root": "4f3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
+      "path": [
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_2_to_5_reversed",
+      "check": "rfc9162_consistency",
+      "older": 5,
+      "newer": 2,
+      "older_root": "4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
+      "newer_root": "fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125",
+      "path": [
+        "5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
+        "bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_6_to_7",
+      "check": "rfc9162_consistency",
+      "older": 6,
+      "newer": 7,
+      "older_root": "76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+      "newer_root": "ddb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c",
+      "path": [
+        "0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
+        "b08693ec2e721597130641e8211e7eedccb4c26413963eee6c1e2ed16ffb1a5f",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "expect": true
+    },
+    {
+      "name": "rfc9162_consistency_6_to_7_altered",
+      "check": "rfc9162_consistency",
+      "older": 6,
+      "newer": 7,
+      "older_root": "76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+      "newer_root": "ddb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c",
+      "path": [
+        "0fbc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
+        "b08693ec2e721597130641e8211e7eedccb4c26413963eee6c1e2ed16ffb1a5f",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_6_to_7_short",
+      "check": "rfc9162_consistency",
+      "older": 6,
+      "newer": 7,
+      "older_root": "76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+      "newer_root": "ddb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c",
+      "path": [
+        "0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
+        "b08693ec2e721597130641e8211e7eedccb4c26413963eee6c1e2ed16ffb1a5f"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_6_to_7_long",
+      "check": "rfc9162_consistency",
+      "older": 6,
+      "newer": 7,
+      "older_root": "76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+      "newer_root": "ddb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c",
+      "path": [
+        "0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
+        "b08693ec2e721597130641e8211e7eedccb4c26413963eee6c1e2ed16ffb1a5f",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7",
+        "ddb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_6_to_7_wrong_older_root",
+      "check": "rfc9162_consistency",
+      "older": 6,
+      "newer": 7,
+      "older_root": "77e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+      "newer_root": "ddb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c",
+      "path": [
+        "0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
+        "b08693ec2e721597130641e8211e7eedccb4c26413963eee6c1e2ed16ffb1a5f",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_6_to_7_wrong_newer_root",
+      "check": "rfc9162_consistency",
+      "older": 6,
+      "newer": 7,
+      "older_root": "76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+      "newer_root": "dcb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c",
+      "path": [
+        "0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
+        "b08693ec2e721597130641e8211e7eedccb4c26413963eee6c1e2ed16ffb1a5f",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_6_to_7_reversed",
+      "check": "rfc9162_consistency",
+      "older": 7,
+      "newer": 6,
+      "older_root": "ddb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c",
+      "newer_root": "76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+      "path": [
+        "0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
+        "b08693ec2e721597130641e8211e7eedccb4c26413963eee6c1e2ed16ffb1a5f",
+        "d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"
+      ],
+      "expect": false
+    },
+    {
+      "name": "rfc9162_consistency_0_to_1",
+      "check": "rfc9162_consistency",
+      "older": 0,
+      "newer": 1,
+      "older_root": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "newer_root": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "path": [],
+      "expect": false
+    },
+    {
+      "name": "trust_acme-bank",
+      "check": "trust",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "tenant": "acme-bank",
+        "m": 1,
+        "policy": "warn"
+      }
+    },
+    {
+      "name": "trust_acme-bank-m2",
+      "check": "trust",
+      "trust": "trust/acme-bank-m2.json",
+      "expect": {
+        "verdict": "accepted",
+        "tenant": "acme-bank",
+        "m": 2,
+        "policy": "warn"
+      }
+    },
+    {
+      "name": "trust_acme-bank-m3",
+      "check": "trust",
+      "trust": "trust/acme-bank-m3.json",
+      "expect": {
+        "verdict": "accepted",
+        "tenant": "acme-bank",
+        "m": 3,
+        "policy": "warn"
+      }
+    },
+    {
+      "name": "trust_acme-bank-three-witnesses",
+      "check": "trust",
+      "trust": "trust/acme-bank-three-witnesses.json",
+      "expect": {
+        "verdict": "accepted",
+        "tenant": "acme-bank",
+        "m": 1,
+        "policy": "warn"
+      }
+    },
+    {
+      "name": "trust_acme-bank-policy-off",
+      "check": "trust",
+      "trust": "trust/acme-bank-policy-off.json",
+      "expect": {
+        "verdict": "accepted",
+        "tenant": "acme-bank",
+        "m": 1,
+        "policy": "off"
+      }
+    },
+    {
+      "name": "trust_acme-bank-policy-warn",
+      "check": "trust",
+      "trust": "trust/acme-bank-policy-warn.json",
+      "expect": {
+        "verdict": "accepted",
+        "tenant": "acme-bank",
+        "m": 1,
+        "policy": "warn"
+      }
+    },
+    {
+      "name": "trust_acme-bank-policy-refuse",
+      "check": "trust",
+      "trust": "trust/acme-bank-policy-refuse.json",
+      "expect": {
+        "verdict": "accepted",
+        "tenant": "acme-bank",
+        "m": 1,
+        "policy": "refuse"
+      }
+    },
+    {
+      "name": "trust_globex",
+      "check": "trust",
+      "trust": "trust/globex.json",
+      "expect": {
+        "verdict": "accepted",
+        "tenant": "globex",
+        "m": 1,
+        "policy": "warn"
+      }
+    },
+    {
+      "name": "trust_acme-bank-two-logs",
+      "check": "trust",
+      "trust": "trust/acme-bank-two-logs.json",
+      "expect": {
+        "verdict": "accepted",
+        "tenant": "acme-bank",
+        "m": 1,
+        "policy": "warn"
+      }
+    },
+    {
+      "name": "trust_globex-holding-log-a",
+      "check": "trust",
+      "trust": "trust/globex-holding-log-a.json",
+      "expect": {
+        "verdict": "accepted",
+        "tenant": "globex",
+        "m": 1,
+        "policy": "warn"
+      }
+    },
+    {
+      "name": "trust_globex-log-g-with-log-a-key",
+      "check": "trust",
+      "trust": "trust/globex-log-g-with-log-a-key.json",
+      "expect": {
+        "verdict": "accepted",
+        "tenant": "globex",
+        "m": 1,
+        "policy": "warn"
+      }
+    },
+    {
+      "name": "trust_invalid_wrong_spec",
+      "check": "trust",
+      "trust": "trust/invalid_wrong_spec.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_bundle_spec",
+      "check": "trust",
+      "trust": "trust/invalid_bundle_spec.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_missing_witnesses",
+      "check": "trust",
+      "trust": "trust/invalid_missing_witnesses.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_unknown_member",
+      "check": "trust",
+      "trust": "trust/invalid_unknown_member.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_tenant_bad_charset",
+      "check": "trust",
+      "trust": "trust/invalid_tenant_bad_charset.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_tenant_too_long",
+      "check": "trust",
+      "trust": "trust/invalid_tenant_too_long.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_logs_empty",
+      "check": "trust",
+      "trust": "trust/invalid_logs_empty.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_witnesses_not_array",
+      "check": "trust",
+      "trust": "trust/invalid_witnesses_not_array.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_log_id_uppercase",
+      "check": "trust",
+      "trust": "trust/invalid_log_id_uppercase.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_log_entry_unknown_member",
+      "check": "trust",
+      "trust": "trust/invalid_log_entry_unknown_member.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_log_key_name_with_plus",
+      "check": "trust",
+      "trust": "trust/invalid_log_key_name_with_plus.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_key_id_not_of_key",
+      "check": "trust",
+      "trust": "trust/invalid_key_id_not_of_key.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_key_small_order",
+      "check": "trust",
+      "trust": "trust/invalid_key_small_order.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_key_padded_base64url",
+      "check": "trust",
+      "trust": "trust/invalid_key_padded_base64url.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_key_31_bytes",
+      "check": "trust",
+      "trust": "trust/invalid_key_31_bytes.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_witness_name_with_space",
+      "check": "trust",
+      "trust": "trust/invalid_witness_name_with_space.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_witness_name_empty",
+      "check": "trust",
+      "trust": "trust/invalid_witness_name_empty.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_m_zero",
+      "check": "trust",
+      "trust": "trust/invalid_m_zero.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_m_above_witnesses",
+      "check": "trust",
+      "trust": "trust/invalid_m_above_witnesses.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_m_float",
+      "check": "trust",
+      "trust": "trust/invalid_m_float.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_m_null",
+      "check": "trust",
+      "trust": "trust/invalid_m_null.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_policy_unknown",
+      "check": "trust",
+      "trust": "trust/invalid_policy_unknown.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_policy_null",
+      "check": "trust",
+      "trust": "trust/invalid_policy_null.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_two_logs_one_log_id",
+      "check": "trust",
+      "trust": "trust/invalid_two_logs_one_log_id.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_two_logs_one_key",
+      "check": "trust",
+      "trust": "trust/invalid_two_logs_one_key.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_two_witnesses_one_name",
+      "check": "trust",
+      "trust": "trust/invalid_two_witnesses_one_name.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_two_witnesses_one_key",
+      "check": "trust",
+      "trust": "trust/invalid_two_witnesses_one_key.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_witness_key_is_log_key",
+      "check": "trust",
+      "trust": "trust/invalid_witness_key_is_log_key.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_member_named_twice",
+      "check": "trust",
+      "trust": "trust/invalid_member_named_twice.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_not_an_object",
+      "check": "trust",
+      "trust": "trust/invalid_not_an_object.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "tenants_acme_bank_and_globex",
+      "check": "tenants",
+      "trusts": [
+        "trust/acme-bank.json",
+        "trust/globex.json"
+      ],
+      "expect": {
+        "verdict": "accepted"
+      }
+    },
+    {
+      "name": "tenants_one_log_id_under_two_tenants",
+      "check": "tenants",
+      "trusts": [
+        "trust/acme-bank.json",
+        "trust/globex-holding-log-a.json"
+      ],
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_cross_tenant"
+      }
+    },
+    {
+      "name": "tenants_one_log_key_under_two_tenants",
+      "check": "tenants",
+      "trusts": [
+        "trust/acme-bank.json",
+        "trust/globex-log-g-with-log-a-key.json"
+      ],
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_cross_tenant"
+      }
+    },
+    {
+      "name": "tenants_same_tenant_twice",
+      "check": "tenants",
+      "trusts": [
+        "trust/acme-bank.json",
+        "trust/acme-bank-m2.json"
+      ],
+      "expect": {
+        "verdict": "accepted"
+      }
+    },
+    {
+      "name": "leaf_hash_certificate_v1_2",
+      "check": "leaf_hash",
+      "leaf": "leaves/certificate_v1_2.json",
+      "expect": {
+        "leaf_hash": "AwtShArsTAz7BDWb6mBQ1/3YsZ+84QbgxzzNay1Wes0="
+      }
+    },
+    {
+      "name": "leaf_hash_certificate_v1_5",
+      "check": "leaf_hash",
+      "leaf": "leaves/certificate_v1_5.json",
+      "expect": {
+        "leaf_hash": "x3+AJ9Ki6thSKQubn2MHu1ARLhd5QJAVL//bvRY5YTs="
+      }
+    },
+    {
+      "name": "leaf_hash_ledger_entry",
+      "check": "leaf_hash",
+      "leaf": "leaves/ledger_entry.json",
+      "expect": {
+        "leaf_hash": "DhhDqKInw9wkL9viP8rCxmUfYe9+dlvqTg8egF0dh8Q="
+      }
+    },
+    {
+      "name": "leaf_hash_keyset",
+      "check": "leaf_hash",
+      "leaf": "leaves/keyset.json",
+      "expect": {
+        "leaf_hash": "t8pjYxg6IttrTHkcre/v0/j1x6BIzBEKErDkvw9XUTc="
+      }
+    },
+    {
+      "name": "leaf_hash_attestation",
+      "check": "leaf_hash",
+      "leaf": "leaves/attestation.json",
+      "expect": {
+        "leaf_hash": "c+OSLCral3SmoWTDGrj7gttMAw/NUrXV+2nAIKIB+Io="
+      }
+    },
+    {
+      "name": "leaf_hash_audit_head",
+      "check": "leaf_hash",
+      "leaf": "leaves/audit_head.json",
+      "expect": {
+        "leaf_hash": "wj8bhSbDOiDw/3fyewlRF74KuvWuTO3P5M9ZTPPU+vI="
+      }
+    },
+    {
+      "name": "bundle_valid_size_1_index_0_certificate",
+      "check": "bundle",
+      "doc": "bundles/valid_size_1_index_0_certificate.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 1,
+        "root_hash": "vevF1sDHf6u3P298tnFlh+4jo2faogczBaApH7SD5sg=",
+        "leaf_index": 0,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:01Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:01Z",
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd"
+      }
+    },
+    {
+      "name": "bundle_valid_size_2_index_0_certificate",
+      "check": "bundle",
+      "doc": "bundles/valid_size_2_index_0_certificate.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 2,
+        "root_hash": "+1lLc2LY3SKp6d+EhjayUtULb9WN8M68sh06dPGicgY=",
+        "leaf_index": 0,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:02Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:02Z",
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd"
+      }
+    },
+    {
+      "name": "bundle_valid_size_2_index_1_certificate",
+      "check": "bundle",
+      "doc": "bundles/valid_size_2_index_1_certificate.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 2,
+        "root_hash": "+1lLc2LY3SKp6d+EhjayUtULb9WN8M68sh06dPGicgY=",
+        "leaf_index": 1,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:02Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:02Z",
+        "certificate_id": "sha256:9bda5d8e46e421e4416ea52dc8611a289126cc878c4660b85cfade6aa71d560b"
+      }
+    },
+    {
+      "name": "bundle_valid_size_3_index_0_certificate",
+      "check": "bundle",
+      "doc": "bundles/valid_size_3_index_0_certificate.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 3,
+        "root_hash": "Bdtzejq41boqNrRqoJ1kyeB30uym2MSJM/0kqDM1aYA=",
+        "leaf_index": 0,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:03Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:03Z",
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd"
+      }
+    },
+    {
+      "name": "bundle_valid_size_3_index_1_certificate",
+      "check": "bundle",
+      "doc": "bundles/valid_size_3_index_1_certificate.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 3,
+        "root_hash": "Bdtzejq41boqNrRqoJ1kyeB30uym2MSJM/0kqDM1aYA=",
+        "leaf_index": 1,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:03Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:03Z",
+        "certificate_id": "sha256:9bda5d8e46e421e4416ea52dc8611a289126cc878c4660b85cfade6aa71d560b"
+      }
+    },
+    {
+      "name": "bundle_valid_size_3_index_2_certificate",
+      "check": "bundle",
+      "doc": "bundles/valid_size_3_index_2_certificate.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 3,
+        "root_hash": "Bdtzejq41boqNrRqoJ1kyeB30uym2MSJM/0kqDM1aYA=",
+        "leaf_index": 2,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:03Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:03Z",
+        "certificate_id": "sha256:f167f9a38c92d10400ec13a17ba0383f4d0a65e0068f6ffa64d3e79634cf2417"
+      }
+    },
+    {
+      "name": "bundle_valid_size_7_index_0_certificate",
+      "check": "bundle",
+      "doc": "bundles/valid_size_7_index_0_certificate.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 7,
+        "root_hash": "pWUVVOllMhuZaP4tR/KCQUhGncsbqmP7KBFMdK6j30I=",
+        "leaf_index": 0,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:07Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:07Z",
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd"
+      }
+    },
+    {
+      "name": "bundle_valid_size_7_index_3_audit_head",
+      "check": "bundle",
+      "doc": "bundles/valid_size_7_index_3_audit_head.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 7,
+        "root_hash": "pWUVVOllMhuZaP4tR/KCQUhGncsbqmP7KBFMdK6j30I=",
+        "leaf_index": 3,
+        "kind": "audit_head",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:07Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:07Z"
+      }
+    },
+    {
+      "name": "bundle_valid_size_7_index_6_attestation",
+      "check": "bundle",
+      "doc": "bundles/valid_size_7_index_6_attestation.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 7,
+        "root_hash": "pWUVVOllMhuZaP4tR/KCQUhGncsbqmP7KBFMdK6j30I=",
+        "leaf_index": 6,
+        "kind": "attestation",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:07Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:07Z"
+      }
+    },
+    {
+      "name": "bundle_valid_size_8_index_0_certificate",
+      "check": "bundle",
+      "doc": "bundles/valid_size_8_index_0_certificate.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 8,
+        "root_hash": "RuBfKh1++avPl5SEMBrXkxoHjUELARNPqQsIP+QC31s=",
+        "leaf_index": 0,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:08Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:08Z",
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd"
+      }
+    },
+    {
+      "name": "bundle_valid_size_8_index_4_keyset",
+      "check": "bundle",
+      "doc": "bundles/valid_size_8_index_4_keyset.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 8,
+        "root_hash": "RuBfKh1++avPl5SEMBrXkxoHjUELARNPqQsIP+QC31s=",
+        "leaf_index": 4,
+        "kind": "keyset",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:08Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:08Z"
+      }
+    },
+    {
+      "name": "bundle_valid_size_8_index_5_ledger_entry",
+      "check": "bundle",
+      "doc": "bundles/valid_size_8_index_5_ledger_entry.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 8,
+        "root_hash": "RuBfKh1++avPl5SEMBrXkxoHjUELARNPqQsIP+QC31s=",
+        "leaf_index": 5,
+        "kind": "ledger_entry",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:08Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:08Z"
+      }
+    },
+    {
+      "name": "bundle_valid_size_8_index_7_audit_head",
+      "check": "bundle",
+      "doc": "bundles/valid_size_8_index_7_audit_head.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 8,
+        "root_hash": "RuBfKh1++avPl5SEMBrXkxoHjUELARNPqQsIP+QC31s=",
+        "leaf_index": 7,
+        "kind": "audit_head",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:08Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:08Z"
+      }
+    },
+    {
+      "name": "bundle_valid_size_300_index_0_certificate",
+      "check": "bundle",
+      "doc": "bundles/valid_size_300_index_0_certificate.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 300,
+        "root_hash": "RyztjWNuvMEVXQpnksaC8lQXk3YzdABfo07B9gtRraM=",
+        "leaf_index": 0,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:05:00Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:05:00Z",
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd"
+      }
+    },
+    {
+      "name": "bundle_valid_size_300_index_150_certificate",
+      "check": "bundle",
+      "doc": "bundles/valid_size_300_index_150_certificate.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 300,
+        "root_hash": "RyztjWNuvMEVXQpnksaC8lQXk3YzdABfo07B9gtRraM=",
+        "leaf_index": 150,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:05:00Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:05:00Z",
+        "certificate_id": "sha256:9c9a6aa1857be3a7e620143d03aebe93dfeb8c46a297566ddd7e40b430ee3476"
+      }
+    },
+    {
+      "name": "bundle_valid_size_300_index_299_audit_head",
+      "check": "bundle",
+      "doc": "bundles/valid_size_300_index_299_audit_head.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 300,
+        "root_hash": "RyztjWNuvMEVXQpnksaC8lQXk3YzdABfo07B9gtRraM=",
+        "leaf_index": 299,
+        "kind": "audit_head",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:05:00Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:05:00Z"
+      }
+    },
+    {
+      "name": "bundle_valid_certificate_hosted_backfilled",
+      "check": "bundle",
+      "doc": "bundles/valid_certificate_hosted_backfilled.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 37,
+        "root_hash": "TuLej8Nu06K4FgBRX9hi/Tju5OAKO94lF7MtQI34gz0=",
+        "leaf_index": 0,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:37Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:37Z",
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd"
+      }
+    },
+    {
+      "name": "bundle_valid_certificate_v1_2_backfilled",
+      "check": "bundle",
+      "doc": "bundles/valid_certificate_v1_2_backfilled.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 37,
+        "root_hash": "TuLej8Nu06K4FgBRX9hi/Tju5OAKO94lF7MtQI34gz0=",
+        "leaf_index": 1,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:37Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:37Z",
+        "certificate_id": "sha256:9bda5d8e46e421e4416ea52dc8611a289126cc878c4660b85cfade6aa71d560b"
+      }
+    },
+    {
+      "name": "bundle_valid_certificate_operator_backfilled",
+      "check": "bundle",
+      "doc": "bundles/valid_certificate_operator_backfilled.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 37,
+        "root_hash": "TuLej8Nu06K4FgBRX9hi/Tju5OAKO94lF7MtQI34gz0=",
+        "leaf_index": 2,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:37Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:37Z",
+        "certificate_id": "sha256:f167f9a38c92d10400ec13a17ba0383f4d0a65e0068f6ffa64d3e79634cf2417"
+      }
+    },
+    {
+      "name": "bundle_valid_m2_two_of_three_cosign",
+      "check": "bundle",
+      "doc": "bundles/valid_m2_two_of_three_cosign.json",
+      "trust": "trust/acme-bank-m2.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 64,
+        "root_hash": "6DVBfvMsWfsoUBPXikJ8Dpr4B3BPYyIW1+QfV4sBruA=",
+        "leaf_index": 20,
+        "kind": "keyset",
+        "witnesses": [
+          {
+            "key_id": "ed25519:7a5def608920e67a",
+            "name": "witness.example/w3",
+            "time": "2027-01-15T08:00:10Z"
+          },
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:30Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:30Z"
+      }
+    },
+    {
+      "name": "bundle_valid_m2_three_cosign_ties_by_name",
+      "check": "bundle",
+      "doc": "bundles/valid_m2_three_cosign_ties_by_name.json",
+      "trust": "trust/acme-bank-m2.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 64,
+        "root_hash": "6DVBfvMsWfsoUBPXikJ8Dpr4B3BPYyIW1+QfV4sBruA=",
+        "leaf_index": 20,
+        "kind": "keyset",
+        "witnesses": [
+          {
+            "key_id": "ed25519:9f5a3513eb256000",
+            "name": "witness.example/w2",
+            "time": "2027-01-15T08:00:05Z"
+          },
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:20Z"
+          },
+          {
+            "key_id": "ed25519:7a5def608920e67a",
+            "name": "witness.example/w3",
+            "time": "2027-01-15T08:00:20Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:20Z"
+      }
+    },
+    {
+      "name": "bundle_valid_m3_three_cosign",
+      "check": "bundle",
+      "doc": "bundles/valid_m3_three_cosign.json",
+      "trust": "trust/acme-bank-m3.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 64,
+        "root_hash": "6DVBfvMsWfsoUBPXikJ8Dpr4B3BPYyIW1+QfV4sBruA=",
+        "leaf_index": 20,
+        "kind": "keyset",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:05Z"
+          },
+          {
+            "key_id": "ed25519:7a5def608920e67a",
+            "name": "witness.example/w3",
+            "time": "2027-01-15T08:00:20Z"
+          },
+          {
+            "key_id": "ed25519:9f5a3513eb256000",
+            "name": "witness.example/w2",
+            "time": "2027-01-15T08:00:40Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:40Z"
+      }
+    },
+    {
+      "name": "bundle_valid_m1_three_witnesses_earliest",
+      "check": "bundle",
+      "doc": "bundles/valid_m1_three_witnesses_earliest.json",
+      "trust": "trust/acme-bank-three-witnesses.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 64,
+        "root_hash": "6DVBfvMsWfsoUBPXikJ8Dpr4B3BPYyIW1+QfV4sBruA=",
+        "leaf_index": 20,
+        "kind": "keyset",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:05Z"
+          },
+          {
+            "key_id": "ed25519:7a5def608920e67a",
+            "name": "witness.example/w3",
+            "time": "2027-01-15T08:00:20Z"
+          },
+          {
+            "key_id": "ed25519:9f5a3513eb256000",
+            "name": "witness.example/w2",
+            "time": "2027-01-15T08:00:40Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:05Z"
+      }
+    },
+    {
+      "name": "bundle_valid_m1_untrusted_witnesses_ignored",
+      "check": "bundle",
+      "doc": "bundles/valid_m1_untrusted_witnesses_ignored.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 12,
+        "root_hash": "RjoOMAKi3r2vwFu/bjYO3t3R6ew8RvfsXUEDev3XsK8=",
+        "leaf_index": 9,
+        "kind": "ledger_entry",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:09Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:09Z"
+      }
+    },
+    {
+      "name": "bundle_valid_lines_of_other_keys_ignored",
+      "check": "bundle",
+      "doc": "bundles/valid_lines_of_other_keys_ignored.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 12,
+        "root_hash": "RjoOMAKi3r2vwFu/bjYO3t3R6ew8RvfsXUEDev3XsK8=",
+        "leaf_index": 10,
+        "kind": "attestation",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:50Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:50Z"
+      }
+    },
+    {
+      "name": "bundle_valid_cosignature_time_9999",
+      "check": "bundle",
+      "doc": "bundles/valid_cosignature_time_9999.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 12,
+        "root_hash": "RjoOMAKi3r2vwFu/bjYO3t3R6ew8RvfsXUEDev3XsK8=",
+        "leaf_index": 11,
+        "kind": "audit_head",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "9999-12-31T23:59:59Z"
+          }
+        ],
+        "t_proven": "9999-12-31T23:59:59Z"
+      }
+    },
+    {
+      "name": "bundle_valid_path_for_size_3_under_size_4_with_its_root",
+      "check": "bundle",
+      "doc": "bundles/valid_path_for_size_3_under_size_4_with_its_root.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 4,
+        "root_hash": "Bdtzejq41boqNrRqoJ1kyeB30uym2MSJM/0kqDM1aYA=",
+        "leaf_index": 0,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:00Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:00Z",
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd"
+      }
+    },
+    {
+      "name": "bundle_valid_globex_v1_2_certificate",
+      "check": "bundle",
+      "doc": "bundles/valid_globex_v1_2_certificate.json",
+      "trust": "trust/globex.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:4898c34f7a28cb056bd6b6f0b5b8ef98",
+        "tree_size": 4,
+        "root_hash": "eZCr780Gvmy9nxE319Q1tJJSXN/EuLJ6F/dxOmzFE6I=",
+        "leaf_index": 0,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:03Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:03Z",
+        "certificate_id": "sha256:9bda5d8e46e421e4416ea52dc8611a289126cc878c4660b85cfade6aa71d560b"
+      }
+    },
+    {
+      "name": "bundle_invalid_wrong_spec",
+      "check": "bundle",
+      "doc": "bundles/invalid_wrong_spec.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_consistency_spec",
+      "check": "bundle",
+      "doc": "bundles/invalid_consistency_spec.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_unknown_member",
+      "check": "bundle",
+      "doc": "bundles/invalid_unknown_member.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_missing_proof",
+      "check": "bundle",
+      "doc": "bundles/invalid_missing_proof.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_log_id_uppercase",
+      "check": "bundle",
+      "doc": "bundles/invalid_log_id_uppercase.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_index_negative",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_index_negative.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_index_float",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_index_float.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_index_above_2_53",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_index_above_2_53.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_index_string",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_index_string.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_not_an_object",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_not_an_object.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_proof_not_an_array",
+      "check": "bundle",
+      "doc": "bundles/invalid_proof_not_an_array.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_proof_65_hashes",
+      "check": "bundle",
+      "doc": "bundles/invalid_proof_65_hashes.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_proof_hash_31_bytes",
+      "check": "bundle",
+      "doc": "bundles/invalid_proof_hash_31_bytes.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_proof_hash_base64url",
+      "check": "bundle",
+      "doc": "bundles/invalid_proof_hash_base64url.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_proof_hash_noncanonical_base64",
+      "check": "bundle",
+      "doc": "bundles/invalid_proof_hash_noncanonical_base64.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_not_a_string",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_not_a_string.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_not_an_object",
+      "check": "bundle",
+      "doc": "bundles/invalid_not_an_object.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_member_named_twice",
+      "check": "bundle",
+      "doc": "bundles/invalid_member_named_twice.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_certificate_beside_keyset_leaf",
+      "check": "bundle",
+      "doc": "bundles/invalid_certificate_beside_keyset_leaf.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_certificate_beside_unknown_kind",
+      "check": "bundle",
+      "doc": "bundles/invalid_certificate_beside_unknown_kind.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_certificate_beside_leaf_without_kind",
+      "check": "bundle",
+      "doc": "bundles/invalid_certificate_beside_leaf_without_kind.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_certificate_leaf_without_certificate",
+      "check": "bundle",
+      "doc": "bundles/invalid_certificate_leaf_without_certificate.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_certificate_not_an_object",
+      "check": "bundle",
+      "doc": "bundles/invalid_certificate_not_an_object.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_unknown_kind",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_unknown_kind.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_kind_not_a_string",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_kind_not_a_string.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_missing_member",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_missing_member.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_unknown_member",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_unknown_member.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_seq_float",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_seq_float.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_seq_negative",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_seq_negative.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_keyset_id_wrong_prefix",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_keyset_id_wrong_prefix.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_ledger_entry_hash_uppercase",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_ledger_entry_hash_uppercase.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_audit_head_malformed_digest",
+      "check": "bundle",
+      "doc": "bundles/invalid_audit_head_malformed_digest.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_audit_head_malformed_observed_at",
+      "check": "bundle",
+      "doc": "bundles/invalid_audit_head_malformed_observed_at.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_audit_head_observed_at_leap_second",
+      "check": "bundle",
+      "doc": "bundles/invalid_audit_head_observed_at_leap_second.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_audit_head_observed_at_not_a_date",
+      "check": "bundle",
+      "doc": "bundles/invalid_audit_head_observed_at_not_a_date.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_audit_head_seq_zero",
+      "check": "bundle",
+      "doc": "bundles/invalid_audit_head_seq_zero.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_audit_head_chain_empty",
+      "check": "bundle",
+      "doc": "bundles/invalid_audit_head_chain_empty.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_audit_head_tenant_bad_charset",
+      "check": "bundle",
+      "doc": "bundles/invalid_audit_head_tenant_bad_charset.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_certificate_leaf_v1_2_with_tenant",
+      "check": "bundle",
+      "doc": "bundles/invalid_certificate_leaf_v1_2_with_tenant.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_certificate_leaf_v1_5_without_tenant",
+      "check": "bundle",
+      "doc": "bundles/invalid_certificate_leaf_v1_5_without_tenant.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_certificate_leaf_unknown_spec",
+      "check": "bundle",
+      "doc": "bundles/invalid_certificate_leaf_unknown_spec.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_certificate_leaf_fitted_at_leap_second",
+      "check": "bundle",
+      "doc": "bundles/invalid_certificate_leaf_fitted_at_leap_second.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_certificate_leaf_signer_key_id_short",
+      "check": "bundle",
+      "doc": "bundles/invalid_certificate_leaf_signer_key_id_short.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_for_another_certificate",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_for_another_certificate.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_mismatch"
+      }
+    },
+    {
+      "name": "bundle_invalid_certificate_changed",
+      "check": "bundle",
+      "doc": "bundles/invalid_certificate_changed.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_mismatch"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_signer_key_id_differs",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_signer_key_id_differs.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_mismatch"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_spec_differs",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_spec_differs.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_mismatch"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_fitted_at_differs",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_fitted_at_differs.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_mismatch"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_tenant_differs_from_certificate",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_tenant_differs_from_certificate.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "leaf_mismatch"
+      }
+    },
+    {
+      "name": "bundle_invalid_v1_5_certificate_for_another_tenant",
+      "check": "bundle",
+      "doc": "bundles/invalid_v1_5_certificate_for_another_tenant.json",
+      "trust": "trust/globex-holding-log-a.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "tenant_mismatch"
+      }
+    },
+    {
+      "name": "bundle_invalid_audit_head_for_another_tenant",
+      "check": "bundle",
+      "doc": "bundles/invalid_audit_head_for_another_tenant.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "tenant_mismatch"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_in_another_tenants_log",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_in_another_tenants_log.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "unknown_log"
+      }
+    },
+    {
+      "name": "bundle_invalid_log_id_unknown",
+      "check": "bundle",
+      "doc": "bundles/invalid_log_id_unknown.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "unknown_log"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_not_a_note",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_not_a_note.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_empty",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_empty.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_missing_final_newline",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_missing_final_newline.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_text_after_last_line",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_text_after_last_line.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_extra_line_in_note_text",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_extra_line_in_note_text.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_no_empty_line",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_no_empty_line.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_no_signature_lines",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_no_signature_lines.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_empty_signature_line",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_empty_signature_line.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_carriage_return",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_carriage_return.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_tab",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_tab.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_empty_origin",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_empty_origin.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_size_zero",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_size_zero.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_size_leading_zero",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_size_leading_zero.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_size_not_decimal",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_size_not_decimal.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_size_above_2_64",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_size_above_2_64.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_root_noncanonical_base64",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_root_noncanonical_base64.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_root_31_bytes",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_root_31_bytes.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_root_unpadded",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_root_unpadded.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_signature_line_hyphen",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_signature_line_hyphen.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_signature_line_no_value",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_signature_line_no_value.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_signature_noncanonical_base64",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_signature_noncanonical_base64.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_signature_value_4_bytes",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_signature_value_4_bytes.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_key_name_with_plus",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_key_name_with_plus.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_key_name_256_characters",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_key_name_256_characters.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_101_signature_lines",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_101_signature_lines.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_log_line_twice",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_log_line_twice.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_witness_cosignature_twice",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_witness_cosignature_twice.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_checkpoint_witness_twice_under_m2",
+      "check": "bundle",
+      "doc": "bundles/invalid_checkpoint_witness_twice_under_m2.json",
+      "trust": "trust/acme-bank-m2.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "bundle_valid_100_signature_lines",
+      "check": "bundle",
+      "doc": "bundles/valid_100_signature_lines.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 8,
+        "root_hash": "RuBfKh1++avPl5SEMBrXkxoHjUELARNPqQsIP+QC31s=",
+        "leaf_index": 4,
+        "kind": "keyset",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:08Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:08Z"
+      }
+    },
+    {
+      "name": "bundle_invalid_origin_another_log",
+      "check": "bundle",
+      "doc": "bundles/invalid_origin_another_log.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "origin_mismatch"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_member_changed",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_member_changed.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_proof"
+      }
+    },
+    {
+      "name": "bundle_invalid_wrong_leaf_index",
+      "check": "bundle",
+      "doc": "bundles/invalid_wrong_leaf_index.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_proof"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_index_is_tree_size",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_index_is_tree_size.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_proof"
+      }
+    },
+    {
+      "name": "bundle_invalid_path_for_another_tree_size",
+      "check": "bundle",
+      "doc": "bundles/invalid_path_for_another_tree_size.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_proof"
+      }
+    },
+    {
+      "name": "bundle_invalid_path_one_hash_short",
+      "check": "bundle",
+      "doc": "bundles/invalid_path_one_hash_short.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_proof"
+      }
+    },
+    {
+      "name": "bundle_invalid_path_one_hash_long",
+      "check": "bundle",
+      "doc": "bundles/invalid_path_one_hash_long.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_proof"
+      }
+    },
+    {
+      "name": "bundle_invalid_path_empty",
+      "check": "bundle",
+      "doc": "bundles/invalid_path_empty.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_proof"
+      }
+    },
+    {
+      "name": "bundle_invalid_path_hash_altered",
+      "check": "bundle",
+      "doc": "bundles/invalid_path_hash_altered.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_proof"
+      }
+    },
+    {
+      "name": "bundle_invalid_path_of_size_300_against_size_8",
+      "check": "bundle",
+      "doc": "bundles/invalid_path_of_size_300_against_size_8.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_proof"
+      }
+    },
+    {
+      "name": "bundle_invalid_leaf_hashed_without_0x00_prefix",
+      "check": "bundle",
+      "doc": "bundles/invalid_leaf_hashed_without_0x00_prefix.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_proof"
+      }
+    },
+    {
+      "name": "bundle_invalid_log_signature_over_another_checkpoint",
+      "check": "bundle",
+      "doc": "bundles/invalid_log_signature_over_another_checkpoint.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_log_signature"
+      }
+    },
+    {
+      "name": "bundle_invalid_log_signature_altered",
+      "check": "bundle",
+      "doc": "bundles/invalid_log_signature_altered.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_log_signature"
+      }
+    },
+    {
+      "name": "bundle_invalid_log_signature_63_bytes",
+      "check": "bundle",
+      "doc": "bundles/invalid_log_signature_63_bytes.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_log_signature"
+      }
+    },
+    {
+      "name": "bundle_invalid_log_signature_with_timestamp",
+      "check": "bundle",
+      "doc": "bundles/invalid_log_signature_with_timestamp.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_log_signature"
+      }
+    },
+    {
+      "name": "bundle_invalid_log_signature_by_untrusted_key",
+      "check": "bundle",
+      "doc": "bundles/invalid_log_signature_by_untrusted_key.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "log_signature_missing"
+      }
+    },
+    {
+      "name": "bundle_invalid_log_signature_absent",
+      "check": "bundle",
+      "doc": "bundles/invalid_log_signature_absent.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "log_signature_missing"
+      }
+    },
+    {
+      "name": "bundle_invalid_log_signature_under_another_name",
+      "check": "bundle",
+      "doc": "bundles/invalid_log_signature_under_another_name.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "log_signature_missing"
+      }
+    },
+    {
+      "name": "bundle_invalid_log_signature_as_cosignature_type",
+      "check": "bundle",
+      "doc": "bundles/invalid_log_signature_as_cosignature_type.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "log_signature_missing"
+      }
+    },
+    {
+      "name": "bundle_invalid_cosignature_over_another_checkpoint",
+      "check": "bundle",
+      "doc": "bundles/invalid_cosignature_over_another_checkpoint.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_cosignature"
+      }
+    },
+    {
+      "name": "bundle_invalid_cosignature_time_changed",
+      "check": "bundle",
+      "doc": "bundles/invalid_cosignature_time_changed.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_cosignature"
+      }
+    },
+    {
+      "name": "bundle_invalid_cosignature_time_after_9999",
+      "check": "bundle",
+      "doc": "bundles/invalid_cosignature_time_after_9999.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_cosignature"
+      }
+    },
+    {
+      "name": "bundle_invalid_cosignature_without_timestamp",
+      "check": "bundle",
+      "doc": "bundles/invalid_cosignature_without_timestamp.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_cosignature"
+      }
+    },
+    {
+      "name": "bundle_invalid_cosignature_of_one_witness_bad_among_three",
+      "check": "bundle",
+      "doc": "bundles/invalid_cosignature_of_one_witness_bad_among_three.json",
+      "trust": "trust/acme-bank-m2.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_cosignature"
+      }
+    },
+    {
+      "name": "bundle_invalid_no_cosignature",
+      "check": "bundle",
+      "doc": "bundles/invalid_no_cosignature.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "too_few_cosignatures"
+      }
+    },
+    {
+      "name": "bundle_invalid_one_cosignature_under_m2",
+      "check": "bundle",
+      "doc": "bundles/invalid_one_cosignature_under_m2.json",
+      "trust": "trust/acme-bank-m2.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "too_few_cosignatures"
+      }
+    },
+    {
+      "name": "bundle_invalid_cosignature_from_untrusted_witness_only",
+      "check": "bundle",
+      "doc": "bundles/invalid_cosignature_from_untrusted_witness_only.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "too_few_cosignatures"
+      }
+    },
+    {
+      "name": "bundle_invalid_cosignature_from_untrusted_witness_under_m2",
+      "check": "bundle",
+      "doc": "bundles/invalid_cosignature_from_untrusted_witness_under_m2.json",
+      "trust": "trust/acme-bank-m2.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "too_few_cosignatures"
+      }
+    },
+    {
+      "name": "bundle_invalid_cosignature_by_another_key_under_witness_name",
+      "check": "bundle",
+      "doc": "bundles/invalid_cosignature_by_another_key_under_witness_name.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "too_few_cosignatures"
+      }
+    },
+    {
+      "name": "bundle_invalid_cosignature_as_log_signature_type",
+      "check": "bundle",
+      "doc": "bundles/invalid_cosignature_as_log_signature_type.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "too_few_cosignatures"
+      }
+    },
+    {
+      "name": "consistency_valid_1_to_2",
+      "check": "consistency",
+      "doc": "consistency/valid_1_to_2.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "older_size": 1,
+        "newer_size": 2
+      }
+    },
+    {
+      "name": "consistency_valid_3_to_7",
+      "check": "consistency",
+      "doc": "consistency/valid_3_to_7.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "older_size": 3,
+        "newer_size": 7
+      }
+    },
+    {
+      "name": "consistency_valid_7_to_8",
+      "check": "consistency",
+      "doc": "consistency/valid_7_to_8.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "older_size": 7,
+        "newer_size": 8
+      }
+    },
+    {
+      "name": "consistency_valid_8_to_8",
+      "check": "consistency",
+      "doc": "consistency/valid_8_to_8.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "older_size": 8,
+        "newer_size": 8
+      }
+    },
+    {
+      "name": "consistency_valid_1_to_300",
+      "check": "consistency",
+      "doc": "consistency/valid_1_to_300.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "older_size": 1,
+        "newer_size": 300
+      }
+    },
+    {
+      "name": "consistency_valid_100_to_300",
+      "check": "consistency",
+      "doc": "consistency/valid_100_to_300.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "older_size": 100,
+        "newer_size": 300
+      }
+    },
+    {
+      "name": "consistency_valid_150_to_151",
+      "check": "consistency",
+      "doc": "consistency/valid_150_to_151.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "older_size": 150,
+        "newer_size": 151
+      }
+    },
+    {
+      "name": "consistency_valid_299_to_300",
+      "check": "consistency",
+      "doc": "consistency/valid_299_to_300.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "older_size": 299,
+        "newer_size": 300
+      }
+    },
+    {
+      "name": "consistency_valid_log_signatures_only",
+      "check": "consistency",
+      "doc": "consistency/valid_log_signatures_only.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "older_size": 3,
+        "newer_size": 7
+      }
+    },
+    {
+      "name": "consistency_valid_bad_witness_cosignature_not_checked",
+      "check": "consistency",
+      "doc": "consistency/valid_bad_witness_cosignature_not_checked.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "older_size": 3,
+        "newer_size": 7
+      }
+    },
+    {
+      "name": "consistency_valid_witness_cosignature_over_another_checkpoint_not_checked",
+      "check": "consistency",
+      "doc": "consistency/valid_witness_cosignature_over_another_checkpoint_not_checked.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "older_size": 3,
+        "newer_size": 7
+      }
+    },
+    {
+      "name": "consistency_invalid_wrong_spec",
+      "check": "consistency",
+      "doc": "consistency/invalid_wrong_spec.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "consistency_form"
+      }
+    },
+    {
+      "name": "consistency_invalid_bundle_given",
+      "check": "consistency",
+      "doc": "consistency/invalid_bundle_given.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "consistency_form"
+      }
+    },
+    {
+      "name": "consistency_invalid_unknown_member",
+      "check": "consistency",
+      "doc": "consistency/invalid_unknown_member.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "consistency_form"
+      }
+    },
+    {
+      "name": "consistency_invalid_missing_proof",
+      "check": "consistency",
+      "doc": "consistency/invalid_missing_proof.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "consistency_form"
+      }
+    },
+    {
+      "name": "consistency_invalid_log_id_malformed",
+      "check": "consistency",
+      "doc": "consistency/invalid_log_id_malformed.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "consistency_form"
+      }
+    },
+    {
+      "name": "consistency_invalid_older_not_a_string",
+      "check": "consistency",
+      "doc": "consistency/invalid_older_not_a_string.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "consistency_form"
+      }
+    },
+    {
+      "name": "consistency_invalid_proof_not_base64",
+      "check": "consistency",
+      "doc": "consistency/invalid_proof_not_base64.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "consistency_form"
+      }
+    },
+    {
+      "name": "consistency_invalid_proof_65_hashes",
+      "check": "consistency",
+      "doc": "consistency/invalid_proof_65_hashes.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "consistency_form"
+      }
+    },
+    {
+      "name": "consistency_invalid_not_an_object",
+      "check": "consistency",
+      "doc": "consistency/invalid_not_an_object.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "consistency_form"
+      }
+    },
+    {
+      "name": "consistency_invalid_member_named_twice",
+      "check": "consistency",
+      "doc": "consistency/invalid_member_named_twice.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "consistency_form"
+      }
+    },
+    {
+      "name": "consistency_invalid_log_id_unknown",
+      "check": "consistency",
+      "doc": "consistency/invalid_log_id_unknown.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "unknown_log"
+      }
+    },
+    {
+      "name": "consistency_invalid_older_checkpoint_malformed",
+      "check": "consistency",
+      "doc": "consistency/invalid_older_checkpoint_malformed.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "consistency_invalid_newer_checkpoint_not_a_note",
+      "check": "consistency",
+      "doc": "consistency/invalid_newer_checkpoint_not_a_note.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "consistency_invalid_newer_checkpoint_log_line_twice",
+      "check": "consistency",
+      "doc": "consistency/invalid_newer_checkpoint_log_line_twice.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "consistency_invalid_newer_checkpoint_witness_line_twice",
+      "check": "consistency",
+      "doc": "consistency/invalid_newer_checkpoint_witness_line_twice.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "checkpoint_form"
+      }
+    },
+    {
+      "name": "consistency_invalid_newer_origin_another_log",
+      "check": "consistency",
+      "doc": "consistency/invalid_newer_origin_another_log.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "origin_mismatch"
+      }
+    },
+    {
+      "name": "consistency_invalid_checkpoint_of_another_trusted_log",
+      "check": "consistency",
+      "doc": "consistency/invalid_checkpoint_of_another_trusted_log.json",
+      "trust": "trust/acme-bank-two-logs.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "origin_mismatch"
+      }
+    },
+    {
+      "name": "consistency_invalid_older_log_signature_altered",
+      "check": "consistency",
+      "doc": "consistency/invalid_older_log_signature_altered.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_log_signature"
+      }
+    },
+    {
+      "name": "consistency_invalid_newer_log_signature_by_untrusted_key",
+      "check": "consistency",
+      "doc": "consistency/invalid_newer_log_signature_by_untrusted_key.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "log_signature_missing"
+      }
+    },
+    {
+      "name": "consistency_invalid_newer_cosigned_only",
+      "check": "consistency",
+      "doc": "consistency/invalid_newer_cosigned_only.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "log_signature_missing"
+      }
+    },
+    {
+      "name": "consistency_invalid_log_signature_by_log_g_key",
+      "check": "consistency",
+      "doc": "consistency/invalid_log_signature_by_log_g_key.json",
+      "trust": "trust/acme-bank-two-logs.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "log_signature_missing"
+      }
+    },
+    {
+      "name": "consistency_invalid_newer_smaller_than_older",
+      "check": "consistency",
+      "doc": "consistency/invalid_newer_smaller_than_older.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "size_regression"
+      }
+    },
+    {
+      "name": "consistency_invalid_split_view",
+      "check": "consistency",
+      "doc": "consistency/invalid_split_view.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "split_view"
+      }
+    },
+    {
+      "name": "consistency_invalid_path_altered",
+      "check": "consistency",
+      "doc": "consistency/invalid_path_altered.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_consistency_proof"
+      }
+    },
+    {
+      "name": "consistency_invalid_path_empty",
+      "check": "consistency",
+      "doc": "consistency/invalid_path_empty.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_consistency_proof"
+      }
+    },
+    {
+      "name": "consistency_invalid_path_one_hash_short",
+      "check": "consistency",
+      "doc": "consistency/invalid_path_one_hash_short.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_consistency_proof"
+      }
+    },
+    {
+      "name": "consistency_invalid_path_one_hash_long",
+      "check": "consistency",
+      "doc": "consistency/invalid_path_one_hash_long.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_consistency_proof"
+      }
+    },
+    {
+      "name": "consistency_invalid_path_for_another_newer_size",
+      "check": "consistency",
+      "doc": "consistency/invalid_path_for_another_newer_size.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_consistency_proof"
+      }
+    },
+    {
+      "name": "consistency_invalid_equal_sizes_with_a_path",
+      "check": "consistency",
+      "doc": "consistency/invalid_equal_sizes_with_a_path.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_consistency_proof"
+      }
+    },
+    {
+      "name": "consistency_invalid_newer_does_not_extend_older",
+      "check": "consistency",
+      "doc": "consistency/invalid_newer_does_not_extend_older.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bad_consistency_proof"
+      }
+    },
+    {
+      "name": "policy_off_none",
+      "check": "policy",
+      "trust": "trust/acme-bank-policy-off.json",
+      "doc": null,
+      "expect": {
+        "outcome": "load"
+      }
+    },
+    {
+      "name": "policy_off_passes",
+      "check": "policy",
+      "trust": "trust/acme-bank-policy-off.json",
+      "doc": "bundles/policy_passes.json",
+      "expect": {
+        "outcome": "load"
+      }
+    },
+    {
+      "name": "policy_off_fails",
+      "check": "policy",
+      "trust": "trust/acme-bank-policy-off.json",
+      "doc": "bundles/policy_fails.json",
+      "expect": {
+        "outcome": "load"
+      }
+    },
+    {
+      "name": "policy_warn_none",
+      "check": "policy",
+      "trust": "trust/acme-bank-policy-warn.json",
+      "doc": null,
+      "expect": {
+        "outcome": "load_with_warning",
+        "error": "inclusion_missing"
+      }
+    },
+    {
+      "name": "policy_warn_passes",
+      "check": "policy",
+      "trust": "trust/acme-bank-policy-warn.json",
+      "doc": "bundles/policy_passes.json",
+      "expect": {
+        "outcome": "load",
+        "verdict": {
+          "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+          "tree_size": 8,
+          "root_hash": "RuBfKh1++avPl5SEMBrXkxoHjUELARNPqQsIP+QC31s=",
+          "leaf_index": 2,
+          "kind": "certificate",
+          "witnesses": [
+            {
+              "key_id": "ed25519:ecd190451814e0a3",
+              "name": "witness.example/w1",
+              "time": "2027-01-15T08:00:08Z"
+            }
+          ],
+          "t_proven": "2027-01-15T08:00:08Z",
+          "certificate_id": "sha256:f167f9a38c92d10400ec13a17ba0383f4d0a65e0068f6ffa64d3e79634cf2417"
+        }
+      }
+    },
+    {
+      "name": "policy_warn_fails",
+      "check": "policy",
+      "trust": "trust/acme-bank-policy-warn.json",
+      "doc": "bundles/policy_fails.json",
+      "expect": {
+        "outcome": "refuse",
+        "error": "bad_proof"
+      }
+    },
+    {
+      "name": "policy_refuse_none",
+      "check": "policy",
+      "trust": "trust/acme-bank-policy-refuse.json",
+      "doc": null,
+      "expect": {
+        "outcome": "refuse",
+        "error": "inclusion_missing"
+      }
+    },
+    {
+      "name": "policy_refuse_passes",
+      "check": "policy",
+      "trust": "trust/acme-bank-policy-refuse.json",
+      "doc": "bundles/policy_passes.json",
+      "expect": {
+        "outcome": "load",
+        "verdict": {
+          "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+          "tree_size": 8,
+          "root_hash": "RuBfKh1++avPl5SEMBrXkxoHjUELARNPqQsIP+QC31s=",
+          "leaf_index": 2,
+          "kind": "certificate",
+          "witnesses": [
+            {
+              "key_id": "ed25519:ecd190451814e0a3",
+              "name": "witness.example/w1",
+              "time": "2027-01-15T08:00:08Z"
+            }
+          ],
+          "t_proven": "2027-01-15T08:00:08Z",
+          "certificate_id": "sha256:f167f9a38c92d10400ec13a17ba0383f4d0a65e0068f6ffa64d3e79634cf2417"
+        }
+      }
+    },
+    {
+      "name": "policy_refuse_fails",
+      "check": "policy",
+      "trust": "trust/acme-bank-policy-refuse.json",
+      "doc": "bundles/policy_fails.json",
+      "expect": {
+        "outcome": "refuse",
+        "error": "bad_proof"
+      }
+    }
+  ]
+}

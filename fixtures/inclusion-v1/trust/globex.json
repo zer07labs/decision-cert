@@ -1,0 +1,19 @@
+{
+  "spec": "decision-cert-log-trust.v1",
+  "tenant": "globex",
+  "logs": [
+    {
+      "log_id": "log:4898c34f7a28cb056bd6b6f0b5b8ef98",
+      "key_name": "log:4898c34f7a28cb056bd6b6f0b5b8ef98",
+      "key_id": "ed25519:0ec33a82e468fc50",
+      "key": "ZTqrGP_rn90XGpuT8hOCzy-NW8cSxISPzd0HBN_2nWs"
+    }
+  ],
+  "witnesses": [
+    {
+      "name": "witness.example/w1",
+      "key_id": "ed25519:ecd190451814e0a3",
+      "key": "GjFj_qitb8BFZKKHPrDNn4uFSmUPWjUWKf4gm8VlDVE"
+    }
+  ]
+}

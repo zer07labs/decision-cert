@@ -1,0 +1,8 @@
+{
+  "kind": "audit_head",
+  "tenant": "acme-bank",
+  "chain": "console-audit",
+  "seq": 7,
+  "digest": "sha256:c7682545d857ce7275eab0e40e675e0349ee807673a11847a995dc2aac0f4733",
+  "observed_at": "2027-01-14T08:07:00Z"
+}

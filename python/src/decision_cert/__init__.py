@@ -27,8 +27,32 @@ every conformance fixture. A certificate describes a measured process; it never 
     # an evidence pack (docs/evidence-pack.md): manifest, signatures, measured cases, recompute
     report = verify_pack(Path("pack/"), keys)
     report.ok, [(c.name, c.status) for c in report.checks]
+
+    # inclusion v1 (draft, spec/drafts/decision-cert-inclusion.v1.md): a bundle checked offline against a
+    # tenant's log trust configuration; raises InclusionError with the error name (e.name) on refusal
+    trust = LogTrust.from_json(parse_ijson(open("log-trust.json").read()))
+    verdict = verify_bundle(parse_ijson(open("bundle.json").read()), trust)
+    verdict.t_proven_time(), verdict.to_json()
 """
 
+from ._inclusion import (
+    ConsistencyVerdict,
+    CountedWitness,
+    ErrorName,
+    InclusionError,
+    InclusionVerdict,
+    Leaf,
+    LogTrust,
+    Policy,
+    PolicyOutcome,
+    apply_policy,
+    check_tenants,
+    leaf_hash,
+    parse_checkpoint,
+    parse_ijson,
+    verify_bundle,
+    verify_consistency,
+)
 from ._map import MAP_KINDS, confidence, probabilities
 from ._monitor import Histogram, ShiftScore, bin_of, chi2_sf, shift_score
 from ._pack import PACK_FORMAT, Check, Limits, PackError, PackReport, measured_cases_hash, verify_pack
@@ -86,27 +110,41 @@ __all__ = [
     "BadSignature",
     "CertError",
     "Check",
+    "ConsistencyVerdict",
+    "CountedWitness",
+    "ErrorName",
     "Histogram",
+    "InclusionError",
+    "InclusionVerdict",
     "Invalid",
     "KeyMode",
+    "Leaf",
     "Limits",
+    "LogTrust",
     "PackError",
     "PackReport",
+    "Policy",
+    "PolicyOutcome",
     "ShiftScore",
     "TrustedKey",
     "UntrustedKey",
     "Verified",
     "WrongTenant",
     "__version__",
+    "apply_policy",
     "bin_of",
     "canonical",
     "certificate_id",
+    "check_tenants",
     "chi2_sf",
     "confidence",
     "is_expired",
     "key_id",
+    "leaf_hash",
     "loads",
     "measured_cases_hash",
+    "parse_checkpoint",
+    "parse_ijson",
     "probabilities",
     "shift_score",
     "signed_bytes_v1_5",
@@ -114,6 +152,8 @@ __all__ = [
     "threshold_for",
     "timestamp",
     "verify",
+    "verify_bundle",
+    "verify_consistency",
     "verify_for_tenant",
     "verify_pack",
 ]

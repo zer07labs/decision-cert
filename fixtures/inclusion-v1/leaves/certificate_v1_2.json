@@ -1,0 +1,7 @@
+{
+  "kind": "certificate",
+  "certificate_id": "sha256:9bda5d8e46e421e4416ea52dc8611a289126cc878c4660b85cfade6aa71d560b",
+  "signer_key_id": "ed25519:56475aa75463474c",
+  "spec": "decision-certificate.v1.2",
+  "fitted_at": "2026-10-25T12:00:00Z"
+}

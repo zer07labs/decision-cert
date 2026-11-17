@@ -1,0 +1,20 @@
+{
+  "spec": "decision-cert-inclusion.v1",
+  "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+  "leaf_index": 20,
+  "leaf": {
+    "kind": "keyset",
+    "keyset_id": "keyset:2b75536b5741ade5e1a45de0fb638f83",
+    "seq": 20,
+    "keyset": "sha256:c53e01c1a81f9300015c6e7b8594f3d69a3e329569bd1be5b5654c6b92e3a1e9"
+  },
+  "proof": [
+    "C5+JaSiRQusYE9SwVghJ310SHV+GV2vZ03JDaGqytI0=",
+    "9fGYDr1+g6vQz16qxE69uX9jVIhv4+WewwZNi9RN6BA=",
+    "6+6LLZJkT0effhPxoa0k1cySPpJYBUHjRYLBEyT96wk=",
+    "v+MCh956J+T4Q4v87thz3s71oEsL+6kj1bt+D/OkDTo=",
+    "sC/AOokdV6/IS+biLpCqmlVVBRgLJ5/U/N3Cr6mw8v8=",
+    "2Q+iHTbmJFsyCdiFSmk3z4p6UyIQEXB7AzlUWlL3mvY="
+  ],
+  "checkpoint": "log:b1ca2d78f40ef14d60690abe02823e7d\n64\n6DVBfvMsWfsoUBPXikJ8Dpr4B3BPYyIW1+QfV4sBruA=\n\n— log:b1ca2d78f40ef14d60690abe02823e7d M/x+PPScLPK4A9DoFT9jGQ2GxmTkQIjzgjkrLcTtp3PWfXDMffer1LgafjrcIsEa9NFcm5xTBCkpLE20Pp8V2aKkfw4=\n— witness.example/w3 krQkmQAAAABrSdIU+wVwT9vZ7nYCe6U+OjWvhWAUXoUDfGOcYee5dAND9lYXk160cMMWJJNuEzku8F7dQ8fhbCBQcYUMRfkbMu26Bw==\n— witness.example/w1 9JQp8wAAAABrSdIU6KRYcTmQJwHsjCpbRARfs3NVH9MjwyewTe3ZyWJAG27S+DwbrnDR73sf4nTRPgcu5+OVsXDdau0qP20X53JtBw==\n— witness.example/w2 XB1mjQAAAABrSdIFBo4yH2nsegl6Vu5EcmPOqJ7yXfnhxMRCRosYJeH26auXewQKyXSjsZwYDLeSGeFAAQ/zZnMgmt87fpr9WfEbAw==\n"
+}

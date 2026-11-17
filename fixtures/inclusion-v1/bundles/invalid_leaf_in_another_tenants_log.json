@@ -1,0 +1,101 @@
+{
+  "spec": "decision-cert-inclusion.v1",
+  "log_id": "log:4898c34f7a28cb056bd6b6f0b5b8ef98",
+  "leaf_index": 0,
+  "leaf": {
+    "kind": "certificate",
+    "certificate_id": "sha256:9bda5d8e46e421e4416ea52dc8611a289126cc878c4660b85cfade6aa71d560b",
+    "signer_key_id": "ed25519:56475aa75463474c",
+    "spec": "decision-certificate.v1.2",
+    "fitted_at": "2026-10-25T12:00:00Z"
+  },
+  "proof": [
+    "Gf6FMQN9wcjWpybm9rBzY368665zH8P6xLtMIhR6tS0=",
+    "KU0fjvc3xFYrePz/Mx80uHbgM06olLbpD/NqWrbtKRM="
+  ],
+  "checkpoint": "log:4898c34f7a28cb056bd6b6f0b5b8ef98\n4\neZCr780Gvmy9nxE319Q1tJJSXN/EuLJ6F/dxOmzFE6I=\n\n— log:4898c34f7a28cb056bd6b6f0b5b8ef98 +06fDTy6pvSxnaOx/J46RMNUX3UKZ/sfyyYmVuCmuAgTlzodL9prm2g7dNbhdyA/izwJrK/XzjrU/azRBdO8FAVEWgY=\n— witness.example/w1 9JQp8wAAAABrSdIDzbmSSsbmLgbRsJceXge3rZRn294u8Zolc7sJ44u1NvTfqvQ9nmacA0vhPUTcNdmJEezJJx8xotaQgyHiWqbuCg==\n",
+  "certificate": {
+    "spec": "decision-certificate.v1.2",
+    "domain": "hmda-approval",
+    "decision": "approved",
+    "options": [
+      "yes",
+      "no"
+    ],
+    "model_id": "b1/lightgbm@lgbm-4.7.0-seed7",
+    "manifest_hash": "sha256:abababababababababababababababababababababababababababababababab",
+    "data_hash": "sha256:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+    "n_cal": 2500,
+    "n_temperature": 2500,
+    "split": {
+      "method": "seeded",
+      "seed": 7
+    },
+    "calibration_map": {
+      "kind": "temperature",
+      "params": {
+        "temperature": 1.3173913043478263
+      },
+      "label_budget": null
+    },
+    "rule": {
+      "cannot_tell_above": null,
+      "unscored": "abstain"
+    },
+    "alpha": 0.05,
+    "delta": 0.1,
+    "method": "ltt",
+    "risk": "selective_error",
+    "n": 2500,
+    "abstain_below": 0.8829170572757721,
+    "coverage": 0.4116,
+    "ucb": 0.032977066870911,
+    "realized_band": {
+      "level": 0.95,
+      "low": 0.0011834410146505043,
+      "high": 0.04314473389094683
+    },
+    "segments": [],
+    "window": null,
+    "fitted_at": "2026-10-25T12:00:00Z",
+    "expires_at": "2027-01-23T12:00:00Z",
+    "audit": {
+      "mode": "full-label",
+      "rate": 1,
+      "n": 5000,
+      "propensity_logged": false
+    },
+    "issuer": {
+      "tool": "decision-cert",
+      "version": "0.4.0"
+    },
+    "confidence_bins": [
+      0,
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.85,
+      0.9,
+      0.95,
+      0.99,
+      1
+    ],
+    "confidence_histogram": {
+      "counts": [
+        0,
+        310,
+        320,
+        330,
+        280,
+        300,
+        340,
+        420,
+        150
+      ],
+      "unscored": 50
+    },
+    "signer_key_id": "ed25519:56475aa75463474c",
+    "signature": "za-dIj7-NX8kcaNCd3la6M6giUxELJZW_OOMkyzRD1pa4WfPwlPBv7hV8XLld0t_pVEqX7af3WNQb57jp7-OAQ"
+  }
+}

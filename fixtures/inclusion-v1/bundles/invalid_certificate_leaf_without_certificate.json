@@ -1,0 +1,18 @@
+{
+  "spec": "decision-cert-inclusion.v1",
+  "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+  "leaf_index": 1,
+  "leaf": {
+    "kind": "certificate",
+    "certificate_id": "sha256:9bda5d8e46e421e4416ea52dc8611a289126cc878c4660b85cfade6aa71d560b",
+    "signer_key_id": "ed25519:56475aa75463474c",
+    "spec": "decision-certificate.v1.2",
+    "fitted_at": "2026-10-25T12:00:00Z"
+  },
+  "proof": [
+    "vevF1sDHf6u3P298tnFlh+4jo2faogczBaApH7SD5sg=",
+    "//tD+N8vpNxFdvuH69SDRCRQmlDWOu8TXScbT0RpRmI=",
+    "24PlU6RduAATtjuHcHiT145dJ0jxqnPuFZDm2lxdVyc="
+  ],
+  "checkpoint": "log:b1ca2d78f40ef14d60690abe02823e7d\n8\nRuBfKh1++avPl5SEMBrXkxoHjUELARNPqQsIP+QC31s=\n\n— log:b1ca2d78f40ef14d60690abe02823e7d M/x+PAgxkzdOHfGVGm1vOQZOAWC+6CllcNjSFmpufo0OQuQCUjznlMfEIfUGd83Yk8e8wWJSEtRLUuhSqnnie100Kwo=\n— witness.example/w1 9JQp8wAAAABrSdIIyVhTb2S9l6A9Xe927+t5+tu/9kAPg1TSSwzjXeBCPZNc67UdllPoeHxNL42r6/FIsVVN4yppCHe7KTMuUD5ADw==\n"
+}

@@ -1,0 +1,21 @@
+{
+  "spec": "decision-cert-inclusion.v1",
+  "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+  "leaf_index": 299,
+  "leaf": {
+    "kind": "audit_head",
+    "tenant": "acme-bank",
+    "chain": "console-audit",
+    "seq": 299,
+    "digest": "sha256:ba34d4bc7a11763f36345d41cd912fc0c73dc440529690a3257aac3d6917b16f",
+    "observed_at": "2027-01-14T12:59:00Z"
+  },
+  "proof": [
+    "FQp447gRoFeWs5xMFVUYlHpFV6F9593nFgYu7lVM+VI=",
+    "aANNSfT/Rrm9gFNfxj+FXXcJ+ozm/X7uYp4QWEly4yM=",
+    "7LATO19b/637b4fORUwg7PsP0bWBPEDZeR3MMYTDbww=",
+    "y45JvypBXghkWPODoMe6kWPW3b+RGq2FBgDM3v4vlh8=",
+    "e7swkRajUedMFAgw12DbnuvK5m+pQ6jqvvhkdp3baN0="
+  ],
+  "checkpoint": "log:b1ca2d78f40ef14d60690abe02823e7d\n300\nRyztjWNuvMEVXQpnksaC8lQXk3YzdABfo07B9gtRraM=\n\n— log:b1ca2d78f40ef14d60690abe02823e7d M/x+PGAAztnnD67HURBQcLHOU0s5ItU/KQebmeLcjtU5T8HiK6C3TTSOnNlOSISn0LR0xg3dLl+zhyyO2Qt/F2NAEgI=\n— witness.example/w1 9JQp8wAAAABrSdMsapscnf9X39ZGbUyJ3PLxmczZ1l4ZK8kMYPreq0dzOUj0/O3Hd6l02lisRkUG34tKkVq05wrPSurtyWMI9jqLDA==\n"
+}
