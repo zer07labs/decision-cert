@@ -283,6 +283,11 @@ equals the key ID computed for that key's type above. Following c2sp.org/signed-
 Because no key has two lines (§5.1), each trusted witness has at most one cosignature in a
 checkpoint, and each counts once.
 
+**Note to implementers** (informative). A general-purpose C2SP signed-note or checkpoint library may
+drop a repeated line from one key instead of refusing the note, and does not bound a cosignature's
+time. An implementation built on one adds both checks: no two lines from one key (§5.1,
+`checkpoint_form`) and a cosignature timestamp at most 253402300799 (§5.3, `bad_cosignature`).
+
 ### 5.5 Key names, key IDs and key ids
 
 One public key has three names here, each for its own job:
