@@ -115,6 +115,9 @@ decision-cert verify-consistency consistency.json --trust log-trust.json
 python -m decision_cert verify-bundle bundle.json --trust log-trust.json
 ```
 
+The issuer's side (`certify --leaf-out`, `python -m decision_cert bundle` and `log backfill`) is in
+[`docs/certificates.md`](docs/certificates.md#recording-it-in-the-tenants-log-draft).
+
 Or in Python:
 
 ```python

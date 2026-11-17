@@ -13,7 +13,9 @@ and `valid_cost_basic.json`, all for tenant `acme-bank`).
 
 Every case's expected verdict comes from how the case is built: an accepted verdict is assembled from the
 tree, the checkpoint and the cosignatures written into the case, and a refusal names the one check the
-case is built to fail (§10, §7.2, §9, §11, §14). This script does not import the verifier. Both verifiers
+case is built to fail (§10, §7.2, §9, §11, §14). This script does not use the verifier's checks; its
+certificate leaves and their backfill order are the issuer's (`decision_cert.certificate_leaf`,
+`backfill_order`), which the verifiers check against each certificate. Both verifiers
 are then checked against the manifest: `rust/tests/inclusion_fixtures.rs` and
 `python/tests/test_inclusion.py`, which also runs the two command-line verifiers on every file and
 compares their output lines.
@@ -47,6 +49,7 @@ from typing import Any
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
+from decision_cert import backfill_order, certificate_leaf
 from decision_cert.issue import certify as ct
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -366,16 +369,8 @@ CERT_COST = load_cert("v1.5/valid_cost_basic.json")
 
 
 def cert_leaf(c: dict[str, Any]) -> dict[str, Any]:
-    out = {
-        "kind": "certificate",
-        "certificate_id": ct.certificate_id(c),
-        "signer_key_id": c["signer_key_id"],
-        "spec": c["spec"],
-        "fitted_at": c["fitted_at"],
-    }
-    if c["spec"] == "decision-certificate.v1.5":
-        out["tenant"] = c["tenant"]
-    return out
+    """A certificate's leaf as the issuer builds it (`decision_cert.certificate_leaf`, §3.2)."""
+    return certificate_leaf(c).to_json()
 
 
 def keyset_leaf(i: int) -> dict[str, Any]:
@@ -413,8 +408,7 @@ def audit_head_leaf(i: int, tenant: str = TENANT) -> dict[str, Any]:
 def log_a_leaves() -> list[dict[str, Any]]:
     """acme-bank's log: three certificates backfilled when the log started (§12: by fitted_at, then
     certificate_id), then every other kind in turn, with one more certificate at 150; 300 leaves."""
-    backfill = sorted((CERT_V12, CERT_OPERATOR, CERT_HOSTED), key=lambda c: (c["fitted_at"], ct.certificate_id(c)))
-    out = [cert_leaf(c) for c in backfill]
+    out = [cert_leaf(c) for c in backfill_order((CERT_V12, CERT_OPERATOR, CERT_HOSTED))]
     kinds: list[Callable[[int], dict[str, Any]]] = [keyset_leaf, ledger_leaf, attestation_leaf, audit_head_leaf]
     for i in range(3, 300):
         out.append(cert_leaf(CERT_COST) if i == 150 else kinds[i % 4](i))

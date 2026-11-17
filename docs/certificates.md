@@ -231,6 +231,51 @@ The crate has the same (`tenant_keys_from_json`, `verify_for_tenant`), and both 
 A consumer holding several tenants' keys refuses a configuration in which one key id appears under
 two tenants.
 
+### Recording it in the tenant's log (draft)
+
+A tenant can keep an append-only transparency log of what was issued for it, and carry, next to each
+certificate, a bundle that shows the log recorded it by a time the tenant's witnesses cosigned
+([draft `decision-cert-inclusion.v1`](../spec/drafts/decision-cert-inclusion.v1.md), not frozen). The
+certificate does not change, and verifies exactly as before with or without a bundle. The issuer never
+calls the log: it writes files and reads files.
+
+1. **The leaf.** `certify --leaf-out leaves.jsonl` also writes each certificate's leaf record, one JSON
+   line `{"certificate_id", "leaf", "leaf_hash"}` (`decision_cert.leaf_record` in Python). Whoever runs
+   the tenant's log appends the `leaf` and gives back its leaf index.
+2. **While waiting.** The certificate is valid as a certificate from the start. The issuer keeps it with
+   its leaf index; its proof follows at the next cosigned checkpoint (hourly by default, on the log
+   operator's schedule). A consumer under `warn` (the default) loads it meanwhile with an
+   `inclusion_missing` warning; under `refuse` it waits for the bundle.
+3. **The bundle.** Once a cosigned checkpoint includes the leaf, the log gives an inclusion proof (a
+   JSON array of base64 node hashes) against it, and
+
+   ```bash
+   python -m decision_cert bundle --certificate cert.json --leaf-index 1234 --proof proof.json \
+       --checkpoint checkpoint.txt --trust log-trust.json --out bundle.json
+   ```
+
+   builds the leaf from the certificate, checks the bundle as a consumer will (`verify-bundle`, in
+   either CLI), and writes it as its JCS bytes. It refuses a proof for another certificate's leaf
+   (`bad_proof`), a certificate for another tenant (`tenant_mismatch`) and a log the configuration does
+   not hold (`unknown_log`), writing nothing (exit 1). A checkpoint whose tree does not reach the leaf
+   yet exits 3: bundle against a later one. A bundle never needs refreshing as the log grows.
+4. **Backfill.** When a tenant's log starts, the certificates issued before it are appended first,
+   before any new leaf, by `fitted_at` and then `certificate_id`:
+
+   ```bash
+   python -m decision_cert log backfill --tenant acme-bank --leaf-out backfill.jsonl old/*.json
+   ```
+
+   takes certificates or calibration files (v1 to v1.5), writes each certificate's leaf record once, in
+   that order, and refuses a v1.5 certificate for another tenant. A backfilled leaf looks like any other
+   and carries no mark. It gets **no early time evidence**: its `t_proven` is the cosignature time of
+   the first checkpoint that includes it, after the log started, not its `fitted_at`. Under the key-set
+   design's compromise rule it therefore counts as signed when it was logged.
+
+A verified bundle shows that the log recorded the certificate by `t_proven`. It says nothing about
+whether the measurement was right: a certificate describes a measured process and
+never guarantees an outcome.
+
 ### Segments and a changing mix
 
 Declare as a segment any case field whose shares may change in use and whose groups may differ in

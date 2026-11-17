@@ -27,6 +27,24 @@ reason also on stderr). Exit 2: usage error, an unreadable file, or a log trust 
 not I-JSON or not well formed (`trust_form`, on stderr). `verify-bundle` does not verify the bundle's
 certificate itself; `verify` does. The Rust `decision-cert verify-bundle` and `verify-consistency`
 behave the same.
+
+`python -m decision_cert bundle --certificate <cert.json> --leaf-index <n> --proof <proof.json>
+--checkpoint <checkpoint> --trust <log-trust.json> --out <bundle.json> [--log-id <log id>]` is the
+issuer's step once a cosigned checkpoint includes the certificate's leaf: it builds the leaf from the
+certificate, checks the bundle as `verify-bundle` does (the proof file is a JSON array of base64 node
+hashes, the checkpoint file the signed note, cosignatures included; the log is the checkpoint's origin
+unless `--log-id` is given), and writes it as its JCS bytes. It prints `verify-bundle`'s verdict line.
+Exit 0: written. Exit 1: refused, nothing written. Exit 2: usage error, an unreadable file, or a
+configuration that is not well formed. Exit 3: the checkpoint does not include the leaf yet (its tree
+size is not above the index): nothing written; bundle against a later cosigned checkpoint.
+
+`python -m decision_cert log backfill --tenant <tenant> --leaf-out <leaves.jsonl> <file>...` writes the
+leaf records of certificates issued before the tenant's log existed, for the log to append first, before
+any new leaf, in the draft's §12 order (by `fitted_at`, then `certificate_id`; each certificate once).
+Each file holds a certificate or an issuer's calibration file. Exit 1: a file holds something that is not
+a certificate, or a v1.5 certificate for another tenant; nothing written. Exit 2: usage error or an
+unreadable file. A backfilled leaf carries no mark (§12): it gets no early time evidence because its
+`t_proven` is the first cosigned checkpoint that includes it, after the log started.
 """
 
 from __future__ import annotations
@@ -40,6 +58,7 @@ from pathlib import Path
 from typing import Any
 
 from . import CertError, Invalid, loads, tenant_keys_from_json, timestamp, verify, verify_for_tenant
+from ._bundle import NotYetInCheckpoint, backfill_records, bundle_bytes, bundle_certificate, leaf_records_text
 from ._inclusion import ErrorName, InclusionError, LogTrust, parse_ijson, verify_bundle, verify_consistency
 from ._pack import DEFAULT_LIMITS, Limits, PackError, render, verify_pack
 
@@ -51,6 +70,16 @@ def _positive(text: str) -> int:
         n = 0
     if n < 1:
         raise argparse.ArgumentTypeError(f"{text!r} is not a positive integer")
+    return n
+
+
+def _index(text: str) -> int:
+    try:
+        n = int(text)
+    except ValueError:
+        n = -1
+    if not 0 <= n <= 2**53 - 1 or not text.isdigit():
+        raise argparse.ArgumentTypeError(f"{text!r} is not an integer from 0 to 2^53 - 1")
     return n
 
 
@@ -126,9 +155,44 @@ def main(argv: Sequence[str] | None = None) -> int:
         required=True,
         help="The tenant's log trust configuration, a `decision-cert-log-trust.v1` JSON object.",
     )
+    bd = sub.add_parser(
+        "bundle",
+        help="Bundle a certificate with its inclusion proof and a cosigned checkpoint (draft), checked first.",
+    )
+    bd.add_argument("--certificate", type=Path, required=True, help="The certificate as issued, a JSON object.")
+    bd.add_argument(
+        "--leaf-index", type=_index, required=True, help="The leaf's position in the log, which the log gave it."
+    )
+    bd.add_argument(
+        "--proof", type=Path, required=True, help="The inclusion proof: a JSON array of base64 node hashes."
+    )
+    bd.add_argument(
+        "--checkpoint", type=Path, required=True, help="The checkpoint's signed note, with its cosignatures."
+    )
+    bd.add_argument(
+        "--trust",
+        type=Path,
+        required=True,
+        help="The tenant's log trust configuration, a `decision-cert-log-trust.v1` JSON object.",
+    )
+    bd.add_argument("--out", type=Path, required=True, help="Where to write the bundle (its JCS bytes).")
+    bd.add_argument("--log-id", help="The log's id (default: the checkpoint's origin).")
+    lg = sub.add_parser("log", help="The issuer's log tooling (draft).")
+    lsub = lg.add_subparsers(dest="log_command", required=True)
+    bf = lsub.add_parser(
+        "backfill",
+        help="Write the leaf records of certificates issued before the tenant's log existed, in backfill order.",
+    )
+    bf.add_argument("files", type=Path, nargs="+", help="Certificates, or issuer calibration files.")
+    bf.add_argument("--tenant", required=True, help="The tenant whose log the leaves are for.")
+    bf.add_argument("--leaf-out", type=Path, required=True, help="Where to write the leaf records (JSON Lines).")
     args = ap.parse_args(argv)  # exits 2 on a usage error
     if args.command == "verify-pack":
         return _verify_pack(args)
+    if args.command == "bundle":
+        return _bundle(args)
+    if args.command == "log":
+        return _backfill(args)
     if args.command == "verify-bundle":
         return _inclusion(args.bundle, args.trust, lambda v, t: verify_bundle(v, t).to_json(), ErrorName.BUNDLE_FORM)
     if args.command == "verify-consistency":
@@ -192,18 +256,9 @@ def _json_line(v: Any) -> str:
 def _inclusion(doc: Path, trust_path: Path, check: Callable[[Any, LogTrust], dict[str, Any]], form: ErrorName) -> int:
     """`verify-bundle` and `verify-consistency`: one JSON verdict line on stdout, exit 0 or 1; exit 2 for an
     unreadable file or a configuration that is not well formed."""
-    try:
-        trust_bytes = trust_path.read_bytes()
-    except OSError as e:
-        return _usage(f"{trust_path}: {e}")
-    try:
-        try:
-            trust_value = parse_ijson(trust_bytes.decode("utf-8"))
-        except (UnicodeDecodeError, ValueError) as e:
-            raise InclusionError(ErrorName.TRUST_FORM, str(e)) from None
-        trust = LogTrust.from_json(trust_value)
-    except InclusionError as e:
-        return _usage(f"{trust_path}: {e}")
+    trust = _read_trust(trust_path)
+    if isinstance(trust, str):
+        return _usage(trust)
     try:
         doc_bytes = doc.read_bytes()
     except OSError as e:
@@ -219,6 +274,104 @@ def _inclusion(doc: Path, trust_path: Path, check: Callable[[Any, LogTrust], dic
         print(f"{doc}: {e}", file=sys.stderr)
         return 1
     print(_json_line({**verdict, "verdict": "accepted"}))
+    return 0
+
+
+def _read_trust(path: Path) -> LogTrust | str:
+    """The log trust configuration, or the usage message for a file that is unreadable or not well formed."""
+    try:
+        data = path.read_bytes()
+    except OSError as e:
+        return f"{path}: {e}"
+    try:
+        try:
+            value = parse_ijson(data.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError) as e:
+            raise InclusionError(ErrorName.TRUST_FORM, str(e)) from None
+        return LogTrust.from_json(value)
+    except InclusionError as e:
+        return f"{path}: {e}"
+
+
+def _read_json(path: Path) -> tuple[Any, None] | tuple[None, str]:
+    """A JSON file read as I-JSON, or the usage message for one that is unreadable or not I-JSON."""
+    try:
+        return parse_ijson(path.read_bytes().decode("utf-8")), None
+    except (OSError, UnicodeDecodeError, ValueError) as e:
+        return None, f"{path}: {e}"
+
+
+def _bundle(args: argparse.Namespace) -> int:
+    trust = _read_trust(args.trust)
+    if isinstance(trust, str):
+        return _usage(trust)
+    cert, err = _read_json(args.certificate)
+    if err is not None:
+        return _usage(err)
+    proof, err = _read_json(args.proof)
+    if err is not None:
+        return _usage(err)
+    try:
+        checkpoint = args.checkpoint.read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        return _usage(f"{args.checkpoint}: {e}")
+    try:
+        bundle, verdict = bundle_certificate(cert, args.leaf_index, proof, checkpoint, trust, args.log_id)
+    except NotYetInCheckpoint as e:
+        print(_json_line({"verdict": "refused", "error": str(e.name), "detail": e.detail}))
+        print(f"{args.certificate}: {e}", file=sys.stderr)
+        return 3
+    except InclusionError as e:
+        print(_json_line({"verdict": "refused", "error": str(e.name), "detail": e.detail}))
+        print(f"{args.certificate}: {e}", file=sys.stderr)
+        return 1
+    try:
+        args.out.write_bytes(bundle_bytes(bundle))
+    except OSError as e:
+        return _usage(f"{args.out}: {e}")
+    print(_json_line({**verdict.to_json(), "verdict": "accepted"}))
+    return 0
+
+
+def _certificates_in(value: Any) -> list[Any] | None:
+    """The certificates a file holds: a certificate (an object with a string `spec`), or an issuer's
+    calibration file (an object of decision id -> an entry with a `certificate`). None for anything else."""
+    if isinstance(value, dict) and isinstance(value.get("spec"), str):
+        return [value]
+    if isinstance(value, dict) and value and all(isinstance(e, dict) and "certificate" in e for e in value.values()):
+        return [e["certificate"] for e in value.values()]
+    return None
+
+
+def _backfill(args: argparse.Namespace) -> int:
+    certs: list[Any] = []
+    for f in args.files:
+        value, err = _read_json(f)
+        if err is not None:
+            return _usage(err)
+        found = _certificates_in(value)
+        if found is None:
+            print(f"{f}: neither a certificate nor an issuer's calibration file", file=sys.stderr)
+            return 1
+        certs += found
+    try:
+        records = backfill_records(certs, args.tenant)
+    except ValueError as e:
+        return _usage(f"--tenant: {e}")
+    except InclusionError as e:
+        print(f"decision-cert log backfill: {e}", file=sys.stderr)
+        return 1
+    try:
+        args.leaf_out.write_text(leaf_records_text(records), encoding="utf-8")
+    except OSError as e:
+        return _usage(f"{args.leaf_out}: {e}")
+    if dropped := len(certs) - len(records):
+        print(f"decision-cert log backfill: {dropped} repeated certificate(s) written once", file=sys.stderr)
+    print(
+        f"wrote {len(records)} leaf record(s) for {args.tenant}'s log to {args.leaf_out}: append them in this "
+        "order when the log starts, before any new leaf. They get no early time evidence: each one's t_proven "
+        "is the first cosigned checkpoint that includes it."
+    )
     return 0
 
 

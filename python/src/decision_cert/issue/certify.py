@@ -36,6 +36,12 @@ certified thresholds and a `certificate` per decision.
 only, and writes only the calibration file and aggregate metrics (no case ids). The certificate is
 always signed with the operator's own key (`--key`).
 
+`--leaf-out leaves.jsonl` also writes each certificate's leaf record for the tenant's transparency log
+(draft spec/drafts/decision-cert-inclusion.v1.md): one JSON line per certificate, `{"certificate_id",
+"leaf", "leaf_hash"}`. The issuer never calls a log; whoever runs it appends each `leaf` and gives back
+its leaf index, and `python -m decision_cert bundle` bundles the certificate once a cosigned checkpoint
+includes it. A leaf holds ids and times only, no case data.
+
 Exit codes: 3 when there are too few cases to certify (n_cal < 1/alpha - 1); 1 for other refusals.
 """
 
@@ -66,6 +72,7 @@ from .. import CertError as VerifyError
 from .. import Histogram, __version__
 from .. import probabilities as map_probabilities
 from .. import verify as verify_strict
+from .._bundle import leaf_record, leaf_records_text
 from . import _support as sp
 from . import recal as rc
 from . import stats as cs
@@ -1114,6 +1121,12 @@ def main(argv: list[str] | None = None) -> None:
         "service with a key it holds for this tenant only",
     )
     ap.add_argument("--host", help="--signer-mode hosted: the hosting service's own key id, ed25519:<16 hex>")
+    ap.add_argument(
+        "--leaf-out",
+        type=Path,
+        help="also write each certificate's leaf record (JSON Lines: certificate_id, leaf, leaf_hash) for the "
+        "tenant's log to append (inclusion draft)",
+    )
     a = ap.parse_args(argv)
     if a.map == "dr" and (a.recal_data is None or a.prior is None or a.spec not in V1_2_ON):
         ap.error(f"--map dr needs --recal-data, --prior and --spec {SPEC_V1_2} or later")
@@ -1186,6 +1199,9 @@ def main(argv: list[str] | None = None) -> None:
         sp.write_jsonl(out.with_suffix(".certify-cases.jsonl"), cases)
     report = out.with_suffix(".certify.json")
     report.write_text(json.dumps({"backend": a.backend, "decisions": diags}, indent=2) + "\n")
+    if a.leaf_out is not None:
+        a.leaf_out.parent.mkdir(parents=True, exist_ok=True)
+        a.leaf_out.write_text(leaf_records_text(leaf_record(c["certificate"]) for c in cal.values()))
     for dec, c in cal.items():
         cert = c["certificate"]
         if skipped := diags[dec]["n_skipped_unlabelled"]:
@@ -1209,3 +1225,8 @@ def main(argv: list[str] | None = None) -> None:
             f"ucb {ucb} n_cal {cert['n_cal']} expires {cert['expires_at']}"
         )
     print(f"wrote {out} and {report}")
+    if a.leaf_out is not None:
+        print(
+            f"wrote {len(cal)} leaf record(s) to {a.leaf_out}: append each leaf to the tenant's log, keep the "
+            "certificate with its leaf index, and bundle it once a cosigned checkpoint includes it"
+        )
