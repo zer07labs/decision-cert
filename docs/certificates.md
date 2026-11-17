@@ -267,10 +267,20 @@ calls the log: it writes files and reads files.
    ```
 
    takes certificates or calibration files (v1 to v1.5), writes each certificate's leaf record once, in
-   that order, and refuses a v1.5 certificate for another tenant. A backfilled leaf looks like any other
-   and carries no mark. It gets **no early time evidence**: its `t_proven` is the cosignature time of
-   the first checkpoint that includes it, after the log started, not its `fitted_at`. Under the key-set
-   design's compromise rule it therefore counts as signed when it was logged.
+   that order, and refuses a v1.5 certificate for another tenant. It gets **no early time evidence**:
+   its `t_proven` is the cosignature time of the first checkpoint that includes it, after the log
+   started, not its `fitted_at`. Under the key-set design's compromise rule it therefore counts as
+   signed when it was logged.
+
+   A backfilled certificate is **marked as backfilled**, and its leaf is unchanged: the leaf, and its
+   hash, are the ones any certificate gets. Each backfill record carries `"backfilled": true` beside
+   the leaf (an issued certificate's record has no such member). Bundle it with that record,
+   `--leaf-record <record.json>` (one line of `backfill.jsonl`), or with `--backfilled`, and the bundle
+   carries `"backfilled": true`. A consumer's verdict for a certificate reports `backfilled` and
+   `backfilled_by`: `bundle` for the bundle's member, which is the bundler's statement and can be
+   removed by anyone holding the bundle, and `started_at` when the consumer's log trust configuration
+   gives the log's `started_at` (its first entry's time) and the certificate's `fitted_at` is earlier.
+   Configure `started_at` and the mark does not depend on the bundle. The mark never refuses anything.
 
 A verified bundle shows that the log recorded the certificate by `t_proven`. It says nothing about
 whether the measurement was right: a certificate describes a measured process and

@@ -185,8 +185,11 @@ def test_backfill_orders_by_fitted_at_then_certificate_id_and_writes_each_once()
     # a later fitted_at comes after every earlier one, whatever its id
     early = dict(later, fitted_at="2026-01-01T00:00:00Z")
     assert dc.backfill_records([*certs, early], TENANT)[0]["leaf"]["fitted_at"] == "2026-01-01T00:00:00Z"
-    # nothing marks a backfilled leaf: it is the leaf any certificate gets
-    assert recs == [dc.leaf_record(c) for c in dc.backfill_order([*certs, later])]
+    # each record is marked backfilled beside its leaf; the leaf and its hash are the ones any certificate gets
+    plain = [dc.leaf_record(c) for c in dc.backfill_order([*certs, later])]
+    assert recs == [{**r, "backfilled": True} for r in plain]
+    assert all("backfilled" not in r for r in plain)
+    assert [(r["leaf"], r["leaf_hash"]) for r in recs] == [(r["leaf"], r["leaf_hash"]) for r in plain]
 
 
 def test_backfill_refuses_another_tenant_s_certificate() -> None:
@@ -258,10 +261,13 @@ def test_end_to_end_issue_backfill_append_checkpoint_bundle_verify(tmp_path: Pat
     older = {tag: write(tmp_path, f"{tag}.json", fixture_cert(n)) for tag, n in OLDER.items()}
     leaves = tmp_path / "backfill.jsonl"
     assert cli(["log", "backfill", "--tenant", TENANT, "--leaf-out", str(leaves), *map(str, older.values())])[0] == 0
-    backfilled = {}
+    backfilled: dict[str, int] = {}
+    records: dict[str, Path] = {}
     for line in leaves.read_text().splitlines():
         rec = json.loads(line)
+        assert rec["backfilled"] is True
         backfilled[rec["certificate_id"]] = log.append(rec["leaf"])
+        records[rec["certificate_id"]] = write(tmp_path, f"record-{len(records)}.json", rec)
     # the issuer issues a certificate and writes its leaf; the log appends it, then other leaves
     cert, rec, key = issue_with_leaf_out(tmp_path)
     cert_file = write(tmp_path, "issued.json", cert)
@@ -288,6 +294,8 @@ def test_end_to_end_issue_backfill_append_checkpoint_bundle_verify(tmp_path: Pat
     assert rust_cli(rust_bin, args) == (0, stdout)
     verdict = json.loads(stdout)
     assert verdict["verdict"] == "accepted" and verdict["certificate_id"] == rec["certificate_id"]
+    assert (verdict["backfilled"], verdict["backfilled_by"]) == (False, [])  # a newly issued certificate
+    assert "backfilled" not in json.loads(data)
     assert (verdict["leaf_index"], verdict["tree_size"], verdict["t_proven"]) == (index, size, gen.time_of(t))
     # the certificate itself verifies on its own, for the tenant
     keys = write(tmp_path, "keys.json", {ct.key_id(key.public_key()): ct.b64url(ct.raw_public(key.public_key()))})
@@ -304,18 +312,42 @@ def test_end_to_end_issue_backfill_append_checkpoint_bundle_verify(tmp_path: Pat
     cid = dc.certificate_id(fixture_cert(OLDER["v1.5_hosted"]))
     i, size, t = backfilled[cid], len(log.leaves), gen.T0 + 7200
     out = tmp_path / "backfilled.json"
-    code, stdout, _ = cli(bundle_args(tmp_path, first, i, log.proof(i, size), log.checkpoint(size, t), out=out))
+    marked = [*bundle_args(tmp_path, first, i, log.proof(i, size), log.checkpoint(size, t), out=out),
+              "--leaf-record", str(records[cid])]  # fmt: skip
+    code, stdout, _ = cli(marked)
     assert code == 0, stdout
+    assert json.loads(out.read_bytes())["backfilled"] is True  # carried from its leaf record (§8)
     args = ["verify-bundle", str(out), "--trust", str(TRUST)]
     assert rust_cli(rust_bin, args) == (0, stdout) and cli(args)[:2] == (0, stdout)
     verdict = json.loads(stdout)
+    assert (verdict["backfilled"], verdict["backfilled_by"]) == (True, ["bundle"])
     assert verdict["t_proven"] == gen.time_of(t) > fixture_cert(OLDER["v1.5_hosted"])["fitted_at"]
+    # stripped of the bundle's member, it is still marked under a configuration that gives the log's started_at
+    stripped = json.loads(out.read_bytes())
+    del stripped["backfilled"]
+    stripped_file = write(tmp_path, "stripped.json", stripped)
+    started = json.loads(TRUST.read_text())
+    started["logs"][0]["started_at"] = gen.time_of(gen.T0)
+    started_file = write(tmp_path, "started.json", started)
+    for trust_file, want in ((TRUST, (False, [])), (started_file, (True, ["started_at"]))):
+        args = ["verify-bundle", str(stripped_file), "--trust", str(trust_file)]
+        code, line, _ = cli(args)
+        assert code == 0 and rust_cli(rust_bin, args) == (0, line)
+        assert (json.loads(line)["backfilled"], json.loads(line)["backfilled_by"]) == want
     assert verdict["leaf_index"] < len(backfilled) <= index  # backfilled before any new leaf
-    # a v1 certificate, backfilled, bundles the same way
+    # a v1 certificate, backfilled, bundles the same way (here with --backfilled)
     v1 = dc.certificate_id(fixture_cert(OLDER["v1"]))
     i = backfilled[v1]
-    code, stdout, _ = cli(bundle_args(tmp_path, older["v1"], i, log.proof(i, size), log.checkpoint(size, t), out=out))
+    code, stdout, _ = cli([*bundle_args(tmp_path, older["v1"], i, log.proof(i, size), log.checkpoint(size, t),
+                                        out=out), "--backfilled"])  # fmt: skip
+    args = ["verify-bundle", str(out), "--trust", str(TRUST)]
     assert code == 0 and rust_cli(rust_bin, args) == (0, stdout)
+    assert json.loads(stdout)["backfilled_by"] == ["bundle"]
+    # a leaf record for another certificate is a usage error; nothing written
+    out.unlink()
+    wrong = [*bundle_args(tmp_path, older["v1"], i, log.proof(i, size), log.checkpoint(size, t), out=out),
+             "--leaf-record", str(records[cid])]  # fmt: skip
+    assert cli(wrong)[0] == 2 and not out.exists()
 
 
 def test_bundle_refusals(tmp_path: Path) -> None:
@@ -357,6 +389,11 @@ def test_bundle_refusals(tmp_path: Path) -> None:
     assert e2.value.name is dc.ErrorName.UNKNOWN_LOG
     b, verdict = dc.bundle_certificate(certs["v1.4"], at["v1.4"], log.proof(at["v1.4"], size), cp, trust)
     assert dc.verify_bundle(dc.parse_ijson(dc.bundle_bytes(b).decode()), trust) == verdict
+    assert "backfilled" not in b and verdict.backfilled is False and verdict.backfilled_by == ()
+    b, verdict = dc.bundle_certificate(
+        certs["v1.4"], at["v1.4"], log.proof(at["v1.4"], size), cp, trust, backfilled=True
+    )
+    assert b["backfilled"] is True and verdict.backfilled is True and verdict.backfilled_by == ("bundle",)
     # usage and unreadable files: exit 2, nothing written
     good = bundle_args(tmp_path, files["v1.2"], at["v1.2"], log.proof(at["v1.2"], size), cp)
     for i, bad in ((good.index("--trust") + 1, str(SET / "trust" / "invalid_m_zero.json")),

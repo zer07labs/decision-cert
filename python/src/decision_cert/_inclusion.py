@@ -578,12 +578,15 @@ class Policy(StrEnum):
 
 @dataclass(frozen=True)
 class TrustedLog:
-    """A trusted log: its id, its C2SP key name, its key id (`ed25519:<16 hex>`) and its raw key."""
+    """A trusted log: its id, its C2SP key name, its key id (`ed25519:<16 hex>`) and its raw key, and the
+    time of its first entry if the configuration gives it (`started_at`, §9): a certificate whose
+    `fitted_at` is earlier is marked backfilled (§10, "Backfilled")."""
 
     log_id: str
     key_name: str
     key_id: str
     key: bytes
+    started_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -660,16 +663,19 @@ class LogTrust:
             raise bad("logs and witnesses each have at least one entry")
         logs = []
         for e in logs_in:
-            if not isinstance(e, Mapping) or not _only(e, ("log_id", "key_name", "key_id", "key")):
-                raise bad("a log entry has exactly log_id, key_name, key_id and key")
+            if not isinstance(e, Mapping) or not _only(e, ("log_id", "key_name", "key_id", "key"), ("started_at",)):
+                raise bad("a log entry has exactly log_id, key_name, key_id, key and optionally started_at")
             log_id = e["log_id"]
             if not _str_is(log_id, lambda s: _prefixed_hex(s, "log:", 32)):
                 raise bad("a log_id is log: and 32 lowercase hex characters")
             key_name = e["key_name"]
             if not _str_is(key_name, _key_name_ok):
                 raise bad("a key_name is 1 to 255 printable ASCII characters other than +")
+            started_at = e.get("started_at")
+            if "started_at" in e and not _str_is(started_at, _time_ok):
+                raise bad("started_at is a time YYYY-MM-DDTHH:MM:SSZ")
             kid, raw = _trusted_key(e)
-            logs.append(TrustedLog(log_id=log_id, key_name=key_name, key_id=kid, key=raw))
+            logs.append(TrustedLog(log_id=log_id, key_name=key_name, key_id=kid, key=raw, started_at=started_at))
         witnesses = []
         for e in witnesses_in:
             if not isinstance(e, Mapping) or not _only(e, ("name", "key_id", "key")):
@@ -772,6 +778,10 @@ class InclusionVerdict:
     kind: str
     #: For a certificate leaf, the certificate's id.
     certificate_id: str | None
+    #: For a certificate leaf, the bases on which it is marked backfilled, in this order: "bundle" (the
+    #: bundle's `backfilled`, the bundler's statement) and "started_at" (its `fitted_at` is earlier than
+    #: the configuration's `started_at` for the log). Empty when it is not marked; None for other kinds.
+    backfilled_by: tuple[str, ...] | None
     #: The counted witnesses, by cosignature time, then name.
     witnesses: tuple[CountedWitness, ...]
     #: The `m`-th earliest counted cosignature time, POSIX seconds.
@@ -780,6 +790,12 @@ class InclusionVerdict:
     def t_proven_time(self) -> str:
         """`t_proven` as a time (§0)."""
         return _time_of(self.t_proven)
+
+    @property
+    def backfilled(self) -> bool | None:
+        """For a certificate leaf, whether it is marked backfilled (§10, "Backfilled"): a mark, never a
+        reason to refuse. None for the other kinds."""
+        return None if self.backfilled_by is None else bool(self.backfilled_by)
 
     def to_json(self) -> dict[str, Any]:
         """The verdict as JSON, as the crate writes it: hashes in base64, times in §0's form."""
@@ -794,6 +810,9 @@ class InclusionVerdict:
         }
         if self.certificate_id is not None:
             out["certificate_id"] = self.certificate_id
+        if self.backfilled_by is not None:
+            out["backfilled"] = bool(self.backfilled_by)
+            out["backfilled_by"] = list(self.backfilled_by)
         return out
 
 
@@ -830,10 +849,12 @@ def verify_bundle(bundle: Any, trust: LogTrust) -> InclusionVerdict:
     # 2. the bundle's form
     if not isinstance(bundle, Mapping):
         raise bad("a bundle is a JSON object")
-    if not _only(bundle, ("spec", "log_id", "leaf_index", "leaf", "proof", "checkpoint"), ("certificate",)):
+    if not _only(
+        bundle, ("spec", "log_id", "leaf_index", "leaf", "proof", "checkpoint"), ("certificate", "backfilled")
+    ):
         raise bad(
-            "a bundle has exactly spec, log_id, leaf_index, leaf, proof, checkpoint, and certificate for a "
-            "certificate leaf"
+            "a bundle has exactly spec, log_id, leaf_index, leaf, proof, checkpoint, and certificate (and "
+            "optionally backfilled) for a certificate leaf"
         )
     if bundle["spec"] != SPEC_BUNDLE or not isinstance(bundle["spec"], str):
         raise bad("spec is not decision-cert-inclusion.v1")
@@ -856,6 +877,8 @@ def verify_bundle(bundle: Any, trust: LogTrust) -> InclusionVerdict:
     cert = bundle.get("certificate")
     if not ((is_cert and isinstance(cert, Mapping)) or (not is_cert and "certificate" not in bundle)):
         raise bad("certificate is a JSON object, present if and only if leaf.kind is certificate")
+    if "backfilled" in bundle and not (is_cert and bundle["backfilled"] is True):
+        raise bad("backfilled is true, and present only beside a certificate leaf")
 
     # 3. the leaf's form
     leaf = Leaf.from_json(leaf_value)
@@ -908,6 +931,17 @@ def verify_bundle(bundle: Any, trust: LogTrust) -> InclusionVerdict:
             ErrorName.TOO_FEW_COSIGNATURES,
             f"{len(witnesses)} trusted witnesses cosigned, the configuration needs {trust.m}",
         )
+
+    # the backfilled mark (§10, "Backfilled"): reported, never refused
+    backfilled_by = None
+    if cid is not None:
+        by = []
+        if "backfilled" in bundle:
+            by.append("bundle")
+        fitted_at = leaf.get_str("fitted_at")
+        if log.started_at is not None and fitted_at is not None and fitted_at < log.started_at:
+            by.append("started_at")
+        backfilled_by = tuple(by)
     return InclusionVerdict(
         log_id=log_id,
         tree_size=cp.tree_size,
@@ -915,6 +949,7 @@ def verify_bundle(bundle: Any, trust: LogTrust) -> InclusionVerdict:
         leaf_index=leaf_index,
         kind=leaf.kind,
         certificate_id=cid,
+        backfilled_by=backfilled_by,
         witnesses=tuple(witnesses),
         t_proven=witnesses[trust.m - 1].time,
     )

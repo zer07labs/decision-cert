@@ -38,9 +38,10 @@ always signed with the operator's own key (`--key`).
 
 `--leaf-out leaves.jsonl` also writes each certificate's leaf record for the tenant's transparency log
 (draft spec/drafts/decision-cert-inclusion.v1.md): one JSON line per certificate, `{"certificate_id",
-"leaf", "leaf_hash"}`. The issuer never calls a log; whoever runs it appends each `leaf` and gives back
-its leaf index, and `python -m decision_cert bundle` bundles the certificate once a cosigned checkpoint
-includes it. A leaf holds ids and times only, no case data.
+"leaf", "leaf_hash"}`, with no `backfilled` member: a newly issued certificate is not backfilled. The
+issuer never calls a log; whoever runs it appends each `leaf` and gives back its leaf index, and
+`python -m decision_cert bundle` bundles the certificate once a cosigned checkpoint includes it. A leaf
+holds ids and times only, no case data.
 
 Exit codes: 3 when there are too few cases to certify (n_cal < 1/alpha - 1); 1 for other refusals.
 """

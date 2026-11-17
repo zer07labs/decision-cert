@@ -41,6 +41,17 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
   `leaf_records_text`, `backfill_order`, `backfill_records`, `bundle_certificate`, `bundle_bytes`,
   `NotYetInCheckpoint`. No new dependency; the inclusion generator builds its certificate leaves with
   `certificate_leaf`, and every fixture is byte-identical. Documented in `docs/certificates.md`.
+- **Inclusion v1 (draft): backfilled certificates are marked** (owner, 2026-11-17), with every leaf and
+  leaf hash unchanged. `log backfill`'s leaf records carry `"backfilled": true` (`leaf_record(...,
+  backfilled=True)`; issued records have no such member). The bundle gains an OPTIONAL `backfilled`
+  (`true` only, beside a certificate leaf; anything else is `bundle_form`), written by `bundle
+  --backfilled` or `--leaf-record` (`bundle_certificate(..., backfilled=True)`). The log trust
+  configuration's log entries gain an OPTIONAL `started_at` (a time; otherwise `trust_form`). For a
+  certificate leaf the verdict, in both verifiers, gains `backfilled` and `backfilled_by` (`bundle`,
+  `started_at`, in that order): a mark, never a refusal. Rust: `TrustedLog::started_at`,
+  `InclusionVerdict::backfilled_by` and `backfilled()`. `fixtures/inclusion-v1/`: 253 files and 323
+  cases (22 new); the existing documents are byte-identical, and the expected verdicts of certificate
+  leaves gain `"backfilled": false, "backfilled_by": []`.
 
 ## 0.6.0 — unreleased (tag `v0.6.0` on the merge commit)
 
