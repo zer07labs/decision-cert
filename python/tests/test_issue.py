@@ -89,11 +89,15 @@ def issue(tmp: Path, n: int = 2000, **kw: Any) -> tuple[dict[str, Any], dict[str
     return cal["approved"], diags["approved"]
 
 
-def rust_verdicts(tmp: Path, certs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def rust_verdicts(tmp: Path, certs: list[dict[str, Any]], keys: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """The crate's verdicts; a v1.5 certificate is verified for its own tenant (`keys` as moded keys)."""
     files = []
     for i, c in enumerate(certs):
         f = tmp / f"issued_{i}.json"
-        f.write_text(json.dumps({"certificate": c, "keys": trusted()}))
+        fixture: dict[str, Any] = {"certificate": c, "keys": keys or trusted()}
+        if c.get("spec") == ct.SPEC_V1_5:
+            fixture["tenant"] = c["tenant"]
+        f.write_text(json.dumps(fixture))
         files.append(str(f))
     run = subprocess.run(
         ["cargo", "run", "--quiet", "--locked", "--example", "verdict", "--", *files],
@@ -516,8 +520,9 @@ def _start_cases() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
 def _issue_start(tmp: Path, spec: str) -> dict[str, Any]:
     preds, rows = _start_cases()
     segs = {"field": "region", "values": ["east"], "floor": 100}
+    tenant = "demo-tenant" if spec == ct.SPEC_V1_5 else None
     cal, _ = ct.issue(preds, rows, domain(tmp, segments=segs), "toy-backend", KEY, now=NOW, audit="full-label",
-                      spec=spec)  # fmt: skip
+                      spec=spec, tenant=tenant)  # fmt: skip
     cert: dict[str, Any] = cal["approved"]["certificate"]
     return cert
 
@@ -974,3 +979,99 @@ def test_the_cli_takes_a_cost_with_v1_4_only(tmp_path: Path) -> None:
     ct.main([*args, "--spec", ct.SPEC_V1_4, "--out", str(out)])
     cert = json.loads(out.read_text())["approved"]["certificate"]
     assert cert["risk"] == "selective_cost" and cert["cost"]["c_max"] == 5.0
+
+
+TENANT = "acme-bank"
+HOST_ID = "ed25519:0123456789abcdef"  # the hosting service's own key id
+
+
+def test_v1_5_adds_the_tenant_and_signer_to_v1_4_and_binds_the_signature_to_the_tenant(tmp_path: Path) -> None:
+    """Spec v1.5: the measured fields are v1.4's; the certificate adds `tenant` and an operator `signer`, and
+    its signature is over the tenant-bound bytes, so it verifies for its tenant only."""
+    preds, rows = cases(2000, regions=["east", "north"])
+    dom = domain(tmp_path, segments={"field": "region", "values": ["east", "north"], "floor": 700})
+    c = _issued(tmp_path, ct.SPEC_V1_5, preds, rows, dom=dom, tenant=TENANT)["cert"]
+    v14 = _issued(tmp_path, ct.SPEC_V1_4, preds, rows, dom=dom)["cert"]
+    assert (c["spec"], c["tenant"], c["signer"]) == (ct.SPEC_V1_5, TENANT, {"mode": "operator"})
+    rest = ("spec", "signature", "tenant", "signer")
+    assert {k: v for k, v in c.items() if k not in rest} == {k: v for k, v in v14.items() if k not in rest}
+    body = {k: v for k, v in c.items() if k != "signature"}
+    assert ct.signed_bytes(body) == b"decision-cert/certificate.v1.5\nacme-bank\n" + ct.canonical(body)
+    v = dc.verify_for_tenant(c, TENANT, dc.tenant_keys_from_json(trusted()))
+    assert v.id == ct.certificate_id(c) and v.tenant() == TENANT and v.signer() == {"mode": "operator"}
+    with pytest.raises(dc.Invalid, match="verify_for_tenant"):
+        dc.verify(c, trusted())
+    with pytest.raises(dc.WrongTenant):
+        dc.verify_for_tenant(c, "other-bank", dc.tenant_keys_from_json(trusted()))
+    hosted_entry = {k: {"key": x, "mode": "hosted", "host": HOST_ID} for k, x in trusted().items()}
+    with pytest.raises(dc.KeyMode):
+        dc.verify_for_tenant(c, TENANT, dc.tenant_keys_from_json(hosted_entry))
+    # the v1.4 certificate binds no tenant: under an expected tenant it verifies under an operator key only
+    assert dc.verify_for_tenant(v14, TENANT, dc.tenant_keys_from_json(trusted())).tenant() is None
+    with pytest.raises(dc.KeyMode):
+        dc.verify_for_tenant(v14, TENANT, dc.tenant_keys_from_json(hosted_entry))
+    if shutil.which("cargo"):
+        assert all(r["valid"] for r in rust_verdicts(tmp_path, [c, v14]))
+
+
+def test_v1_5_hosted_certificates_name_the_host_and_verify_under_a_hosted_entry(tmp_path: Path) -> None:
+    preds, rows = cases(2000)
+    signer = {"mode": "hosted", "host": HOST_ID}
+    c = _issued(tmp_path, ct.SPEC_V1_5, preds, rows, tenant=TENANT, signer=signer)["cert"]
+    assert c["signer"] == signer
+    entry = {k: {"key": x, "mode": "hosted", "host": HOST_ID} for k, x in trusted().items()}
+    assert dc.verify_for_tenant(c, TENANT, dc.tenant_keys_from_json(entry)).signer() == signer
+    with pytest.raises(dc.KeyMode):  # an operator entry may not sign a hosted certificate
+        dc.verify_for_tenant(c, TENANT, dc.tenant_keys_from_json(trusted()))
+    other_host = {k: {**e, "host": "ed25519:fedcba9876543210"} for k, e in entry.items()}
+    with pytest.raises(dc.KeyMode):
+        dc.verify_for_tenant(c, TENANT, dc.tenant_keys_from_json(other_host))
+    if shutil.which("cargo"):
+        assert all(r["valid"] for r in rust_verdicts(tmp_path, [c], keys=entry))
+
+
+@pytest.mark.parametrize(
+    ("spec", "kw", "match"),
+    [
+        (ct.SPEC_V1_4, {"tenant": TENANT}, "a tenant and signer need decision-certificate.v1.5"),
+        (ct.SPEC_V1_5, {}, "needs a tenant"),
+        (ct.SPEC_V1_5, {"tenant": "acme bank"}, "needs a tenant"),
+        (ct.SPEC_V1_5, {"tenant": "a" * 129}, "needs a tenant"),
+        (ct.SPEC_V1_5, {"tenant": ""}, "needs a tenant"),
+        (ct.SPEC_V1_5, {"tenant": TENANT, "signer": {"mode": "hosted"}}, "signer"),
+        (ct.SPEC_V1_5, {"tenant": TENANT, "signer": {"mode": "hosted", "host": "hosting.example"}}, "signer"),
+        (ct.SPEC_V1_5, {"tenant": TENANT, "signer": {"mode": "operator", "host": HOST_ID}}, "signer"),
+        (ct.SPEC_V1_5, {"tenant": TENANT, "signer": {"mode": "delegated"}}, "signer"),
+    ],
+)
+def test_v1_5_tenant_and_signer_refusals(tmp_path: Path, spec: str, kw: dict[str, Any], match: str) -> None:
+    preds, rows = cases(400)
+    with pytest.raises(ct.CertError, match=match):
+        _issued(tmp_path, spec, preds, rows, **kw)
+
+
+def test_the_cli_issues_v1_5_with_a_tenant_and_a_signer_mode(tmp_path: Path) -> None:
+    preds, rows = cases(2000)
+    (tmp_path / "p.jsonl").write_text("".join(json.dumps(p) + "\n" for p in preds))
+    (tmp_path / "r.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    ct.keygen(tmp_path / "op.pem")
+    args = ["certify", "--predictions", str(tmp_path / "p.jsonl"), "--data", str(tmp_path / "r.jsonl"),
+            "--domain-dir", str(domain(tmp_path)), "--backend", "toy", "--key", str(tmp_path / "op.pem"),
+            "--audit", "full-label"]  # fmt: skip
+    v15 = ["--spec", ct.SPEC_V1_5]
+    for bad in [
+        v15,  # no tenant
+        ["--spec", ct.SPEC_V1_4, "--tenant", TENANT],
+        [*v15, "--tenant", TENANT, "--signer-mode", "hosted"],  # no host
+        [*v15, "--tenant", TENANT, "--host", HOST_ID],  # a host without hosted
+        ["--spec", ct.SPEC_V1_4, "--signer-mode", "operator"],
+    ]:
+        with pytest.raises(SystemExit):
+            ct.main([*args, *bad])
+    out = tmp_path / "cal.json"
+    ct.main([*args, *v15, "--tenant", TENANT, "--out", str(out)])
+    cert = json.loads(out.read_text())["approved"]["certificate"]
+    assert (cert["tenant"], cert["signer"]) == (TENANT, {"mode": "operator"})
+    ct.main([*args, *v15, "--tenant", TENANT, "--signer-mode", "hosted", "--host", HOST_ID, "--out", str(out)])
+    cert = json.loads(out.read_text())["approved"]["certificate"]
+    assert cert["signer"] == {"mode": "hosted", "host": HOST_ID}

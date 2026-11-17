@@ -1,0 +1,113 @@
+{
+  "name": "valid_tricky_numbers",
+  "certificate": {
+    "spec": "decision-certificate.v1.5",
+    "domain": "hmda-approval",
+    "decision": "approved",
+    "options": [
+      "yes",
+      "no"
+    ],
+    "model_id": "b1/lightgbm@lgbm-4.7.0-seed7",
+    "manifest_hash": "sha256:abababababababababababababababababababababababababababababababab",
+    "data_hash": "sha256:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+    "n_cal": 9007199254740991,
+    "n_temperature": 2500,
+    "split": {
+      "method": "seeded",
+      "seed": -3
+    },
+    "calibration_map": {
+      "kind": "temperature",
+      "params": {
+        "temperature": 0.30000000000000004
+      },
+      "label_budget": 200
+    },
+    "rule": {
+      "cannot_tell_above": null,
+      "unscored": "abstain"
+    },
+    "alpha": 0.05,
+    "delta": 0.1,
+    "method": "ltt",
+    "risk": "selective_error",
+    "n": 2500,
+    "abstain_below": 1e-07,
+    "coverage": 0.12345678901234568,
+    "ucb": 5e-324,
+    "realized_band": {
+      "level": 0.95,
+      "low": 0.0,
+      "high": 1.0
+    },
+    "segments": [],
+    "window": null,
+    "fitted_at": "2026-10-25T12:00:00Z",
+    "expires_at": "2027-01-23T12:00:00Z",
+    "audit": {
+      "mode": "full-label",
+      "rate": 1,
+      "n": 5000,
+      "propensity_logged": false
+    },
+    "issuer": {
+      "tool": "decision-cert",
+      "version": "0.4.0"
+    },
+    "confidence_bins": [
+      0,
+      1e-07,
+      0.30000000000000004,
+      0.5,
+      0.9999999999999999,
+      1.0
+    ],
+    "confidence_histogram": {
+      "counts": [
+        0,
+        0,
+        1250,
+        1249,
+        1
+      ],
+      "unscored": 0
+    },
+    "automate_options": [
+      "yes",
+      "no"
+    ],
+    "cost": null,
+    "pvalue": "binomial",
+    "loss_sum": null,
+    "realized_cost": null,
+    "tenant": "acme-bank",
+    "signer": {
+      "mode": "operator"
+    },
+    "automated": {
+      "coverage": 0.12345678901234568,
+      "ucb": 5e-324,
+      "realized_band": {
+        "level": 0.95,
+        "low": 0.0,
+        "high": 1.0
+      },
+      "loss_sum": null,
+      "realized_cost": null
+    },
+    "signer_key_id": "ed25519:56475aa75463474c",
+    "signature": "DQ0xZ9velG7mxISn-R0kbYukh6ZT37O-zxrj1z4JW_3vUMtFpXKT5tSyMaJ_2Ef7Zkf07lIaKZDHQFQsCL-kBA"
+  },
+  "tenant": "acme-bank",
+  "keys": {
+    "ed25519:56475aa75463474c": {
+      "key": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg",
+      "mode": "operator"
+    }
+  },
+  "body_jcs_b64": "eyJhYnN0YWluX2JlbG93IjoxZS03LCJhbHBoYSI6MC4wNSwiYXVkaXQiOnsibW9kZSI6ImZ1bGwtbGFiZWwiLCJuIjo1MDAwLCJwcm9wZW5zaXR5X2xvZ2dlZCI6ZmFsc2UsInJhdGUiOjF9LCJhdXRvbWF0ZV9vcHRpb25zIjpbInllcyIsIm5vIl0sImF1dG9tYXRlZCI6eyJjb3ZlcmFnZSI6MC4xMjM0NTY3ODkwMTIzNDU2OCwibG9zc19zdW0iOm51bGwsInJlYWxpemVkX2JhbmQiOnsiaGlnaCI6MSwibGV2ZWwiOjAuOTUsImxvdyI6MH0sInJlYWxpemVkX2Nvc3QiOm51bGwsInVjYiI6NWUtMzI0fSwiY2FsaWJyYXRpb25fbWFwIjp7ImtpbmQiOiJ0ZW1wZXJhdHVyZSIsImxhYmVsX2J1ZGdldCI6MjAwLCJwYXJhbXMiOnsidGVtcGVyYXR1cmUiOjAuMzAwMDAwMDAwMDAwMDAwMDR9fSwiY29uZmlkZW5jZV9iaW5zIjpbMCwxZS03LDAuMzAwMDAwMDAwMDAwMDAwMDQsMC41LDAuOTk5OTk5OTk5OTk5OTk5OSwxXSwiY29uZmlkZW5jZV9oaXN0b2dyYW0iOnsiY291bnRzIjpbMCwwLDEyNTAsMTI0OSwxXSwidW5zY29yZWQiOjB9LCJjb3N0IjpudWxsLCJjb3ZlcmFnZSI6MC4xMjM0NTY3ODkwMTIzNDU2OCwiZGF0YV9oYXNoIjoic2hhMjU2OjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYiLCJkZWNpc2lvbiI6ImFwcHJvdmVkIiwiZGVsdGEiOjAuMSwiZG9tYWluIjoiaG1kYS1hcHByb3ZhbCIsImV4cGlyZXNfYXQiOiIyMDI3LTAxLTIzVDEyOjAwOjAwWiIsImZpdHRlZF9hdCI6IjIwMjYtMTAtMjVUMTI6MDA6MDBaIiwiaXNzdWVyIjp7InRvb2wiOiJkZWNpc2lvbi1jZXJ0IiwidmVyc2lvbiI6IjAuNC4wIn0sImxvc3Nfc3VtIjpudWxsLCJtYW5pZmVzdF9oYXNoIjoic2hhMjU2OmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIiLCJtZXRob2QiOiJsdHQiLCJtb2RlbF9pZCI6ImIxL2xpZ2h0Z2JtQGxnYm0tNC43LjAtc2VlZDciLCJuIjoyNTAwLCJuX2NhbCI6OTAwNzE5OTI1NDc0MDk5MSwibl90ZW1wZXJhdHVyZSI6MjUwMCwib3B0aW9ucyI6WyJ5ZXMiLCJubyJdLCJwdmFsdWUiOiJiaW5vbWlhbCIsInJlYWxpemVkX2JhbmQiOnsiaGlnaCI6MSwibGV2ZWwiOjAuOTUsImxvdyI6MH0sInJlYWxpemVkX2Nvc3QiOm51bGwsInJpc2siOiJzZWxlY3RpdmVfZXJyb3IiLCJydWxlIjp7ImNhbm5vdF90ZWxsX2Fib3ZlIjpudWxsLCJ1bnNjb3JlZCI6ImFic3RhaW4ifSwic2VnbWVudHMiOltdLCJzaWduZXIiOnsibW9kZSI6Im9wZXJhdG9yIn0sInNpZ25lcl9rZXlfaWQiOiJlZDI1NTE5OjU2NDc1YWE3NTQ2MzQ3NGMiLCJzcGVjIjoiZGVjaXNpb24tY2VydGlmaWNhdGUudjEuNSIsInNwbGl0Ijp7Im1ldGhvZCI6InNlZWRlZCIsInNlZWQiOi0zfSwidGVuYW50IjoiYWNtZS1iYW5rIiwidWNiIjo1ZS0zMjQsIndpbmRvdyI6bnVsbH0=",
+  "certificate_id": "sha256:cf9e8b5106e349d5d76b8ddefb31f51ed1be352df1447fb2725479d0d0770ed4",
+  "valid": true,
+  "error": null
+}

@@ -1,12 +1,28 @@
 //! The Rust verifier agrees with the issuer on the JCS bytes, the certificate id and the
-//! verdict of every fixture in fixtures/ (v1), fixtures/v1.1/, fixtures/v1.2/, fixtures/v1.3/ and fixtures/v1.4/
-//! (see fixtures/README.md for which program wrote each). The v1, v1.1 and v1.2 sets are frozen: a
-//! newer verifier gives every one of their files the same verdict, id and bytes.
+//! verdict of every fixture in fixtures/ (v1), fixtures/v1.1/, fixtures/v1.2/, fixtures/v1.3/,
+//! fixtures/v1.4/ and fixtures/v1.5/ (see fixtures/README.md for which program wrote each). The v1 to
+//! v1.4 sets are frozen: a newer verifier gives every one of their files the same verdict, id and
+//! bytes. A v1.5 file carries the expected `tenant` and moded `keys`, and is verified with
+//! `verify_for_tenant`.
 
 use std::{collections::BTreeMap, path::PathBuf};
 
 use base64::{engine::general_purpose::STANDARD, Engine};
-use decision_cert::{canonical, certificate_id, verify};
+use decision_cert::{
+    canonical, certificate_id, tenant_keys_from_json, verify, verify_for_tenant, CertError,
+    Verified,
+};
+
+/// A fixture's verdict: for its expected tenant when it has one (v1.5), else with `verify`.
+fn verdict(f: &serde_json::Value, cert: &serde_json::Value) -> Result<Verified, CertError> {
+    match f["tenant"].as_str() {
+        Some(tenant) => verify_for_tenant(cert, tenant, &tenant_keys_from_json(&f["keys"])?),
+        None => {
+            let keys: BTreeMap<String, String> = serde_json::from_value(f["keys"].clone()).unwrap();
+            verify(cert, &keys)
+        }
+    }
+}
 
 fn fixtures(set: &str, min: usize) -> Vec<(String, serde_json::Value)> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -70,6 +86,108 @@ fn rust_and_python_agree_on_every_v1_4_fixture() {
         && f["certificate"]["risk"] == "selective_cost"
         && f["certificate"]["options"].as_array().unwrap().len() == 3));
     agree_on(set);
+}
+
+#[test]
+fn rust_and_python_agree_on_every_v1_5_fixture() {
+    let set = fixtures("v1.5", 100);
+    assert!(set.iter().all(|(_, f)| f["tenant"].is_string()));
+    assert!(set.iter().any(|(_, f)| f["valid"].as_bool().unwrap()
+        && f["certificate"]["spec"] == "decision-certificate.v1.5"
+        && f["certificate"]["signer"]["mode"] == "hosted"));
+    assert!(set.iter().any(|(_, f)| f["valid"].as_bool().unwrap()
+        && f["certificate"]["spec"] == "decision-certificate.v1.4"));
+    agree_on(set);
+}
+
+/// `verify` keeps its meaning for v1 to v1.4 and refuses a v1.5 certificate, which binds a tenant;
+/// `verify_for_tenant` reads its tenant and signer.
+#[test]
+fn verify_refuses_a_v1_5_certificate_and_verify_for_tenant_reads_it() {
+    for name in ["valid_operator", "valid_hosted"] {
+        let (_, f) = fixtures("v1.5", 1)
+            .into_iter()
+            .find(|(n, _)| n == name)
+            .unwrap();
+        let flat: BTreeMap<String, String> = f["keys"]
+            .as_object()
+            .unwrap()
+            .iter()
+            .map(|(k, v)| (k.clone(), v["key"].as_str().unwrap().to_string()))
+            .collect();
+        let e = verify(&f["certificate"], &flat).unwrap_err().to_string();
+        assert!(
+            e.contains(
+                "a v1.5 certificate is verified with its expected tenant (verify_for_tenant)"
+            ),
+            "{name}: {e}"
+        );
+        let v = verdict(&f, &f["certificate"]).unwrap();
+        assert_eq!(v.tenant(), f["tenant"].as_str());
+        assert_eq!(
+            v.signer().unwrap().mode,
+            f["certificate"]["signer"]["mode"].as_str().unwrap()
+        );
+        // another expected tenant: the field check refuses it
+        let e = verify_for_tenant(
+            &f["certificate"],
+            "another-tenant",
+            &tenant_keys_from_json(&f["keys"]).unwrap(),
+        )
+        .unwrap_err();
+        assert!(matches!(e, CertError::WrongTenant(_)), "{name}: {e}");
+        // an expected tenant outside the character set
+        let e = verify_for_tenant(
+            &f["certificate"],
+            "a b",
+            &tenant_keys_from_json(&f["keys"]).unwrap(),
+        )
+        .unwrap_err();
+        assert!(
+            e.to_string().contains("expected tenant must be"),
+            "{name}: {e}"
+        );
+    }
+    let (_, f) = fixtures("v1.4", 1)
+        .into_iter()
+        .find(|(n, _)| n == "valid_basic")
+        .unwrap();
+    let keys: BTreeMap<String, String> = serde_json::from_value(f["keys"].clone()).unwrap();
+    assert!(verify(&f["certificate"], &keys).unwrap().tenant().is_none());
+}
+
+/// Key entries: a bare string is an operator key; a moded entry with an unknown field, a mode
+/// without its host (or the reverse), or a host that is not a key id is refused.
+#[test]
+fn tenant_keys_are_read_strictly() {
+    use decision_cert::KeyMode;
+    let host = "ed25519:0123456789abcdef";
+    let ok = tenant_keys_from_json(&serde_json::json!({
+        "ed25519:aaaaaaaaaaaaaaaa": "AAAA",
+        "ed25519:bbbbbbbbbbbbbbbb": {"key": "BBBB", "mode": "operator"},
+        "ed25519:cccccccccccccccc": {"key": "CCCC", "mode": "hosted", "host": host},
+    }))
+    .unwrap();
+    assert_eq!(ok["ed25519:aaaaaaaaaaaaaaaa"].mode, KeyMode::Operator);
+    assert_eq!(ok["ed25519:bbbbbbbbbbbbbbbb"].key, "BBBB");
+    assert_eq!(
+        ok["ed25519:cccccccccccccccc"].mode,
+        KeyMode::Hosted { host: host.into() }
+    );
+    for bad in [
+        serde_json::json!({"key": "K", "mode": "operator", "host": host}),
+        serde_json::json!({"key": "K", "mode": "hosted"}),
+        serde_json::json!({"key": "K", "mode": "hosted", "host": "hosting.example"}),
+        serde_json::json!({"key": "K", "mode": "hosted", "host": "ed25519:0123456789ABCDEF"}),
+        serde_json::json!({"key": "K", "mode": "delegated"}),
+        serde_json::json!({"key": "K", "mode": "operator", "extra": 1}),
+        serde_json::json!({"mode": "operator"}),
+        serde_json::json!(7),
+    ] {
+        let e = tenant_keys_from_json(&serde_json::json!({"ed25519:aaaaaaaaaaaaaaaa": bad}));
+        assert!(matches!(e, Err(CertError::BadKey(_))), "{bad}");
+    }
+    assert!(tenant_keys_from_json(&serde_json::json!(["k"])).is_err());
 }
 
 /// A v1.4 verifier reads a `selective_cost` certificate's costs, and finds none in an error-risk or
@@ -211,8 +329,7 @@ fn agree_on(set: Vec<(String, serde_json::Value)>) {
             f["certificate_id"].as_str().unwrap(),
             "{name}"
         );
-        let keys: BTreeMap<String, String> = serde_json::from_value(f["keys"].clone()).unwrap();
-        let got = verify(cert, &keys);
+        let got = verdict(&f, cert);
         if f["valid"].as_bool().unwrap() {
             let v = got.unwrap_or_else(|e| panic!("{name}: {e}"));
             assert_eq!(v.id, f["certificate_id"].as_str().unwrap(), "{name}");
@@ -254,18 +371,22 @@ fn every_v1_4_schema_invalid_mutation_is_rejected() {
     rejects_every_mutation("v1.4/mutations/schema_invalid.json");
 }
 
+#[test]
+fn every_v1_5_schema_invalid_mutation_is_rejected() {
+    rejects_every_mutation("v1.5/mutations/schema_invalid.json");
+}
+
 fn rejects_every_mutation(rel: &str) {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../fixtures")
         .join(rel);
     let f: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
-    let keys: BTreeMap<String, String> = serde_json::from_value(f["keys"].clone()).unwrap();
     let accepted: Vec<String> = f["cases"]
         .as_array()
         .unwrap()
         .iter()
-        .filter(|c| verify(&c["certificate"], &keys).is_ok())
+        .filter(|c| verdict(&f, &c["certificate"]).is_ok())
         .map(|c| format!("{} {}", c["path"], c["edit"]))
         .collect();
     assert!(accepted.is_empty(), "accepted: {accepted:?}");

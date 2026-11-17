@@ -39,7 +39,8 @@ def rust_bin() -> Path | None:
 
 def split_fixture(tmp: Path, name: str) -> tuple[Path, Path]:
     f = json.loads((FIXTURES / f"{name}.json").read_text(encoding="utf-8"))
-    cert, keys = tmp / f"{name}.cert.json", tmp / f"{name}.keys.json"
+    flat = name.replace("/", "_")
+    cert, keys = tmp / f"{flat}.cert.json", tmp / f"{flat}.keys.json"
     cert.write_text(json.dumps(f["certificate"], ensure_ascii=False), encoding="utf-8")
     keys.write_text(json.dumps(f["keys"]), encoding="utf-8")
     return cert, keys
@@ -69,6 +70,24 @@ def cases(tmp: Path) -> list[tuple[str, list[str], int]]:
         ("no-keys-flag", ["verify", str(cert)], 2),
         ("no-command", [], 2),
     ]
+    # v1.5: each file verified for its expected tenant (--tenant), and the usage around it
+    for p in sorted((FIXTURES / "v1.5").glob("*.json")):
+        f = json.loads(p.read_text(encoding="utf-8"))
+        cert, keys = split_fixture(tmp, f"v1.5/{p.stem}")
+        args = ["verify", str(cert), "--keys", str(keys), "--tenant", f["tenant"], "--now", NOW]
+        out.append((f"v1.5/{p.stem}", args, 0 if f["valid"] else 1))
+    cert, keys = split_fixture(tmp, "v1.5/valid_hosted")
+    out += [
+        ("v1.5-without-tenant", ["verify", str(cert), "--keys", str(keys), "--now", NOW], 2),  # moded keys
+        ("v1.5-other-tenant", ["verify", str(cert), "--keys", str(keys), "--tenant", "other", "--now", NOW], 1),
+        ("v1.5-bad-tenant", ["verify", str(cert), "--keys", str(keys), "--tenant", "a b", "--now", NOW], 1),
+        ("v1.5-keys-not-json", ["verify", str(cert), "--keys", str(garbage), "--tenant", "t", "--now", NOW], 2),
+        ("v1.5-keys-not-entries", ["verify", str(cert), "--keys", str(nan), "--tenant", "t", "--now", NOW], 2),
+    ]
+    cert, keys = split_fixture(tmp, "v1.5/valid_earlier_spec_under_operator_key")  # flat keys, v1.4
+    out.append(("v1.5-set-v1.4-cert-without-tenant", ["verify", str(cert), "--keys", str(keys), "--now", NOW], 0))
+    v15, _ = split_fixture(tmp, "v1.5/valid_operator")
+    out.append(("v1.5-cert-without-tenant", ["verify", str(v15), "--keys", str(keys), "--now", NOW], 1))
     return out
 
 

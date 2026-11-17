@@ -1,7 +1,7 @@
 """Generate the reference issuer's conformance fixtures: the positive (and first negative) fixtures
 and `mutations/schema_invalid.json`, signed with the reference issuer's `sign`, for v1 (`fixtures/`)
-for v1.1 (`fixtures/v1.1/`), for v1.2 (`fixtures/v1.2/`), for v1.3 (`fixtures/v1.3/`) and for v1.4
-(`fixtures/v1.4/`), each later set with its own `FIXTURES.sha256`.
+for v1.1 (`fixtures/v1.1/`), for v1.2 (`fixtures/v1.2/`), for v1.3 (`fixtures/v1.3/`), for v1.4
+(`fixtures/v1.4/`) and for v1.5 (`fixtures/v1.5/`), each later set with its own `FIXTURES.sha256`.
 
     cd python && uv run python tools/gen_positive_fixtures.py          # write
     cd python && uv run python tools/gen_positive_fixtures.py --check  # fail if any byte would change
@@ -24,6 +24,11 @@ and the v1.4 fields (the error risks: `cost` and every `loss_sum` and `realized_
 options (whole-number costs, each `realized_cost` exactly its `loss_sum` / (c_max · answered)), cost
 matrices and pairings a verifier must refuse, `loss_sum` and `realized_cost` values a verifier must refuse,
 and fields that belong to another spec. Its schema mutations start from a `selective_cost` certificate.
+The v1.5 set is the v1.4 set with `spec` `decision-certificate.v1.5`, the tenant `acme-bank` and an
+operator signer, signed over the tenant-bound bytes; each file also carries the expected `tenant` and
+`keys` as a tenant's moded keys (spec v1.5 §4). Plus the v1.5 cases: a hosted signer, an earlier
+certificate under an operator key, and the tenant, key-mode, framing and field cases a verifier must
+refuse. Its schema mutations also edit a hosted certificate's `signer`.
 """
 
 from __future__ import annotations
@@ -50,17 +55,38 @@ V11 = FIXTURES / "v1.1"
 V12 = FIXTURES / "v1.2"
 V13 = FIXTURES / "v1.3"
 V14 = FIXTURES / "v1.4"
-FROM_V1_2 = (ct.SPEC_V1_2, ct.SPEC_V1_3, ct.SPEC_V1_4)  # the specs with the v1.2 fields
-FROM_V1_3 = (ct.SPEC_V1_3, ct.SPEC_V1_4)  # the specs with the v1.3 fields
+V15 = FIXTURES / "v1.5"
+FROM_V1_4 = (ct.SPEC_V1_4, ct.SPEC_V1_5)  # the specs with the v1.4 fields
+FROM_V1_3 = (ct.SPEC_V1_3, *FROM_V1_4)  # the specs with the v1.3 fields
+FROM_V1_2 = (ct.SPEC_V1_2, *FROM_V1_3)  # the specs with the v1.2 fields
 COST = {"matrix": [[0, 1], [5, 0]], "c_max": 5, "unit": "usd"}  # a missed approval 1, a bad approval 5
 BINS = [0, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 0.99, 1]
 HISTOGRAM = {"counts": [0, 310, 320, 330, 280, 300, 340, 420, 150], "unscored": 50}  # n 2500
 KEY = Ed25519PrivateKey.from_private_bytes(bytes(range(32)))
 OTHER = Ed25519PrivateKey.from_private_bytes(bytes(range(32, 64)))
+# v1.5: a hosting service's own key (named in `signer.host`, never signing certificates here), and the key it
+# holds for the tenant and signs that tenant's certificates with
+HOST = Ed25519PrivateKey.from_private_bytes(bytes(range(64, 96)))
+HOSTED = Ed25519PrivateKey.from_private_bytes(bytes(range(96, 128)))
+TENANT = "acme-bank"  # the tenant every v1.5 fixture is issued for and verified with, unless it says otherwise
 
 
 def keys(*ks: Ed25519PrivateKey) -> dict[str, str]:
     return {ct.key_id(k.public_key()): ct.b64url(ct.raw_public(k.public_key())) for k in ks}
+
+
+def sign_bare(cert: dict[str, Any], key: Ed25519PrivateKey) -> dict[str, Any]:
+    """`cert` signed over the bare JCS bytes of its body, as v1 to v1.4 sign, whatever its `spec` says."""
+    body = {k: v for k, v in cert.items() if k != "signature"}
+    body["signer_key_id"] = ct.key_id(key.public_key())
+    return {**body, "signature": ct.b64url(key.sign(ct.canonical(body)))}
+
+
+def moded(trusted: dict[str, str], host: Ed25519PrivateKey | None = None) -> dict[str, Any]:
+    """`trusted` as a tenant's moded keys (spec v1.5 §4): operator entries, or hosted ones naming `host`."""
+    if host is None:
+        return {k: {"key": v, "mode": "operator"} for k, v in trusted.items()}
+    return {k: {"key": v, "mode": "hosted", "host": ct.key_id(host.public_key())} for k, v in trusted.items()}
 
 
 def make_base(spec: str = ct.SPEC_V1) -> dict[str, Any]:
@@ -74,8 +100,10 @@ def make_base(spec: str = ct.SPEC_V1) -> dict[str, Any]:
         out["confidence_histogram"] = copy.deepcopy(HISTOGRAM)
     if spec in FROM_V1_3:
         out["automate_options"] = list(out["options"])
-    if spec == ct.SPEC_V1_4:
+    if spec in FROM_V1_4:
         out.update(cost=None, pvalue="binomial", loss_sum=None, realized_cost=None)
+    if spec == ct.SPEC_V1_5:
+        out.update(tenant=TENANT, signer={"mode": "operator"})
     sync(out)
     return out
 
@@ -93,7 +121,7 @@ def auto_block(
 ) -> dict[str, Any]:
     """An `automated` block; v1.4 adds its loss_sum and realized_cost (`cost`, or both null)."""
     out = {"coverage": coverage, "ucb": ucb, "realized_band": band}
-    if spec != ct.SPEC_V1_4:
+    if spec not in FROM_V1_4:
         return out
     return {**out, "loss_sum": cost[0] if cost else None, "realized_cost": cost[1] if cost else None}
 
@@ -107,7 +135,7 @@ def realized_of(loss_sum: int, c_max: int, coverage: float, n: int) -> tuple[int
 def sync(cert: dict[str, Any]) -> dict[str, Any]:
     """v1.3 on, every option automated: each test's `automated` block is the test's own numbers. v1.4: each
     segment has its realized_cost (null unless set)."""
-    if cert["spec"] == ct.SPEC_V1_4:
+    if cert["spec"] in FROM_V1_4:
         for s in cert["segments"]:
             s.setdefault("loss_sum", None)
             s.setdefault("realized_cost", None)
@@ -174,7 +202,7 @@ def fixtures(spec: str = ct.SPEC_V1) -> dict[str, dict[str, Any]]:
 
     crc = base()
     crc.update(method="crc", risk="joint_error", delta=None, ucb=None, abstain_below=1.01, coverage=0.0)
-    if spec == ct.SPEC_V1_4:
+    if spec in FROM_V1_4:
         crc["pvalue"] = None  # crc has no p-value
     out["valid_crc_abstain_all"] = (ct.sign(sync(crc), KEY), keys(KEY), True, None)
 
@@ -229,8 +257,9 @@ def fixtures(spec: str = ct.SPEC_V1) -> dict[str, dict[str, Any]]:
             ct.SPEC_V1_1: "decision-certificate.v1.2",
             ct.SPEC_V1_2: "decision-certificate.v1.3",
             ct.SPEC_V1_3: "decision-certificate.v1.4",
-        }.get(spec, "decision-certificate.v1.5")
-        out["invalid_unknown_spec"] = (ct.sign(later, KEY), keys(KEY), False, "spec is not")
+            ct.SPEC_V1_4: "decision-certificate.v1.5",
+        }.get(spec, "decision-certificate.v1.6")
+        out["invalid_unknown_spec"] = (sign_bare(later, KEY), keys(KEY), False, "spec is not")
 
     if spec in FROM_V1_2:
         withheld = base()
@@ -394,22 +423,114 @@ def fixtures(spec: str = ct.SPEC_V1) -> dict[str, dict[str, Any]]:
         in_v12["automate_options"] = ["yes", "no"]  # a v1.2 certificate with a v1.3 field
         out["invalid_v1_3_field_in_v1_2"] = (ct.sign(in_v12, KEY), keys(KEY), False, "unknown field")
 
-    if spec == ct.SPEC_V1_4:
-        _cost_cases(out, base, segmented)
+    if spec in FROM_V1_4:
+        _cost_cases(out, base, segmented, spec)
+
+    tenants: dict[str, str] = {}  # v1.5: a case's expected tenant, when it is not TENANT
+    if spec == ct.SPEC_V1_5:
+        tenants = _tenant_cases(out, base)
 
     result = {}
     for name, (cert, trusted, valid, error) in out.items():
         body = {k: v for k, v in cert.items() if k != "signature"}
+        f: dict[str, Any] = {"name": name, "certificate": cert}
+        if spec == ct.SPEC_V1_5:
+            # the expected tenant, and the keys as that tenant's moded keys (a bare string is an operator key)
+            f["tenant"] = tenants.get(name, TENANT)
+            f["keys"] = {
+                k: v if isinstance(v, dict) or name in BARE_KEYS else {"key": v, "mode": "operator"}
+                for k, v in trusted.items()
+            }
+        else:
+            f["keys"] = trusted
         result[name] = {
-            "name": name,
-            "certificate": cert,
-            "keys": trusted,
+            **f,
             "body_jcs_b64": base64.b64encode(ct.canonical(body)).decode(),
             "certificate_id": ct.certificate_id(cert),
             "valid": valid,
             "error": error,
         }
     return result
+
+
+BARE_KEYS = {"valid_earlier_spec_under_operator_key"}  # v1.5 cases whose keys stay a flat map of bare strings
+
+
+def _tenant_cases(out: Out, base: Any) -> dict[str, str]:
+    """v1.5's cases: who signed, the tenant, the key modes and the signed bytes (spec v1.5 §3, §4), and the
+    v1.5 fields a verifier must refuse. Returns the expected tenant of each case whose tenant is not
+    TENANT."""
+    host_id = ct.key_id(HOST.public_key())
+    hosted_keys = moded(keys(HOSTED), HOST)
+    tenants: dict[str, str] = {}
+    sig_msg, mode_msg, field_msg = "signature", "may not sign in this mode", "spec is not consistent"
+    tenant_msg, signer_msg = "tenant must be", "signer must be"
+
+    def hosted(host: str = host_id) -> dict[str, Any]:
+        cert: dict[str, Any] = base()
+        cert["signer"] = {"mode": "hosted", "host": host}
+        return cert
+
+    out["valid_operator"] = (ct.sign(base(), KEY), keys(KEY), True, None)
+    # the tenant's set holds its own operator key and the hosting service's key for it
+    out["valid_hosted"] = (ct.sign(hosted(), HOSTED), {**moded(keys(KEY)), **hosted_keys}, True, None)
+    # a v1.4 certificate binds no tenant: under an expected tenant it verifies under an operator key only
+    out["valid_earlier_spec_under_operator_key"] = (ct.sign(make_base(ct.SPEC_V1_4), KEY), keys(KEY), True, None)
+    longest = base()
+    longest["tenant"] = ("Az09._:-" * 16)[:128]  # every character the set allows, at the longest
+    out["valid_tenant_longest"] = (ct.sign(longest, KEY), keys(KEY), True, None)
+    tenants["valid_tenant_longest"] = longest["tenant"]
+
+    other = base()
+    other["tenant"] = "other-bank"  # signed for other-bank, checked by a consumer that expects acme-bank
+    out["invalid_wrong_tenant"] = (ct.sign(other, KEY), keys(KEY), False, "is for tenant other-bank")
+    out["invalid_key_not_in_tenant_set"] = (ct.sign(base(), OTHER), keys(KEY), False, "not a trusted key")
+    out["invalid_operator_key_on_hosted_cert"] = (ct.sign(hosted(), KEY), keys(KEY), False, mode_msg)
+    out["invalid_hosted_key_on_operator_cert"] = (ct.sign(base(), HOSTED), hosted_keys, False, mode_msg)
+    another_host = ct.key_id(OTHER.public_key())
+    out["invalid_host_mismatch"] = (ct.sign(hosted(another_host), HOSTED), hosted_keys, False, mode_msg)
+    out["invalid_earlier_spec_under_hosted_key"] = (
+        ct.sign(make_base(ct.SPEC_V1_4), HOSTED),
+        hosted_keys,
+        False,
+        mode_msg,
+    )
+
+    bare = sign_bare(base(), KEY)  # v1.4's signed bytes, without the v1.5 prefix
+    out["invalid_v1_5_signature_over_bare_jcs"] = (bare, keys(KEY), False, sig_msg)
+    v14 = ct.sign(make_base(ct.SPEC_V1_4), KEY)  # a valid v1.4 certificate, relabelled v1.5 with its signature
+    relabelled = {**v14, "spec": ct.SPEC_V1_5, "tenant": TENANT, "signer": {"mode": "operator"}}
+    out["invalid_v1_4_signature_under_v1_5_framing"] = (relabelled, keys(KEY), False, sig_msg)
+    framed = ct.sign(base(), KEY, tenant="other-bank")  # the field says acme-bank; the prefix signed other-bank
+    out["invalid_prefix_for_another_tenant"] = (framed, keys(KEY), False, sig_msg)
+
+    for name, field in [("invalid_missing_tenant", "tenant"), ("invalid_missing_signer", "signer")]:
+        cert = base()
+        del cert[field]
+        out[name] = (ct.sign(cert, KEY, tenant=TENANT), keys(KEY), False, field_msg)
+    for name, tenant in [
+        ("invalid_tenant_bad_charset", "acme bank/eu"),
+        ("invalid_tenant_too_long", "a" * 129),
+        ("invalid_tenant_empty", ""),
+    ]:
+        cert = base()
+        cert["tenant"] = tenant
+        out[name] = (ct.sign(cert, KEY, tenant=TENANT), keys(KEY), False, tenant_msg)
+    for name, signer, error in [
+        ("invalid_host_not_key_id", {"mode": "hosted", "host": "hosting.example"}, signer_msg),
+        ("invalid_operator_with_host", {"mode": "operator", "host": host_id}, signer_msg),
+        ("invalid_hosted_without_host", {"mode": "hosted"}, signer_msg),
+        ("invalid_unknown_signer_mode", {"mode": "delegated"}, signer_msg),
+        ("invalid_unknown_signer_field", {"mode": "operator", "on_behalf_of": TENANT}, "unknown field"),
+    ]:
+        cert = base()
+        cert["signer"] = signer
+        trusted = hosted_keys if signer.get("mode") == "hosted" else keys(KEY)
+        out[name] = (ct.sign(cert, HOSTED if signer.get("mode") == "hosted" else KEY), trusted, False, error)
+    in_v14 = make_base(ct.SPEC_V1_4)
+    in_v14.update(tenant=TENANT, signer={"mode": "operator"})  # a v1.4 certificate with the v1.5 fields
+    out["invalid_v1_5_fields_in_v1_4"] = (ct.sign(in_v14, KEY), keys(KEY), False, "unknown field")
+    return tenants
 
 
 def costed(cert: dict[str, Any], cost: dict[str, Any], loss: int, segment: int | None = None) -> dict[str, Any]:
@@ -427,12 +548,11 @@ def costed(cert: dict[str, Any], cost: dict[str, Any], loss: int, segment: int |
     return sync(cert)
 
 
-Out = dict[str, tuple[dict[str, Any], dict[str, str], bool, str | None]]
+Out = dict[str, tuple[dict[str, Any], dict[str, Any], bool, str | None]]
 
 
-def _cost_cases(out: Out, base: Any, segmented: Any) -> None:
+def _cost_cases(out: Out, base: Any, segmented: Any, spec: str) -> None:
     """v1.4's cases: `selective_cost` certificates, and what a verifier must refuse in them."""
-    spec = ct.SPEC_V1_4
     matrix_msg = "cost.matrix must be options x options"
     pair_msg = "cost, pvalue and risk disagree"
     real_msg = "realized_cost and loss_sum must be null"
@@ -581,13 +701,32 @@ def _paths(v: Any, path: tuple[str | int, ...] = ()) -> Iterator[tuple[str | int
 
 def mutations(spec: str = ct.SPEC_V1) -> list[dict[str, Any]]:
     """Signed certificates that the schema rejects, one per field and edit: dropped, null, wrong
-    type, empty string, a string with a newline. Every verifier must reject every one."""
-    start = "valid_cost_segments" if spec == ct.SPEC_V1_4 else "valid_segments_unicode"
-    cert0 = fixtures(spec)[start]["certificate"]
-    body0 = {k: v for k, v in cert0.items() if k not in ("signature", "signer_key_id")}
+    type, empty string, a string with a newline. Every verifier must reject every one. v1.5 also edits
+    a hosted certificate's `signer`, signed with the hosted key, and signs every case's prefix with
+    TENANT."""
+    start = "valid_cost_segments" if spec in FROM_V1_4 else "valid_segments_unicode"
+    all_fixtures = fixtures(spec)
+    starts: list[tuple[dict[str, Any], Ed25519PrivateKey, str | None]] = [
+        (all_fixtures[start]["certificate"], KEY, None)
+    ]
+    if spec == ct.SPEC_V1_5:
+        starts.append((all_fixtures["valid_hosted"]["certificate"], HOSTED, "signer"))
     schema = ct.schema(spec)
     out = []
+    for cert0, key, only in starts:
+        body0 = {k: v for k, v in cert0.items() if k not in ("signature", "signer_key_id")}
+        out += _mutated(body0, key, only, schema, spec)
+    return out
+
+
+def _mutated(
+    body0: dict[str, Any], key: Ed25519PrivateKey, only: str | None, schema: dict[str, Any], spec: str
+) -> list[dict[str, Any]]:
+    tenant = TENANT if spec == ct.SPEC_V1_5 else None
+    out = []
     for path in _paths(body0):
+        if only is not None and path[0] != only:
+            continue
         for edit, value in [("drop", None), ("null", None), ("type", [1]), ("empty", ""), ("newline", "a\n")]:
             body = copy.deepcopy(body0)
             parent: Any = body
@@ -597,7 +736,7 @@ def mutations(spec: str = ct.SPEC_V1) -> list[dict[str, Any]]:
                 del parent[path[-1]]
             else:
                 parent[path[-1]] = value
-            cert = ct.sign(body, KEY)
+            cert = ct.sign(body, key, tenant=tenant)
             try:
                 jsonschema.validate(cert, schema)
             except jsonschema.ValidationError:
@@ -607,7 +746,9 @@ def mutations(spec: str = ct.SPEC_V1) -> list[dict[str, Any]]:
 
 def _set(spec: str, root: Path) -> dict[Path, str]:
     files = {root / f"{n}.json": json.dumps(f, indent=2, ensure_ascii=False) + "\n" for n, f in fixtures(spec).items()}
-    m = {"keys": keys(KEY), "cases": mutations(spec)}
+    m: dict[str, Any] = {"keys": keys(KEY), "cases": mutations(spec)}
+    if spec == ct.SPEC_V1_5:
+        m = {"tenant": TENANT, "keys": {**moded(keys(KEY)), **moded(keys(HOSTED), HOST)}, "cases": m["cases"]}
     assert len(m["cases"]) > 150
     files[root / "mutations" / "schema_invalid.json"] = json.dumps(m, indent=1, ensure_ascii=False) + "\n"
     return files
@@ -624,7 +765,8 @@ def rendered() -> dict[Path, str]:
     v12 = _with_manifest(_set(ct.SPEC_V1_2, V12), V12)
     v13 = _with_manifest(_set(ct.SPEC_V1_3, V13), V13)
     v14 = _with_manifest(_set(ct.SPEC_V1_4, V14), V14)
-    return {**files, **v11, **v12, **v13, **v14}
+    v15 = _with_manifest(_set(ct.SPEC_V1_5, V15), V15)
+    return {**files, **v11, **v12, **v13, **v14, **v15}
 
 
 def main() -> int:
