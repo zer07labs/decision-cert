@@ -2,7 +2,8 @@
 
 Every verifier of decision certificates, in any language, must agree with the Rust crate (`rust/`)
 on every file here: the v1 set at the top level, the v1.1 set in [`v1.1/`](v1.1/), the v1.2 set
-in [`v1.2/`](v1.2/), the v1.3 set in [`v1.3/`](v1.3/) and the v1.4 set in [`v1.4/`](v1.4/). On each file
+in [`v1.2/`](v1.2/), the v1.3 set in [`v1.3/`](v1.3/), the v1.4 set in [`v1.4/`](v1.4/) and the v1.5 set in
+[`v1.5/`](v1.5/). On each file
 it must agree on the canonical bytes of the signed body (`body_jcs_b64`), the
 certificate id, and the verdict (`valid`, and for an invalid certificate a substring of the error,
 `error`). `mutations/schema_invalid.json` holds signed certificates the schema rejects; every one
@@ -105,11 +106,42 @@ certificate. The v1.4 cases:
 v1.4 is frozen (2026-11-12) and this set does not change; `v1.3/invalid_unknown_spec.json`
 names v1.4 with v1.3's fields, and a v1.4 verifier refuses it with `spec is not` in its message.
 
+**v1.5.** [`v1.5/`](v1.5/) holds the v1.4 set again with `spec` `decision-certificate.v1.5`, `tenant`
+`acme-bank` and `signer` `{"mode": "operator"}`, each signed over the v1.5 bytes for its tenant
+(spec v1.5 §3). Every file adds `tenant`, the expected tenant it is verified for, and its `keys` are
+that tenant's moded keys (`{"key", "mode": "operator"}`, or `"hosted"` with its `host`); a verifier
+runs it with `verify_for_tenant` (spec v1.5 §4). Its `mutations/` (`{tenant, keys, cases}`) start
+from `valid_cost_segments` and from `valid_hosted`, whose signer they edit. The v1.5 cases:
+
+- `valid_operator` and `valid_hosted`: one certificate in each signer mode; the hosted one names the
+  hosting service's key id in `host`, and its key's entry is `hosted` with the same `host`;
+  `valid_tenant_longest`: a 128-character tenant of every allowed character class;
+- `valid_earlier_spec_under_operator_key`: a v1.4 certificate (its bare-JCS signature, a flat key
+  map) under an expected tenant, accepted because its key is an operator key in the tenant's set;
+  `invalid_earlier_spec_under_hosted_key`: the same under a hosted entry, refused;
+- `invalid_wrong_tenant`: a certificate for `other-bank` checked for `acme-bank` (check 1);
+  `invalid_key_not_in_tenant_set`: a signing key the tenant's set does not list (check 2);
+- `invalid_operator_key_on_hosted_cert`, `invalid_hosted_key_on_operator_cert` and
+  `invalid_host_mismatch`: a key entry whose mode, or hosted `host`, does not allow the signer (check 3);
+- `invalid_v1_5_signature_over_bare_jcs`, `invalid_v1_4_signature_under_v1_5_framing` (a v1.4
+  certificate's signature on the same body relabelled v1.5) and `invalid_prefix_for_another_tenant`
+  (signed with another tenant in the prefix, the field still `acme-bank`): signatures over the wrong
+  bytes (check 4);
+- `invalid_missing_tenant` and `invalid_missing_signer`; `invalid_tenant_bad_charset`,
+  `invalid_tenant_too_long` and `invalid_tenant_empty`; `invalid_host_not_key_id`,
+  `invalid_operator_with_host`, `invalid_hosted_without_host`, `invalid_unknown_signer_mode` and
+  `invalid_unknown_signer_field`: `tenant` and `signer` forms spec v1.5 §2 refuses;
+- `invalid_v1_5_fields_in_v1_4`: `tenant` and `signer` in a v1.4 certificate;
+- `invalid_unknown_spec`: a certificate naming `decision-certificate.v1.6`.
+
+v1.5 is frozen (2026-11-17) and this set does not change; `v1.4/invalid_unknown_spec.json`
+names v1.5 with v1.4's fields, and a v1.5 verifier refuses it with `spec is not` in its message.
+
 The v1 and v1.1 sets do not change. `v1.1/invalid_unknown_spec.json` names v1.2 with v1.1's fields;
 a v1.2 verifier still refuses it, because its fields are not v1.2's, and its message still contains
 `spec is not`.
 
 **Vendoring.** `FIXTURES.sha256` lists the SHA-256 of every v1 fixture file (`sha256sum -c` format);
-`v1.1/FIXTURES.sha256` to `v1.4/FIXTURES.sha256` do the same for their sets.
+`v1.1/FIXTURES.sha256` to `v1.5/FIXTURES.sha256` do the same for their sets.
 Consumers vendor this directory and `FIXTURES.sha256` together, record the upstream commit, and
 check their copy with `sha256sum -c FIXTURES.sha256`.

@@ -18,7 +18,7 @@ designs cover those gaps:
 
 ## Rules all four follow
 
-**Frozen certificates stay as they are.** v1 to v1.4 certificates, their fixtures and their
+**Frozen certificates stay as they are.** v1 to v1.5 certificates, their fixtures and their
 verdicts do not change. `certificate_id` is a frozen identity
 ([ERRATA, 2026-11-15](../../spec/ERRATA.md)), and every design names a certificate by it. A design
 adds either a separate signed document that refers to a certificate by `certificate_id` (a
@@ -62,7 +62,7 @@ outcome, and a certificate never guarantees an outcome.
 flowchart LR
   KS["Key set (K1)<br/>tenant root signs:<br/>certificate, log, witness,<br/>attester keys"]
   L["Ledger entries (R1)<br/>every attempt,<br/>data-role commitments"]
-  C["Certificate<br/>(frozen v1 to v1.4)"]
+  C["Certificate<br/>(frozen v1 to v1.5)"]
   T["Tenant log (#28)<br/>Merkle tree, checkpoints<br/>cosigned by witnesses"]
   A["Attestation (#29)<br/>auditor's checks<br/>on certificate_id"]
   KS -- "trusts signers of" --> C

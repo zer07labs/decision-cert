@@ -5,7 +5,10 @@ cases, the threshold chosen, how many cases it answers, and a bound on the error
 at a stated confidence. It is signed by whoever ran the measurement. The normative definition is
 [`spec/decision-certificate.v1.2.md`](../spec/decision-certificate.v1.2.md) (certificates issued
 under [v1](../spec/decision-certificate.v1.md) and [v1.1](../spec/decision-certificate.v1.1.md) stay
-valid); this page is how to use it.
+valid). Later specs add fields under their own `spec` value:
+[v1.3](../spec/decision-certificate.v1.3.md) (automated options),
+[v1.4](../spec/decision-certificate.v1.4.md) (the cost risk) and
+[v1.5](../spec/decision-certificate.v1.5.md) (tenant binding and a hosted signer). This page is how to use them.
 
 ## What a certificate claims, and what it does not
 
@@ -202,6 +205,32 @@ O4's guidance above (about 1,000 threshold-split cases at `alpha` 0.05 for a str
 for the error certificate; a cost certificate needs more when expensive errors dominate. The study
 found every cell valid (the largest violation rate 0.050 against `delta` 0.1).
 
+### Tenant binding and a hosted signer (v1.5)
+
+`--spec decision-certificate.v1.5 --tenant acme-bank` writes the tenant into the certificate and
+binds it into the signature ([spec v1.5](../spec/decision-certificate.v1.5.md)); the signer is
+`{"mode": "operator"}`. A hosting service that certifies for a tenant, with a key it holds for that
+tenant only, adds `--signer-mode hosted --host ed25519:<16 hex>`, its own key id. The measurement is
+v1.4's in either mode.
+
+A consumer verifies a v1.5 certificate for the tenant it expects, against that tenant's keys, where
+a hosted key's entry names its host:
+
+```python
+from decision_cert import tenant_keys_from_json, verify_for_tenant
+keys = tenant_keys_from_json({
+    "ed25519:1a2b3c4d5e6f7a8b": "<base64url public key>",  # an operator key
+    "ed25519:9f8e7d6c5b4a3928": {"key": "<base64url public key>", "mode": "hosted",
+                                 "host": "ed25519:0123456789abcdef"},
+})
+v = verify_for_tenant(cert, "acme-bank", keys)   # WrongTenant, KeyMode, BadSignature, ...
+```
+
+The crate has the same (`tenant_keys_from_json`, `verify_for_tenant`), and both CLIs take
+`--tenant`. A v1 to v1.4 certificate under an expected tenant is accepted under an operator key only.
+A consumer holding several tenants' keys refuses a configuration in which one key id appears under
+two tenants.
+
 ### Segments and a changing mix
 
 Declare as a segment any case field whose shares may change in use and whose groups may differ in
@@ -240,7 +269,8 @@ Spec §4 is normative; in short:
 - **Loading.** A consumer verifies every certificate when the domain loads, and refuses the domain
   when a certificate:
   - doesn't match the schema;
-  - isn't signed by a trusted key;
+  - isn't signed by a trusted key (v1.5: isn't for the expected tenant, or its key's entry doesn't
+    allow its signer mode and host);
   - names another domain, decision, option order or backend;
   - uses a calibration map the consumer does not apply (v1 and v1.1 consumers apply `temperature`;
     v1.2 defines `temperature` and `dr`, which `Verified::probabilities` applies), or disagrees with
