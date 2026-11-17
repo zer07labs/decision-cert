@@ -5,6 +5,20 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
 
 ## Unreleased
 
+- **`chrono` replaced by `time`** (#66; RUSTSEC-2026-0543, `chrono` unmaintained). The RUSTSEC-2026-0543 ignore is
+  removed from `rust/deny.toml`. Timestamps accepted and refused, error messages and every verifier line are
+  unchanged on every fixture set; no fixture changed. The Python verifier is unchanged.
+- **Breaking for Rust callers** (ships in the next minor release): the time type is now `time::UtcDateTime`,
+  re-exported as `decision_cert::UtcDateTime`.
+  - `timestamp(&str)` returns `Result<UtcDateTime, CertError>` (was `Result<chrono::DateTime<chrono::Utc>, CertError>`).
+  - `Verified::expires_at` is a `UtcDateTime` (was `chrono::DateTime<chrono::Utc>`).
+  - `Verified::is_expired(now)` takes a `UtcDateTime` (was `chrono::DateTime<chrono::Utc>`); `UtcDateTime::now()`
+    replaces `Utc::now()`.
+  - A leap second (`HH:MM:60Z`, still accepted at the end of any minute) reads as the last nanosecond of second 59
+    (`chrono` stored it as a second 59 with an extra second of nanoseconds). Ordering against every time of
+    whole seconds, and so `is_expired` with a `--now` time, is unchanged; only a `now` of exactly
+    `HH:MM:59.999999999` on that minute now counts as expired.
+
 ## 0.7.0 — unreleased (tag `v0.7.0` on the merge commit)
 
 Inclusion v1: frozen, verified, logged. A certificate can now carry proof that it sits in its tenant's transparency

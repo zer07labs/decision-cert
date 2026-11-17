@@ -211,7 +211,7 @@ fn run(
     let now = match now {
         Some(s) => decision_cert::timestamp(s)
             .map_err(|_| Failure::Usage(format!("--now {s:?} is not YYYY-MM-DDTHH:MM:SSZ")))?,
-        None => chrono::Utc::now(),
+        None => decision_cert::UtcDateTime::now(),
     };
     let text = read(cert)?;
     let value: serde_json::Value = serde_json::from_str(&text).map_err(|e| {
