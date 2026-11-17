@@ -69,7 +69,7 @@ certificate and its expiry.
 | Path | What |
 |---|---|
 | [`spec/`](spec/) | [`decision-certificate.v1.5.md`](spec/decision-certificate.v1.5.md) (**frozen** 2026-11-17), [`decision-certificate.v1.4.md`](spec/decision-certificate.v1.4.md) and [`decision-certificate.v1.3.md`](spec/decision-certificate.v1.3.md) (**frozen** 2026-11-12), [`decision-certificate.v1.2.md`](spec/decision-certificate.v1.2.md) (**frozen** 2026-11-08), [`decision-certificate.v1.1.md`](spec/decision-certificate.v1.1.md) (**frozen** 2026-11-08), [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (**frozen** 2026-10-25), and a JSON Schema for each |
-| [`rust/`](rust/) | the `decision-cert` crate: `verify`, `canonical`, `certificate_id`, `key_id`, segment thresholds, expiry, the v1.2 calibration maps (`probabilities`, `confidence`) and shift score |
+| [`rust/`](rust/) | the `decision-cert` crate: `verify`, `canonical`, `certificate_id`, `key_id`, segment thresholds, expiry, the v1.2 calibration maps (`probabilities`, `confidence`) and shift score, and `inclusion`, the verifier for the draft transparency-log inclusion proofs ([`spec/drafts/decision-cert-inclusion.v1.md`](spec/drafts/decision-cert-inclusion.v1.md): `verify_bundle`, `verify_consistency`, `apply_policy`) |
 | [`python/`](python/) | a pure-Python verifier (`decision_cert`), a port of the crate that passes the same fixtures |
 | [`fixtures/`](fixtures/) | conformance fixtures: signed certificates with their canonical bytes, ids and expected verdicts, plus `mutations/schema_invalid.json`, schema-invalid certificates a verifier must reject; v1 at the top level, v1.1 in `fixtures/v1.1/`, v1.2 in `fixtures/v1.2/`, v1.3 in `fixtures/v1.3/`, v1.4 in `fixtures/v1.4/`, v1.5 in `fixtures/v1.5/` |
 | [`docs/certificates.md`](docs/certificates.md) | how a certificate is issued, verified and applied |
@@ -103,6 +103,15 @@ decision-cert verify cert.json --keys trusted-keys.json [--now 2026-11-07T00:00:
 
 pip install decision-cert
 python -m decision_cert verify cert.json --keys trusted-keys.json
+```
+
+The Rust CLI also checks the draft inclusion documents against a tenant's log trust configuration,
+printing one JSON verdict line (exit 0 accepted, 1 refused with the draft's error name, 2 unreadable
+or a malformed configuration). The draft is not frozen; the Python verifier gains these commands next.
+
+```bash
+decision-cert verify-bundle bundle.json --trust log-trust.json
+decision-cert verify-consistency consistency.json --trust log-trust.json
 ```
 
 Or in Python:

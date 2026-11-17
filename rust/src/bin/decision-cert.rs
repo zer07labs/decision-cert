@@ -7,10 +7,24 @@
 //! (with `--tenant`: of key entries, spec v1.5 §4).
 //! With `--tenant`, the certificate is verified for that expected tenant (any spec; a v1.5
 //! certificate needs it). `python -m decision_cert verify` behaves the same.
+//!
+//! `decision-cert verify-bundle <bundle.json> --trust <log-trust.json>` and
+//! `decision-cert verify-consistency <consistency.json> --trust <log-trust.json>` check an inclusion
+//! bundle or a consistency proof document (draft `decision-cert-inclusion.v1`) against one tenant's
+//! log trust configuration, and print one JSON verdict line on stdout: `{"verdict": "accepted", ...}`
+//! with exit 0, or `{"verdict": "refused", "error": <error name>, "detail": ...}` with exit 1 (the
+//! reason also on stderr). Exit 2: usage error, an unreadable file, or a log trust configuration that
+//! is not I-JSON or not well formed (`trust_form`, on stderr). `verify-bundle` does not verify the
+//! bundle's certificate itself; `verify` does.
 
-use std::{collections::BTreeMap, path::PathBuf, process::ExitCode};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+    process::ExitCode,
+};
 
 use clap::{Parser, Subcommand};
+use decision_cert::inclusion::{self, ErrorName, InclusionError, LogTrust};
 
 #[derive(Parser)]
 #[command(version, about = "Verify decision-certificate.v1 certificates")]
@@ -36,6 +50,22 @@ enum Command {
         #[arg(long)]
         now: Option<String>,
     },
+    /// Verify an inclusion bundle against a tenant's log trust configuration (draft).
+    VerifyBundle {
+        /// The bundle, a `decision-cert-inclusion.v1` JSON object.
+        bundle: PathBuf,
+        /// The tenant's log trust configuration, a `decision-cert-log-trust.v1` JSON object.
+        #[arg(long)]
+        trust: PathBuf,
+    },
+    /// Verify a consistency proof document against a tenant's log trust configuration (draft).
+    VerifyConsistency {
+        /// The document, a `decision-cert-consistency.v1` JSON object.
+        doc: PathBuf,
+        /// The tenant's log trust configuration, a `decision-cert-log-trust.v1` JSON object.
+        #[arg(long)]
+        trust: PathBuf,
+    },
 }
 
 fn main() -> ExitCode {
@@ -46,12 +76,30 @@ fn main() -> ExitCode {
             return ExitCode::from(if e.use_stderr() { 2 } else { 0 });
         }
     };
-    let Command::Verify {
-        cert,
-        keys,
-        tenant,
-        now,
-    } = cli.command;
+    let (cert, keys, tenant, now) = match cli.command {
+        Command::Verify {
+            cert,
+            keys,
+            tenant,
+            now,
+        } => (cert, keys, tenant, now),
+        Command::VerifyBundle { bundle, trust } => {
+            return inclusion(
+                &bundle,
+                &trust,
+                |v, t| decision_cert::inclusion::verify_bundle(v, t).map(|v| v.to_json()),
+                ErrorName::BundleForm,
+            )
+        }
+        Command::VerifyConsistency { doc, trust } => {
+            return inclusion(
+                &doc,
+                &trust,
+                |v, t| decision_cert::inclusion::verify_consistency(v, t).map(|v| v.to_json()),
+                ErrorName::ConsistencyForm,
+            )
+        }
+    };
     match run(&cert, &keys, tenant.as_deref(), now.as_deref()) {
         Ok(id) => {
             println!("{id}");
@@ -64,6 +112,58 @@ fn main() -> ExitCode {
         Err(Failure::Usage(m)) => {
             eprintln!("decision-cert: {m}");
             ExitCode::from(2)
+        }
+    }
+}
+
+/// `verify-bundle` and `verify-consistency`: one JSON verdict line on stdout, exit 0 or 1; exit 2 for
+/// an unreadable file or a configuration that is not well formed.
+fn inclusion(
+    doc: &Path,
+    trust: &Path,
+    check: impl Fn(&serde_json::Value, &LogTrust) -> Result<serde_json::Value, InclusionError>,
+    form: ErrorName,
+) -> ExitCode {
+    let usage = |m: String| {
+        eprintln!("decision-cert: {m}");
+        ExitCode::from(2)
+    };
+    let trust = match std::fs::read(trust) {
+        Err(e) => return usage(format!("{}: {e}", trust.display())),
+        Ok(bytes) => match std::str::from_utf8(&bytes)
+            .map_err(|e| e.to_string())
+            .and_then(inclusion::parse_ijson)
+            .map_err(|e| InclusionError::new(ErrorName::TrustForm, e))
+            .and_then(|v| LogTrust::from_json(&v))
+        {
+            Ok(t) => t,
+            Err(e) => return usage(format!("{}: {e}", trust.display())),
+        },
+    };
+    let bytes = match std::fs::read(doc) {
+        Ok(b) => b,
+        Err(e) => return usage(format!("{}: {e}", doc.display())),
+    };
+    let verdict = std::str::from_utf8(&bytes)
+        .map_err(|e| e.to_string())
+        .and_then(inclusion::parse_ijson)
+        .map_err(|e| InclusionError::new(form, format!("not I-JSON: {e}")))
+        .and_then(|v| check(&v, &trust));
+    match verdict {
+        Ok(mut v) => {
+            v["verdict"] = "accepted".into();
+            println!("{v}");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            let v = serde_json::json!({
+                "verdict": "refused",
+                "error": e.name.as_str(),
+                "detail": e.detail,
+            });
+            println!("{v}");
+            eprintln!("{}: {e}", doc.display());
+            ExitCode::from(1)
         }
     }
 }

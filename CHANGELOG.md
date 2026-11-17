@@ -5,6 +5,22 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
 
 ## Unreleased
 
+- **Inclusion v1 (draft), the Rust verifier** (plan `plans/transparency-log-2026-11.md`, Phase 2): a new
+  module `decision_cert::inclusion`, additive, no new dependency, following the unfrozen draft
+  [`spec/drafts/decision-cert-inclusion.v1.md`](spec/drafts/decision-cert-inclusion.v1.md). RFC 9162
+  hashing and proofs (`hash_leaf_bytes`, `node_hash`, `root_hash`, `audit_path`, `consistency_path`,
+  `verify_inclusion_path`, `verify_consistency_path`), leaf forms and the JCS leaf hash (`Leaf`,
+  `leaf_hash`), C2SP checkpoints and `cosignature/v1` (`parse_checkpoint`, `c2sp_key_hash`,
+  `cosignature_message`), the log trust configuration (`LogTrust::from_json`, `check_tenants`), the
+  consumer's checks in §10's order with §14's error names (`verify_bundle`, `verify_consistency`,
+  `ErrorName`, `InclusionError`), `t_proven` as the `m`-th earliest counted cosignature time, the policy
+  (`apply_policy`), and an I-JSON reader that refuses repeated member names (`parse_ijson`). Tested on
+  the RFC 6962 reference vectors and every index and size pair of trees of 1 to 9 leaves.
+- The CLI gains `decision-cert verify-bundle <bundle> --trust <config>` and
+  `decision-cert verify-consistency <doc> --trust <config>`: one JSON verdict line on stdout, exit 0
+  accepted, 1 refused (with the error name), 2 unreadable or a malformed configuration. The existing API,
+  `verify`, and every fixture are unchanged.
+
 ## 0.6.0 — unreleased (tag `v0.6.0` on the merge commit)
 
 Spec v1.5: frozen, verified, issued. Verifiers accept v1 to v1.5; v1 to v1.4 certificates, fixtures and
