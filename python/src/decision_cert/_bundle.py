@@ -9,8 +9,12 @@ proof (`bundle_certificate`). Until then the certificate is valid as a certifica
 the next cosigned checkpoint (`NotYetInCheckpoint`).
 
 A leaf record is a JSON object with exactly `certificate_id`, `leaf` (§3) and `leaf_hash` (§4, standard
-base64, the checkpoint's own encoding), written one per line (`leaf_records_text`). It is this
-repository's tooling format, not part of the draft: only `leaf` is appended to the log.
+base64, the checkpoint's own encoding), and `"backfilled": true` for a backfilled certificate's record
+(`backfill_records`; an issued certificate's record has no `backfilled` member), written one per line
+(`leaf_records_text`). It is this repository's tooling format, not part of the draft: only `leaf` is
+appended to the log, so the mark never changes a leaf or its hash. The bundle carries it on
+(`bundle_certificate(..., backfilled=True)`, §8), and a consumer that knows the log's `started_at` marks
+the certificate from its `fitted_at` whatever the bundle says (§10, "Backfilled").
 """
 
 from __future__ import annotations
@@ -70,15 +74,19 @@ def certificate_leaf(cert: Any) -> Leaf:
     return Leaf.from_json(leaf)
 
 
-def leaf_record(cert: Any) -> dict[str, Any]:
+def leaf_record(cert: Any, *, backfilled: bool = False) -> dict[str, Any]:
     """The leaf record of a certificate: `{"certificate_id", "leaf", "leaf_hash"}`, the hash in standard
-    base64."""
+    base64, with `"backfilled": true` when `backfilled` (and no such member otherwise). The leaf and its
+    hash are the same either way."""
     leaf = certificate_leaf(cert)
-    return {
+    rec: dict[str, Any] = {
         "certificate_id": leaf.get_str("certificate_id"),
         "leaf": leaf.to_json(),
         "leaf_hash": base64.b64encode(leaf_hash(leaf)).decode("ascii"),
     }
+    if backfilled:
+        rec["backfilled"] = True
+    return rec
 
 
 def leaf_records_text(records: Iterable[Mapping[str, Any]]) -> str:
@@ -105,14 +113,15 @@ def backfill_records(certs: Iterable[Any], tenant: str) -> list[dict[str, Any]]:
     tenant's leaves (§2); a `tenant` out of v1.5's form raises `ValueError`. A v1 to v1.4 certificate
     names no tenant: the issuer passes only `tenant`'s certificates.
 
-    Nothing marks a backfilled leaf (§12): it has the form of any certificate leaf. It gets no early time
-    evidence because of where it is: its `t_proven` is the cosignature time of the first checkpoint that
-    includes it, after the log started, whatever its `fitted_at` says."""
+    Each record carries `"backfilled": true` (§12): the leaf itself has the form of any certificate leaf,
+    and its hash is unchanged; the mark travels in the record and then in the bundle (§8). A backfilled
+    certificate gets no early time evidence because of where it is: its `t_proven` is the cosignature time
+    of the first checkpoint that includes it, after the log started, whatever its `fitted_at` says."""
     if not _tenant_ok(tenant):
         raise ValueError(f"tenant {tenant!r} is not 1 to 128 of A-Z a-z 0-9 . _ : -")
     records = []
     for c in backfill_order(certs):
-        rec = leaf_record(c)
+        rec = leaf_record(c, backfilled=True)
         t = rec["leaf"].get("tenant")
         if t is not None and t != tenant:
             raise InclusionError(
@@ -125,12 +134,20 @@ def backfill_records(certs: Iterable[Any], tenant: str) -> list[dict[str, Any]]:
 
 
 def bundle_certificate(
-    cert: Any, leaf_index: Any, proof: Any, checkpoint: Any, trust: LogTrust, log_id: str | None = None
+    cert: Any,
+    leaf_index: Any,
+    proof: Any,
+    checkpoint: Any,
+    trust: LogTrust,
+    log_id: str | None = None,
+    *,
+    backfilled: bool = False,
 ) -> tuple[dict[str, Any], InclusionVerdict]:
     """The bundle (§8) for a certificate whose leaf is at `leaf_index` in the log, with the inclusion
     `proof` (§6, base64 node hashes) against `checkpoint` (its full signed-note text, cosignatures
     included), and its verdict under `trust`. The leaf is built from the certificate; `log_id` is the
-    checkpoint's origin unless given.
+    checkpoint's origin unless given. With `backfilled` (a backfilled certificate: its leaf record says so),
+    the bundle carries `"backfilled": true` (§8).
 
     The bundle is checked as a consumer checks it (`verify_bundle`, §10) before it is returned, and
     refused with that check's error otherwise: a proof for another certificate's leaf (`bad_proof`), a
@@ -149,6 +166,8 @@ def bundle_certificate(
         "checkpoint": checkpoint,
         "certificate": cert,
     }
+    if backfilled:
+        bundle["backfilled"] = True
     try:
         verdict = verify_bundle(bundle, trust)
     except InclusionError as e:

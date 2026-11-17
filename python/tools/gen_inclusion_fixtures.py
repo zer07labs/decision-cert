@@ -366,6 +366,11 @@ CERT_V12 = load_cert("v1.2/valid_basic.json")
 CERT_OPERATOR = load_cert("v1.5/valid_operator.json")
 CERT_HOSTED = load_cert("v1.5/valid_hosted.json")
 CERT_COST = load_cert("v1.5/valid_cost_basic.json")
+FITTED_AT = CERT_V12["fitted_at"]  # every certificate here was fitted at this time
+assert all(c["fitted_at"] == FITTED_AT for c in (CERT_OPERATOR, CERT_HOSTED, CERT_COST))
+STARTED_AFTER = "2026-11-01T00:00:00Z"  # a log started after the certificates were fitted: they are marked
+STARTED_BEFORE = "2026-10-01T00:00:00Z"  # a log started before: they are not
+assert STARTED_BEFORE < FITTED_AT < STARTED_AFTER
 
 
 def cert_leaf(c: dict[str, Any]) -> dict[str, Any]:
@@ -494,13 +499,18 @@ def consistency(older: int, newer: int, older_cp: str | None = None, newer_cp: s
     }
 
 
-def log_entry(log_id: str, k: Ed25519PrivateKey, key_name: str | None = None) -> dict[str, Any]:
-    return {
+def log_entry(
+    log_id: str, k: Ed25519PrivateKey, key_name: str | None = None, started_at: str | None = None
+) -> dict[str, Any]:
+    out = {
         "log_id": log_id,
         "key_name": log_id if key_name is None else key_name,
         "key_id": kid(k),
         "key": ct.b64url(raw(k)),
     }
+    if started_at is not None:
+        out["started_at"] = started_at
+    return out
 
 
 def witness_entry(name: str, k: Ed25519PrivateKey | None = None) -> dict[str, Any]:
@@ -527,10 +537,19 @@ def trust(
 
 
 def accepted(
-    b: dict[str, Any], size: int, root: bytes, cosigners: Sequence[tuple[str, int]], trusted: Sequence[str], m: int
+    b: dict[str, Any],
+    size: int,
+    root: bytes,
+    cosigners: Sequence[tuple[str, int]],
+    trusted: Sequence[str],
+    m: int,
+    backfilled_by: Sequence[str] = (),
 ) -> dict[str, Any]:
     """The verdict a bundle built here must get: its tree, the checkpoint's size and root, and the
-    cosignatures of the trusted witnesses written into it, by time then name; `t_proven` the m-th."""
+    cosignatures of the trusted witnesses written into it, by time then name; `t_proven` the m-th. For a
+    certificate leaf, the backfilled mark the case is built to get (`backfilled_by`: "bundle" for a bundle
+    built with `backfilled`, "started_at" for a configuration whose `started_at` is after the certificate's
+    `fitted_at`, in that order; none by default)."""
     counted = sorted(((t, n) for n, t in cosigners if n in trusted), key=lambda x: (x[0], x[1].encode()))
     assert len(counted) >= m
     out = {
@@ -545,6 +564,11 @@ def accepted(
     }
     if b["leaf"]["kind"] == "certificate":
         out["certificate_id"] = ct.certificate_id(b["certificate"])
+        assert list(backfilled_by) in ([], ["bundle"], ["started_at"], ["bundle", "started_at"]), backfilled_by
+        out["backfilled"] = bool(backfilled_by)
+        out["backfilled_by"] = list(backfilled_by)
+    else:
+        assert not backfilled_by
     return out
 
 
@@ -599,6 +623,11 @@ def build() -> FixtureSet:
     t_two_logs = fs.trust(
         "acme-bank-two-logs", trust(logs=[log_entry(LOG_A, LOG_A_KEY), log_entry(LOG_G, LOG_G_KEY)], witnesses=three)
     )
+    # the log's started_at (§9): after, at, and before the certificates' fitted_at
+    started = {
+        when: fs.trust(f"acme-bank-started-{when}", trust(logs=[log_entry(LOG_A, LOG_A_KEY, started_at=at)]))
+        for when, at in (("after", STARTED_AFTER), ("at", FITTED_AT), ("before", STARTED_BEFORE))
+    }
     for name, f, m, pol in (
         ("acme-bank", t_a, 1, "warn"),
         ("acme-bank-m2", t_m2, 2, "warn"),
@@ -607,6 +636,7 @@ def build() -> FixtureSet:
         *((f"acme-bank-policy-{p}", policies[p], 1, p) for p in ("off", "warn", "refuse")),
         ("globex", t_g, 1, "warn"),
         ("acme-bank-two-logs", t_two_logs, 1, "warn"),
+        *((f"acme-bank-started-{w}", started[w], 1, "warn") for w in ("after", "at", "before")),
         ("globex-holding-log-a", t_g_log_a, 1, "warn"),
         ("globex-log-g-with-log-a-key", t_g_key_a, 1, "warn"),
     ):
@@ -650,6 +680,7 @@ def build() -> FixtureSet:
         )
 
     positive_bundles(fs, t_a, t_m2, t_m3, t_three_m1, t_g)
+    backfilled_bundles(fs, t_a, started)
     negative_bundles(fs, t_a, t_m2, t_g, t_g_log_a)
     consistency_cases(fs, t_a, t_two_logs)
     policy_cases(fs, policies)
@@ -696,6 +727,12 @@ def trust_form_cases(fs: FixtureSet) -> None:
         ("two_witnesses_one_name", lambda t: t["witnesses"].append(witness_entry(W1, W[W3]))),
         ("two_witnesses_one_key", lambda t: t["witnesses"].append(witness_entry(W3, W[W1]))),
         ("witness_key_is_log_key", lambda t: t["witnesses"].append(witness_entry(W3, LOG_A_KEY))),
+        ("started_at_date_only", lambda t: t["logs"][0].update(started_at="2026-11-01")),
+        ("started_at_leap_second", lambda t: t["logs"][0].update(started_at="2026-12-31T23:59:60Z")),
+        ("started_at_offset", lambda t: t["logs"][0].update(started_at="2026-11-01T00:00:00+00:00")),
+        ("started_at_null", lambda t: t["logs"][0].update(started_at=None)),
+        ("started_at_number", lambda t: t["logs"][0].update(started_at=1_800_000_000)),
+        ("started_at_at_top_level", lambda t: t.update(started_at=STARTED_AFTER)),
     ]
     for name, edit in edits:
         t = copy.deepcopy(base)
@@ -804,6 +841,41 @@ def positive_bundles(fs: FixtureSet, t_a: str, t_m2: str, t_m3: str, t_three_m1:
         "certificate": CERT_V12,
     }
     fs.bundle("valid_globex_v1_2_certificate", gb, t_g, accepted(gb, 4, mth(G_HASHES), [(W1, T0 + 3)], (W1,), 1))
+
+
+def backfilled_bundles(fs: FixtureSet, t_a: str, started: dict[str, str]) -> None:
+    """The backfilled mark (§8, §9, §10 "Backfilled"): the bundle's `backfilled` (the bundler's statement), the
+    configuration's `started_at` (the consumer's own), both, neither. A mark, never a refusal."""
+
+    def ok(name: str, index: int, tf: str, marked: bool, by: Sequence[str], size: int = 37) -> None:
+        cos = [(W1, T0 + size)]
+        b = bundle(index, size, a_checkpoint(size, cos))
+        if marked:
+            b["backfilled"] = True
+        fs.bundle(name, b, tf, accepted(b, size, mth(A_HASHES[:size]), cos, (W1,), 1, by))
+
+    hosted = _index_of(CERT_HOSTED)
+    ok("valid_backfilled_marked_by_bundle", hosted, t_a, True, ["bundle"])
+    # a bundle without the member (or stripped of it) is marked all the same when started_at is configured
+    ok("valid_backfilled_started_after_fitted_at", hosted, started["after"], False, ["started_at"])
+    ok("valid_backfilled_started_at_fitted_at", hosted, started["at"], False, [])
+    ok("valid_backfilled_started_before_fitted_at", hosted, started["before"], False, [])
+    ok("valid_backfilled_by_bundle_and_started_at", hosted, started["after"], True, ["bundle", "started_at"])
+    ok("valid_backfilled_by_bundle_started_before", hosted, started["before"], True, ["bundle"])
+    ok("valid_backfilled_v1_2_started_after", _index_of(CERT_V12), started["after"], False, ["started_at"])
+    # other kinds: no mark is reported, whatever started_at says
+    ok("valid_backfilled_keyset_leaf_no_mark", 4, started["after"], False, [], 8)
+
+    def bad(name: str, index: int, size: int, value: Any) -> None:
+        b = bundle(index, size)
+        b["backfilled"] = value
+        fs.bundle(f"invalid_{name}", b, t_a, refused("bundle_form"))
+
+    bad("backfilled_false", hosted, 8, False)
+    bad("backfilled_string", hosted, 8, "true")
+    bad("backfilled_number", hosted, 8, 1)
+    bad("backfilled_null", hosted, 8, None)
+    bad("backfilled_beside_keyset_leaf", 4, 8, True)
 
 
 def negative_bundles(fs: FixtureSet, t_a: str, t_m2: str, t_g: str, t_g_log_a: str) -> None:

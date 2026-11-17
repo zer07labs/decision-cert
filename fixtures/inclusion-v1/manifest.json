@@ -893,6 +893,39 @@
       }
     },
     {
+      "name": "trust_acme-bank-started-after",
+      "check": "trust",
+      "trust": "trust/acme-bank-started-after.json",
+      "expect": {
+        "verdict": "accepted",
+        "tenant": "acme-bank",
+        "m": 1,
+        "policy": "warn"
+      }
+    },
+    {
+      "name": "trust_acme-bank-started-at",
+      "check": "trust",
+      "trust": "trust/acme-bank-started-at.json",
+      "expect": {
+        "verdict": "accepted",
+        "tenant": "acme-bank",
+        "m": 1,
+        "policy": "warn"
+      }
+    },
+    {
+      "name": "trust_acme-bank-started-before",
+      "check": "trust",
+      "trust": "trust/acme-bank-started-before.json",
+      "expect": {
+        "verdict": "accepted",
+        "tenant": "acme-bank",
+        "m": 1,
+        "policy": "warn"
+      }
+    },
+    {
       "name": "trust_globex-holding-log-a",
       "check": "trust",
       "trust": "trust/globex-holding-log-a.json",
@@ -1167,6 +1200,60 @@
       }
     },
     {
+      "name": "trust_invalid_started_at_date_only",
+      "check": "trust",
+      "trust": "trust/invalid_started_at_date_only.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_started_at_leap_second",
+      "check": "trust",
+      "trust": "trust/invalid_started_at_leap_second.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_started_at_offset",
+      "check": "trust",
+      "trust": "trust/invalid_started_at_offset.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_started_at_null",
+      "check": "trust",
+      "trust": "trust/invalid_started_at_null.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_started_at_number",
+      "check": "trust",
+      "trust": "trust/invalid_started_at_number.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
+      "name": "trust_invalid_started_at_at_top_level",
+      "check": "trust",
+      "trust": "trust/invalid_started_at_at_top_level.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "trust_form"
+      }
+    },
+    {
       "name": "trust_invalid_member_named_twice",
       "check": "trust",
       "trust": "trust/invalid_member_named_twice.json",
@@ -1298,7 +1385,9 @@
           }
         ],
         "t_proven": "2027-01-15T08:00:01Z",
-        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd"
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd",
+        "backfilled": false,
+        "backfilled_by": []
       }
     },
     {
@@ -1321,7 +1410,9 @@
           }
         ],
         "t_proven": "2027-01-15T08:00:02Z",
-        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd"
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd",
+        "backfilled": false,
+        "backfilled_by": []
       }
     },
     {
@@ -1344,7 +1435,9 @@
           }
         ],
         "t_proven": "2027-01-15T08:00:02Z",
-        "certificate_id": "sha256:9bda5d8e46e421e4416ea52dc8611a289126cc878c4660b85cfade6aa71d560b"
+        "certificate_id": "sha256:9bda5d8e46e421e4416ea52dc8611a289126cc878c4660b85cfade6aa71d560b",
+        "backfilled": false,
+        "backfilled_by": []
       }
     },
     {
@@ -1367,7 +1460,9 @@
           }
         ],
         "t_proven": "2027-01-15T08:00:03Z",
-        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd"
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd",
+        "backfilled": false,
+        "backfilled_by": []
       }
     },
     {
@@ -1390,7 +1485,9 @@
           }
         ],
         "t_proven": "2027-01-15T08:00:03Z",
-        "certificate_id": "sha256:9bda5d8e46e421e4416ea52dc8611a289126cc878c4660b85cfade6aa71d560b"
+        "certificate_id": "sha256:9bda5d8e46e421e4416ea52dc8611a289126cc878c4660b85cfade6aa71d560b",
+        "backfilled": false,
+        "backfilled_by": []
       }
     },
     {
@@ -1413,7 +1510,9 @@
           }
         ],
         "t_proven": "2027-01-15T08:00:03Z",
-        "certificate_id": "sha256:f167f9a38c92d10400ec13a17ba0383f4d0a65e0068f6ffa64d3e79634cf2417"
+        "certificate_id": "sha256:f167f9a38c92d10400ec13a17ba0383f4d0a65e0068f6ffa64d3e79634cf2417",
+        "backfilled": false,
+        "backfilled_by": []
       }
     },
     {
@@ -1436,7 +1535,9 @@
           }
         ],
         "t_proven": "2027-01-15T08:00:07Z",
-        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd"
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd",
+        "backfilled": false,
+        "backfilled_by": []
       }
     },
     {
@@ -1503,7 +1604,9 @@
           }
         ],
         "t_proven": "2027-01-15T08:00:08Z",
-        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd"
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd",
+        "backfilled": false,
+        "backfilled_by": []
       }
     },
     {
@@ -1592,7 +1695,9 @@
           }
         ],
         "t_proven": "2027-01-15T08:05:00Z",
-        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd"
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd",
+        "backfilled": false,
+        "backfilled_by": []
       }
     },
     {
@@ -1615,7 +1720,9 @@
           }
         ],
         "t_proven": "2027-01-15T08:05:00Z",
-        "certificate_id": "sha256:9c9a6aa1857be3a7e620143d03aebe93dfeb8c46a297566ddd7e40b430ee3476"
+        "certificate_id": "sha256:9c9a6aa1857be3a7e620143d03aebe93dfeb8c46a297566ddd7e40b430ee3476",
+        "backfilled": false,
+        "backfilled_by": []
       }
     },
     {
@@ -1660,7 +1767,9 @@
           }
         ],
         "t_proven": "2027-01-15T08:00:37Z",
-        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd"
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd",
+        "backfilled": false,
+        "backfilled_by": []
       }
     },
     {
@@ -1683,7 +1792,9 @@
           }
         ],
         "t_proven": "2027-01-15T08:00:37Z",
-        "certificate_id": "sha256:9bda5d8e46e421e4416ea52dc8611a289126cc878c4660b85cfade6aa71d560b"
+        "certificate_id": "sha256:9bda5d8e46e421e4416ea52dc8611a289126cc878c4660b85cfade6aa71d560b",
+        "backfilled": false,
+        "backfilled_by": []
       }
     },
     {
@@ -1706,7 +1817,9 @@
           }
         ],
         "t_proven": "2027-01-15T08:00:37Z",
-        "certificate_id": "sha256:f167f9a38c92d10400ec13a17ba0383f4d0a65e0068f6ffa64d3e79634cf2417"
+        "certificate_id": "sha256:f167f9a38c92d10400ec13a17ba0383f4d0a65e0068f6ffa64d3e79634cf2417",
+        "backfilled": false,
+        "backfilled_by": []
       }
     },
     {
@@ -1918,7 +2031,9 @@
           }
         ],
         "t_proven": "2027-01-15T08:00:00Z",
-        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd"
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd",
+        "backfilled": false,
+        "backfilled_by": []
       }
     },
     {
@@ -1941,7 +2056,267 @@
           }
         ],
         "t_proven": "2027-01-15T08:00:03Z",
-        "certificate_id": "sha256:9bda5d8e46e421e4416ea52dc8611a289126cc878c4660b85cfade6aa71d560b"
+        "certificate_id": "sha256:9bda5d8e46e421e4416ea52dc8611a289126cc878c4660b85cfade6aa71d560b",
+        "backfilled": false,
+        "backfilled_by": []
+      }
+    },
+    {
+      "name": "bundle_valid_backfilled_marked_by_bundle",
+      "check": "bundle",
+      "doc": "bundles/valid_backfilled_marked_by_bundle.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 37,
+        "root_hash": "TuLej8Nu06K4FgBRX9hi/Tju5OAKO94lF7MtQI34gz0=",
+        "leaf_index": 0,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:37Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:37Z",
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd",
+        "backfilled": true,
+        "backfilled_by": [
+          "bundle"
+        ]
+      }
+    },
+    {
+      "name": "bundle_valid_backfilled_started_after_fitted_at",
+      "check": "bundle",
+      "doc": "bundles/valid_backfilled_started_after_fitted_at.json",
+      "trust": "trust/acme-bank-started-after.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 37,
+        "root_hash": "TuLej8Nu06K4FgBRX9hi/Tju5OAKO94lF7MtQI34gz0=",
+        "leaf_index": 0,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:37Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:37Z",
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd",
+        "backfilled": true,
+        "backfilled_by": [
+          "started_at"
+        ]
+      }
+    },
+    {
+      "name": "bundle_valid_backfilled_started_at_fitted_at",
+      "check": "bundle",
+      "doc": "bundles/valid_backfilled_started_at_fitted_at.json",
+      "trust": "trust/acme-bank-started-at.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 37,
+        "root_hash": "TuLej8Nu06K4FgBRX9hi/Tju5OAKO94lF7MtQI34gz0=",
+        "leaf_index": 0,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:37Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:37Z",
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd",
+        "backfilled": false,
+        "backfilled_by": []
+      }
+    },
+    {
+      "name": "bundle_valid_backfilled_started_before_fitted_at",
+      "check": "bundle",
+      "doc": "bundles/valid_backfilled_started_before_fitted_at.json",
+      "trust": "trust/acme-bank-started-before.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 37,
+        "root_hash": "TuLej8Nu06K4FgBRX9hi/Tju5OAKO94lF7MtQI34gz0=",
+        "leaf_index": 0,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:37Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:37Z",
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd",
+        "backfilled": false,
+        "backfilled_by": []
+      }
+    },
+    {
+      "name": "bundle_valid_backfilled_by_bundle_and_started_at",
+      "check": "bundle",
+      "doc": "bundles/valid_backfilled_by_bundle_and_started_at.json",
+      "trust": "trust/acme-bank-started-after.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 37,
+        "root_hash": "TuLej8Nu06K4FgBRX9hi/Tju5OAKO94lF7MtQI34gz0=",
+        "leaf_index": 0,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:37Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:37Z",
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd",
+        "backfilled": true,
+        "backfilled_by": [
+          "bundle",
+          "started_at"
+        ]
+      }
+    },
+    {
+      "name": "bundle_valid_backfilled_by_bundle_started_before",
+      "check": "bundle",
+      "doc": "bundles/valid_backfilled_by_bundle_started_before.json",
+      "trust": "trust/acme-bank-started-before.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 37,
+        "root_hash": "TuLej8Nu06K4FgBRX9hi/Tju5OAKO94lF7MtQI34gz0=",
+        "leaf_index": 0,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:37Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:37Z",
+        "certificate_id": "sha256:04561b38d21a39936504eb872e3486d499c58a2c20bb0836715b99217c67a9dd",
+        "backfilled": true,
+        "backfilled_by": [
+          "bundle"
+        ]
+      }
+    },
+    {
+      "name": "bundle_valid_backfilled_v1_2_started_after",
+      "check": "bundle",
+      "doc": "bundles/valid_backfilled_v1_2_started_after.json",
+      "trust": "trust/acme-bank-started-after.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 37,
+        "root_hash": "TuLej8Nu06K4FgBRX9hi/Tju5OAKO94lF7MtQI34gz0=",
+        "leaf_index": 1,
+        "kind": "certificate",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:37Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:37Z",
+        "certificate_id": "sha256:9bda5d8e46e421e4416ea52dc8611a289126cc878c4660b85cfade6aa71d560b",
+        "backfilled": true,
+        "backfilled_by": [
+          "started_at"
+        ]
+      }
+    },
+    {
+      "name": "bundle_valid_backfilled_keyset_leaf_no_mark",
+      "check": "bundle",
+      "doc": "bundles/valid_backfilled_keyset_leaf_no_mark.json",
+      "trust": "trust/acme-bank-started-after.json",
+      "expect": {
+        "verdict": "accepted",
+        "log_id": "log:b1ca2d78f40ef14d60690abe02823e7d",
+        "tree_size": 8,
+        "root_hash": "RuBfKh1++avPl5SEMBrXkxoHjUELARNPqQsIP+QC31s=",
+        "leaf_index": 4,
+        "kind": "keyset",
+        "witnesses": [
+          {
+            "key_id": "ed25519:ecd190451814e0a3",
+            "name": "witness.example/w1",
+            "time": "2027-01-15T08:00:08Z"
+          }
+        ],
+        "t_proven": "2027-01-15T08:00:08Z"
+      }
+    },
+    {
+      "name": "bundle_invalid_backfilled_false",
+      "check": "bundle",
+      "doc": "bundles/invalid_backfilled_false.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_backfilled_string",
+      "check": "bundle",
+      "doc": "bundles/invalid_backfilled_string.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_backfilled_number",
+      "check": "bundle",
+      "doc": "bundles/invalid_backfilled_number.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_backfilled_null",
+      "check": "bundle",
+      "doc": "bundles/invalid_backfilled_null.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
+      }
+    },
+    {
+      "name": "bundle_invalid_backfilled_beside_keyset_leaf",
+      "check": "bundle",
+      "doc": "bundles/invalid_backfilled_beside_keyset_leaf.json",
+      "trust": "trust/acme-bank.json",
+      "expect": {
+        "verdict": "refused",
+        "error": "bundle_form"
       }
     },
     {
@@ -3566,7 +3941,9 @@
             }
           ],
           "t_proven": "2027-01-15T08:00:08Z",
-          "certificate_id": "sha256:f167f9a38c92d10400ec13a17ba0383f4d0a65e0068f6ffa64d3e79634cf2417"
+          "certificate_id": "sha256:f167f9a38c92d10400ec13a17ba0383f4d0a65e0068f6ffa64d3e79634cf2417",
+          "backfilled": false,
+          "backfilled_by": []
         }
       }
     },
@@ -3611,7 +3988,9 @@
             }
           ],
           "t_proven": "2027-01-15T08:00:08Z",
-          "certificate_id": "sha256:f167f9a38c92d10400ec13a17ba0383f4d0a65e0068f6ffa64d3e79634cf2417"
+          "certificate_id": "sha256:f167f9a38c92d10400ec13a17ba0383f4d0a65e0068f6ffa64d3e79634cf2417",
+          "backfilled": false,
+          "backfilled_by": []
         }
       }
     },

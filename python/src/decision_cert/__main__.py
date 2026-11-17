@@ -34,6 +34,9 @@ issuer's step once a cosigned checkpoint includes the certificate's leaf: it bui
 certificate, checks the bundle as `verify-bundle` does (the proof file is a JSON array of base64 node
 hashes, the checkpoint file the signed note, cosignatures included; the log is the checkpoint's origin
 unless `--log-id` is given), and writes it as its JCS bytes. It prints `verify-bundle`'s verdict line.
+With `--backfilled`, or `--leaf-record <record.json>` holding the certificate's leaf record with
+`"backfilled": true` (one line of `log backfill`'s output), the bundle carries `"backfilled": true` (§8); a
+leaf record for another certificate is a usage error.
 Exit 0: written. Exit 1: refused, nothing written. Exit 2: usage error, an unreadable file, or a
 configuration that is not well formed. Exit 3: the checkpoint does not include the leaf yet (its tree
 size is not above the index): nothing written; bundle against a later cosigned checkpoint.
@@ -43,7 +46,8 @@ leaf records of certificates issued before the tenant's log existed, for the log
 any new leaf, in the draft's §12 order (by `fitted_at`, then `certificate_id`; each certificate once).
 Each file holds a certificate or an issuer's calibration file. Exit 1: a file holds something that is not
 a certificate, or a v1.5 certificate for another tenant; nothing written. Exit 2: usage error or an
-unreadable file. A backfilled leaf carries no mark (§12): it gets no early time evidence because its
+unreadable file. Each record carries `"backfilled": true` (§12), beside the leaf, which is the leaf any
+certificate gets: its hash is unchanged. A backfilled certificate gets no early time evidence: its
 `t_proven` is the first cosigned checkpoint that includes it, after the log started.
 """
 
@@ -58,7 +62,14 @@ from pathlib import Path
 from typing import Any
 
 from . import CertError, Invalid, loads, tenant_keys_from_json, timestamp, verify, verify_for_tenant
-from ._bundle import NotYetInCheckpoint, backfill_records, bundle_bytes, bundle_certificate, leaf_records_text
+from ._bundle import (
+    NotYetInCheckpoint,
+    backfill_records,
+    bundle_bytes,
+    bundle_certificate,
+    certificate_leaf,
+    leaf_records_text,
+)
 from ._inclusion import ErrorName, InclusionError, LogTrust, parse_ijson, verify_bundle, verify_consistency
 from ._pack import DEFAULT_LIMITS, Limits, PackError, render, verify_pack
 
@@ -177,6 +188,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     bd.add_argument("--out", type=Path, required=True, help="Where to write the bundle (its JCS bytes).")
     bd.add_argument("--log-id", help="The log's id (default: the checkpoint's origin).")
+    bd.add_argument(
+        "--backfilled", action="store_true", help="Mark the bundle backfilled: the certificate was backfilled."
+    )
+    bd.add_argument(
+        "--leaf-record",
+        type=Path,
+        help="The certificate's leaf record (a JSON object); its `backfilled` member is carried into the bundle.",
+    )
     lg = sub.add_parser("log", help="The issuer's log tooling (draft).")
     lsub = lg.add_subparsers(dest="log_command", required=True)
     bf = lsub.add_parser(
@@ -315,8 +334,24 @@ def _bundle(args: argparse.Namespace) -> int:
         checkpoint = args.checkpoint.read_bytes().decode("utf-8")
     except (OSError, UnicodeDecodeError) as e:
         return _usage(f"{args.checkpoint}: {e}")
+    backfilled = args.backfilled
+    if args.leaf_record is not None:
+        rec, err = _read_json(args.leaf_record)
+        if err is not None:
+            return _usage(err)
+        try:
+            leaf = certificate_leaf(cert).to_json()
+        except InclusionError:
+            leaf = None
+        if not isinstance(rec, dict) or rec.get("leaf") != leaf or leaf is None:
+            return _usage(f"{args.leaf_record}: not the leaf record of {args.certificate}")
+        if "backfilled" in rec and rec["backfilled"] is not True:
+            return _usage(f"{args.leaf_record}: backfilled is true or absent")
+        backfilled = backfilled or rec.get("backfilled") is True
     try:
-        bundle, verdict = bundle_certificate(cert, args.leaf_index, proof, checkpoint, trust, args.log_id)
+        bundle, verdict = bundle_certificate(
+            cert, args.leaf_index, proof, checkpoint, trust, args.log_id, backfilled=backfilled
+        )
     except NotYetInCheckpoint as e:
         print(_json_line({"verdict": "refused", "error": str(e.name), "detail": e.detail}))
         print(f"{args.certificate}: {e}", file=sys.stderr)

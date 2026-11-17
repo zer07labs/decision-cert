@@ -734,6 +734,9 @@ pub struct TrustedLog {
     /// The key's id in this repository's form, `ed25519:<16 hex>`.
     pub key_id: String,
     pub key: VerifyingKey,
+    /// The time of the log's first entry (§9), if the configuration gives it: a certificate whose
+    /// `fitted_at` is earlier is marked backfilled (§10, "Backfilled").
+    pub started_at: Option<String>,
 }
 
 /// A trusted witness: its C2SP cosigner name, and its key.
@@ -786,9 +789,11 @@ impl LogTrust {
         for l in logs_in {
             let e = l
                 .as_object()
-                .filter(|e| only(e, &["log_id", "key_name", "key_id", "key"], &[]));
+                .filter(|e| only(e, &["log_id", "key_name", "key_id", "key"], &["started_at"]));
             let Some(e) = e else {
-                return bad("a log entry has exactly log_id, key_name, key_id and key");
+                return bad(
+                    "a log entry has exactly log_id, key_name, key_id, key and optionally started_at",
+                );
             };
             let Some(log_id) = e["log_id"].as_str().filter(|s| prefixed_hex(s, "log:", 32)) else {
                 return bad("a log_id is log: and 32 lowercase hex characters");
@@ -796,12 +801,20 @@ impl LogTrust {
             let Some(key_name) = e["key_name"].as_str().filter(|s| key_name_ok(s)) else {
                 return bad("a key_name is 1 to 255 printable ASCII characters other than +");
             };
+            let started_at = match e.get("started_at") {
+                None => None,
+                Some(v) => match v.as_str().filter(|s| time_ok(s)) {
+                    Some(s) => Some(s.to_string()),
+                    None => return bad("started_at is a time YYYY-MM-DDTHH:MM:SSZ"),
+                },
+            };
             let (key_id, key) = trusted_key(e)?;
             logs.push(TrustedLog {
                 log_id: log_id.to_string(),
                 key_name: key_name.to_string(),
                 key_id,
                 key,
+                started_at,
             });
         }
         let mut witnesses = Vec::new();
@@ -986,6 +999,10 @@ pub struct InclusionVerdict {
     pub kind: String,
     /// For a certificate leaf, the certificate's id.
     pub certificate_id: Option<String>,
+    /// For a certificate leaf, the bases on which it is marked backfilled, in this order: `bundle`
+    /// (the bundle's `backfilled`, the bundler's statement) and `started_at` (its `fitted_at` is
+    /// earlier than the configuration's `started_at` for the log). Empty when it is not marked.
+    pub backfilled_by: Option<Vec<&'static str>>,
     /// The counted witnesses, by cosignature time, then name.
     pub witnesses: Vec<CountedWitness>,
     /// The `m`-th earliest counted cosignature time, POSIX seconds.
@@ -996,6 +1013,12 @@ impl InclusionVerdict {
     /// `t_proven` as a time (§0).
     pub fn t_proven_time(&self) -> String {
         time_of(self.t_proven)
+    }
+
+    /// For a certificate leaf, whether it is marked backfilled (§10, "Backfilled"): a mark, never a
+    /// reason to refuse.
+    pub fn backfilled(&self) -> Option<bool> {
+        self.backfilled_by.as_ref().map(|by| !by.is_empty())
     }
 
     /// The verdict as JSON: hashes in base64, times in §0's form.
@@ -1015,6 +1038,10 @@ impl InclusionVerdict {
         });
         if let Some(id) = &self.certificate_id {
             v["certificate_id"] = Value::String(id.clone());
+        }
+        if let Some(by) = &self.backfilled_by {
+            v["backfilled"] = Value::Bool(!by.is_empty());
+            v["backfilled_by"] = serde_json::json!(by);
         }
         v
     }
@@ -1039,8 +1066,8 @@ pub fn verify_bundle(bundle: &Value, trust: &LogTrust) -> Result<InclusionVerdic
         "proof",
         "checkpoint",
     ];
-    if !only(obj, &members, &["certificate"]) {
-        return bad("a bundle has exactly spec, log_id, leaf_index, leaf, proof, checkpoint, and certificate for a certificate leaf");
+    if !only(obj, &members, &["certificate", "backfilled"]) {
+        return bad("a bundle has exactly spec, log_id, leaf_index, leaf, proof, checkpoint, and certificate (and optionally backfilled) for a certificate leaf");
     }
     if obj["spec"] != SPEC_BUNDLE {
         return bad("spec is not decision-cert-inclusion.v1");
@@ -1072,6 +1099,11 @@ pub fn verify_bundle(bundle: &Value, trust: &LogTrust) -> Result<InclusionVerdic
                 "certificate is a JSON object, present if and only if leaf.kind is certificate",
             )
         }
+    };
+    let bundle_backfilled = match obj.get("backfilled") {
+        None => false,
+        Some(Value::Bool(true)) if is_cert => true,
+        _ => return bad("backfilled is true, and present only beside a certificate leaf"),
     };
 
     // 3. the leaf's form
@@ -1154,6 +1186,20 @@ pub fn verify_bundle(bundle: &Value, trust: &LogTrust) -> Result<InclusionVerdic
         );
     }
     let t_proven = witnesses[trust.m - 1].time;
+
+    // the backfilled mark (§10, "Backfilled"): reported, never refused
+    let backfilled_by = certificate_id.as_ref().map(|_| {
+        let mut by = Vec::new();
+        if bundle_backfilled {
+            by.push("bundle");
+        }
+        if let (Some(start), Some(fitted)) = (&log.started_at, leaf.get_str("fitted_at")) {
+            if fitted < start.as_str() {
+                by.push("started_at");
+            }
+        }
+        by
+    });
     Ok(InclusionVerdict {
         log_id: log_id.to_string(),
         tree_size: cp.tree_size,
@@ -1161,6 +1207,7 @@ pub fn verify_bundle(bundle: &Value, trust: &LogTrust) -> Result<InclusionVerdic
         leaf_index,
         kind: leaf.kind().to_string(),
         certificate_id,
+        backfilled_by,
         witnesses,
         t_proven,
     })
@@ -1838,14 +1885,21 @@ mod tests {
         assert_eq!(v.witnesses.len(), 1);
         assert_eq!(v.t_proven, 1_800_000_000);
         assert_eq!(v.t_proven_time(), "2027-01-15T08:00:00Z");
+        assert_eq!(v.backfilled(), Some(false));
         let j = v.to_json();
         assert_eq!(j["t_proven"], "2027-01-15T08:00:00Z");
+        assert_eq!(
+            (&j["backfilled"], &j["backfilled_by"]),
+            (&json!(false), &json!([]))
+        );
         assert_eq!(j["witnesses"][0]["name"], witness_name(0));
         // every index of the tree, other leaf kinds, and the bundle's JSON text round trip
         for at in 0..7 {
             let b = bundle_for(ledger_leaf(at as u64), None, at, &[(0, 5)]);
             let text = serde_json::to_string(&b).unwrap();
             let v = verify_bundle(&parse_ijson(&text).unwrap(), &trust(1, 1)).unwrap();
+            assert_eq!(v.backfilled(), None);
+            assert!(v.to_json().get("backfilled").is_none());
             assert_eq!((v.leaf_index, v.certificate_id), (at as u64, None));
         }
         let head = json!({"kind": "audit_head", "tenant": TENANT, "chain": "audit", "seq": 1,
@@ -1996,6 +2050,59 @@ mod tests {
         let mut b = bundle_for(ledger_leaf(3), None, 3, &[(0, 5)]);
         b["certificate"] = certificate();
         assert_eq!(refused(&b, &t), ErrorName::BundleForm);
+        // backfilled: true only, and only beside a certificate leaf
+        for v in [json!(false), json!("true"), json!(1), json!(null)] {
+            let mut b = bundle();
+            b["backfilled"] = v;
+            assert_eq!(refused(&b, &t), ErrorName::BundleForm);
+        }
+        let mut b = bundle_for(ledger_leaf(3), None, 3, &[(0, 5)]);
+        b["backfilled"] = json!(true);
+        assert_eq!(refused(&b, &t), ErrorName::BundleForm);
+    }
+
+    #[test]
+    fn backfilled_mark() {
+        // the certificate's fitted_at is 2026-11-16T09:31:10Z
+        let with_start = |start: Option<&str>| {
+            let mut t = trust_json(1, 1);
+            if let Some(s) = start {
+                t["logs"][0]["started_at"] = json!(s);
+            }
+            LogTrust::from_json(&t).unwrap()
+        };
+        let mut marked = bundle();
+        marked["backfilled"] = json!(true);
+        for (b, start, by) in [
+            (bundle(), None, vec![]),
+            (marked.clone(), None, vec!["bundle"]),
+            (bundle(), Some("2026-11-17T00:00:00Z"), vec!["started_at"]),
+            (bundle(), Some("2026-11-16T09:31:10Z"), vec![]),
+            (bundle(), Some("2026-11-01T00:00:00Z"), vec![]),
+            (
+                marked.clone(),
+                Some("2026-11-17T00:00:00Z"),
+                vec!["bundle", "started_at"],
+            ),
+            (marked, Some("2026-11-01T00:00:00Z"), vec!["bundle"]),
+        ] {
+            let v = verify_bundle(&b, &with_start(start)).unwrap();
+            assert_eq!(v.backfilled(), Some(!by.is_empty()), "{start:?}");
+            assert_eq!(v.backfilled_by, Some(by));
+        }
+        for bad in [
+            json!("2026-11-17"),
+            json!("2026-11-17T00:00:60Z"),
+            json!(null),
+            json!(1),
+        ] {
+            let mut t = trust_json(1, 1);
+            t["logs"][0]["started_at"] = bad;
+            assert_eq!(
+                LogTrust::from_json(&t).unwrap_err().name,
+                ErrorName::TrustForm
+            );
+        }
     }
 
     #[test]

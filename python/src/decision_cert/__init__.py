@@ -33,11 +33,13 @@ every conformance fixture. A certificate describes a measured process; it never 
     trust = LogTrust.from_json(parse_ijson(open("log-trust.json").read()))
     verdict = verify_bundle(parse_ijson(open("bundle.json").read()), trust)
     verdict.t_proven_time(), verdict.to_json()
+    verdict.backfilled, verdict.backfilled_by           # a certificate leaf's backfilled mark (§10)
 
     # the issuer's side: a certificate's leaf record for the tenant's log, the backfill of older
     # certificates (§12), and the bundle once a cosigned checkpoint includes the leaf
     leaf_record(cert)                                   # {"certificate_id", "leaf", "leaf_hash"}
     bundle, verdict = bundle_certificate(cert, leaf_index, proof, checkpoint_text, trust)
+    backfill_records(certs, tenant)                     # records with "backfilled": true, leaves unchanged
 """
 
 from ._bundle import (

@@ -380,6 +380,13 @@ The bundle travels with what it proves. It is a JSON object with exactly these m
 | `proof` | the audit path (§6): an array of 0 to 64 base64 node hashes |
 | `checkpoint` | the checkpoint's full signed-note text (§5.1), its log signature and the witness cosignatures included, as one JSON string |
 | `certificate` | the certificate as issued, a JSON object, present if and only if `leaf.kind` is `certificate`; absent for the other kinds, whose documents travel on their own |
+| `backfilled` | OPTIONAL, for a `certificate` leaf only: `true`, the bundler's statement that the certificate was backfilled (§12). Any other value, or the member beside a leaf of another kind, is refused as `bundle_form` |
+
+`backfilled` is not part of the leaf, so it changes no leaf and no leaf hash; the log never holds it.
+It is the bundler's statement and nothing authenticates it: whoever holds a bundle can add or remove
+it. A consumer reports it (§10, "Backfilled") and never relies on its absence; the configuration's
+`started_at` (§9) is the authenticated basis for the mark. An issuer copies it from the certificate's
+leaf record (§12).
 
 An issuer SHOULD write a bundle as its JCS bytes. A verifier depends only on the parsed values: the
 certificate's id is computed from the parsed certificate (§0, document hash), and the leaf's hash from
@@ -408,7 +415,7 @@ these members:
 |---|---|
 | `spec` | `decision-cert-log-trust.v1` |
 | `tenant` | the expected tenant, in v1.5's `tenant` form |
-| `logs` | 1 or more of the tenant's logs: `{"log_id", "key_name", "key_id", "key"}` |
+| `logs` | 1 or more of the tenant's logs: `{"log_id", "key_name", "key_id", "key"}`, and OPTIONAL `started_at` |
 | `witnesses` | 1 or more of the tenant's witnesses: `{"name", "key_id", "key"}` |
 | `m` | OPTIONAL, default 1: the number of distinct trusted witnesses whose cosignatures a checkpoint needs, an integer from 1 to the number of `witnesses` |
 | `policy` | OPTIONAL, default `warn`: `off`, `warn` or `refuse`, for a certificate without a bundle (§11) |
@@ -416,11 +423,15 @@ these members:
 In each entry, `key` is the Ed25519 public key in base64url (43 characters), `key_id` its key id (§0),
 `key_name` the log key's C2SP key name (§5.2, SHOULD equal `log_id`), and `name` the witness's C2SP
 cosigner name (§5.3). Key names and witness names are 1 to 255 characters of printable ASCII other
-than `+` (§5.1).
+than `+` (§5.1). `started_at`, when given, is the time of the log's first entry, a time in §0's strict
+form: a certificate whose `fitted_at` is earlier was issued before the log existed, and is marked
+backfilled (§10, "Backfilled"). The consumer takes it, as it takes the keys, from the tenant or the
+log's operator when it sets up the configuration; it is trusted input, not read from any bundle.
 
 A verifier refuses the configuration (`trust_form`), before any bundle, when:
 
-- a member is missing, unknown or out of its form, or `m` exceeds the number of witnesses;
+- a member is missing, unknown or out of its form (a `started_at` that is not a time in §0's form
+  included), or `m` exceeds the number of witnesses;
 - a `key_id` is not the key id of its `key`, or `key` is not a valid Ed25519 public key under strict
   verification (§0);
 - two logs share a `log_id` or a key; two witnesses share a `name` or a key;
@@ -439,7 +450,7 @@ v1 configurations keep their meaning.
 {
   "spec": "decision-cert-log-trust.v1",
   "tenant": "acme-eu",
-  "logs": [{"log_id": "log:4e1a9c07b25d38f6e0a1b9c7d2e4f531", "key_name": "log:4e1a9c07b25d38f6e0a1b9c7d2e4f531", "key_id": "ed25519:<16 hex>", "key": "<base64url>"}],
+  "logs": [{"log_id": "log:4e1a9c07b25d38f6e0a1b9c7d2e4f531", "key_name": "log:4e1a9c07b25d38f6e0a1b9c7d2e4f531", "key_id": "ed25519:<16 hex>", "key": "<base64url>", "started_at": "2026-11-17T00:00:00Z"}],
   "witnesses": [{"name": "witness.example/w1", "key_id": "ed25519:<16 hex>", "key": "<base64url>"}],
   "m": 1,
   "policy": "warn"
@@ -454,7 +465,7 @@ order, and refuses at the first failure with that check's error name:
 | # | Check | Error |
 |---|---|---|
 | 1 | The configuration is well formed (§9) | `trust_form` |
-| 2 | The bundle is well formed: I-JSON, `spec` is `decision-cert-inclusion.v1`, exactly the members of §8 in their forms (`leaf` a JSON object and `checkpoint` a JSON string, their contents checked at checks 3 and 7), and `certificate` present if and only if `leaf.kind` is `certificate`: a `certificate` beside a leaf of another kind, an unknown kind or no `kind` is refused here | `bundle_form` |
+| 2 | The bundle is well formed: I-JSON, `spec` is `decision-cert-inclusion.v1`, exactly the members of §8 in their forms (`leaf` a JSON object and `checkpoint` a JSON string, their contents checked at checks 3 and 7), and `certificate` present if and only if `leaf.kind` is `certificate`: a `certificate` beside a leaf of another kind, an unknown kind or no `kind` is refused here; `backfilled`, if present, is `true` and beside a `certificate` leaf | `bundle_form` |
 | 3 | The leaf is well formed (§3) | `leaf_form` |
 | 4 | For a `certificate` leaf: `certificate_id` is the bundle certificate's document hash, and `signer_key_id`, `spec`, `fitted_at` (and for v1.5 `tenant`) equal the certificate's | `leaf_mismatch` |
 | 5 | For a v1.5 `certificate` leaf, and for an `audit_head` leaf: the leaf's `tenant` (equal, by check 4, to a v1.5 certificate's) equals the configuration's `tenant` | `tenant_mismatch` |
@@ -476,7 +487,8 @@ the bundle certificate's id equals that certificate's id; otherwise it refuses t
 **The verdict.** On success the verdict reports: `log_id`; the checkpoint's tree size and root hash;
 `leaf_index` and the leaf's `kind`; for a certificate leaf, `certificate_id`; the counted witnesses, each
 with its name, key id and cosignature time, listed in ascending order of cosignature time and, for equal
-times, of name (ASCII order); and **`t_proven`**, as a time (§0).
+times, of name (ASCII order); **`t_proven`**, as a time (§0); and for a certificate leaf only,
+**`backfilled`** and **`backfilled_by`** ("Backfilled", below).
 
 **`t_proven`** is the `m`-th earliest cosignature time among the counted witnesses: sort their times
 in ascending order and take the `m`-th (counting from 1). It is the earliest time by which `m`
@@ -485,8 +497,24 @@ witness's early time alone does not. For `m` = 1 it is the earliest counted time
 the key-set design's compromise rule: a certificate in the log by `t_proven` was signed no later than
 `t_proven`.
 
+**Backfilled.** For a certificate leaf the verdict reports `backfilled`, `true` or `false`, and
+`backfilled_by`, the bases for it in this order: `bundle`, when the bundle carries `backfilled: true`
+(§8); `started_at`, when the configuration's entry for `log_id` has a `started_at` and the leaf's
+`fitted_at` (equal, by check 4, to the certificate's) is earlier than it, compared as times. `backfilled`
+is `true` if and only if `backfilled_by` is not empty. For the other kinds the verdict has neither
+member. The mark is reported only after every check passes, and it is never a reason to refuse: a
+backfilled certificate is valid as a certificate, and its bundle proves inclusion like any other. What
+it tells the reader is §12's: the certificate has no early time evidence.
+
+The two bases are not equal. `started_at` is the consumer's own configuration, so with it the mark
+does not depend on the bundle: removing `backfilled` from a bundle cannot hide that a certificate
+fitted before the log started was backfilled. Without `started_at` the mark rests on the bundler's
+statement alone, which anyone holding the bundle can add or remove; a consumer that needs the mark
+configures `started_at`.
+
 **What is not compared.** A verifier does not compare a cosignature time with its own clock, nor with
-`fitted_at` or `observed_at`. A consumer MAY refuse cosignature times in its future by its own rule.
+`fitted_at` or `observed_at`; `fitted_at` is compared only with `started_at`, for the backfilled mark,
+which refuses nothing. A consumer MAY refuse cosignature times in its future by its own rule.
 
 ## 11. Policy for a certificate without a bundle
 
@@ -513,8 +541,21 @@ for them (an auditor, say); this document sets no default for them.
 ## 12. Backfill
 
 Certificates issued before a tenant's log existed are appended to it when the log starts, before any
-new leaf, ordered by `fitted_at` and then by `certificate_id` (ASCII order). A backfilled leaf has the
-same form as any other `certificate` leaf; nothing marks it.
+new leaf, ordered by `fitted_at` and then by `certificate_id` (ASCII order).
+
+A backfilled certificate is **marked as backfilled**, so that a reader sees it plainly, beyond the
+absence of early time evidence. The leaf is not where the mark lives: a backfilled leaf has the same
+form as any other `certificate` leaf, and the same leaf hash, so every leaf and every log stays as it
+is. The mark travels beside it:
+
+- the issuer's record of a backfilled leaf, the thing it hands the log to append, says so; only the
+  leaf is appended;
+- the bundle carries `backfilled: true` (§8), the bundler's statement;
+- the consumer's configuration MAY give the log's `started_at` (§9): a certificate whose `fitted_at` is
+  earlier is marked whatever its bundle carries;
+- the verdict reports `backfilled` and the bases for it (§10, "Backfilled").
+
+The mark is information, never a refusal.
 
 A backfilled certificate gets **no early time evidence**: its `t_proven` is the cosignature time of
 the first checkpoint that includes it and passes §10 (the `m`-th earliest counted cosignature time
@@ -583,6 +624,7 @@ Implementations name their errors as they choose, and map each to one of these n
 | 2026-11-17 | duplicate lines | Maintainers: a checkpoint with two or more signature lines with the same key name and key ID (one witness's key, or the log's) is refused as `checkpoint_form`, as c2sp.org/tlog-checkpoint@v1.1.0 requires, rather than counting the witness once (§5.1, §5.4). |
 | 2026-11-17 | schema | Maintainers: one draft schema file covering the bundle, the leaves, the consistency proof document and the trust configuration, moving to `spec/` with this text at the freeze. |
 | 2026-11-17 | clarifications | Maintainers: clarifications from the reference verifier (the Rust crate), with no change of meaning: (1) a malformed checkpoint is `checkpoint_form` at check 7, never `bundle_form`; check 2 and §7.2 take a checkpoint as a string, and an origin other than `log_id` is `origin_mismatch` (§5.1, §10; the schema's checkpoint pattern is dropped to match); (2) a `certificate` beside a non-certificate or unknown leaf kind is `bundle_form` at check 2; (3) witness lines in a consistency proof document are not checked (§7.2); (4) the verdict lists counted witnesses by cosignature time, then name (§10); (5) §6 states that a path can verify for another size with the same root, and why the signed checkpoint makes that no gap; (6) leaf times with seconds `60` are refused (§0). Also: the "no bundle" policy rows are a library policy; `verify-bundle` always takes a bundle (§11). |
+| 2026-11-17 | backfilled mark | Owner: backfilled certificates are added **marked as backfilled**: a reader must see plainly that a certificate was backfilled, beyond the absence of early time evidence. Constraint: the leaf stays byte-identical, with no new leaf member, so every leaf and leaf hash is unchanged. Maintainers' design: the bundle's OPTIONAL `backfilled: true` (the bundler's statement, unauthenticated, §8), the configuration's OPTIONAL per-log `started_at` (trusted input, the authenticated basis, §9), and the verdict's `backfilled` and `backfilled_by` for a certificate leaf (§10). A mark, never a refusal; this replaces "nothing marks it" in §12. |
 
 ## Open questions
 

@@ -188,6 +188,16 @@ independent C2SP implementation and the result is recorded in the PR.
   before any new leaf. A backfilled certificate's `t_proven` is the first cosigned checkpoint after
   the backfill: it gets no early time evidence. Under K1's compromise rule it therefore counts as
   signed after the log started. The docs say so, and the fixtures include one.
+- **Backfilled certificates are marked** (owner, 2026-11-17): a reader sees plainly that a certificate
+  was backfilled, beyond the absence of early time evidence, and the leaf stays byte-identical (no new
+  leaf member; every leaf and leaf hash unchanged). `log backfill`'s leaf records carry
+  `"backfilled": true` (an issued certificate's record has no such member); `bundle` copies it into the
+  bundle's OPTIONAL `backfilled` (`--backfilled`, or `--leaf-record`), the bundler's statement; the log
+  trust configuration's OPTIONAL per-log `started_at` is the consumer's authenticated basis; the verdict
+  reports `backfilled` and `backfilled_by` (`bundle`, `started_at`) for a certificate leaf, and never
+  refuses on it (draft §8 to §10, §12). Both verifiers implement it, and the fixtures cover the bundle's
+  mark, `started_at` after, at and before `fitted_at`, both together, and the refusals of a malformed
+  `backfilled` (`bundle_form`) and `started_at` (`trust_form`).
 
 **Done when** a certificate can go from the issuer, through the reference log of Phase 5 (or any log
 that emits a conforming proof), to a bundle that both verifiers accept; documented in
@@ -229,6 +239,11 @@ witnesses a tenant uses, and `m`, are the tenant's choice (owner, 2026-11-17): i
 system of its own outside the log operator's control, or an independent witness. The docs say that some
 independent witnesses republish what they cosign, which shows a tenant's log size to others, so a
 tenant picks one that does not, or accepts that.
+
+**The backfilled mark in the reference log.** `log init` records the log's `started_at` (the time of its
+first entry) and prints it for the tenant's consumers to put in their log trust configurations (draft
+§9); `log backfill` keeps writing `"backfilled": true` in each record, beside the leaf it appends, and
+`prove` hands that record's mark to `bundle`. The log itself stores only leaves.
 
 **Done when** the reference log and witness commands are merged, the generator builds its fixtures
 through them, and an end-to-end test runs issue → append → checkpoint → cosign → prove → bundle →
@@ -273,7 +288,7 @@ From the design's [Decided](../docs/design/transparency-log.md#decided-owner-202
 | Consumer default without a proof | `warn`, not `refuse` | `apply_policy`; `warn` covers a missing proof, never a bad one |
 | Who runs a tenant's log | The tenant chooses: itself, or a hosted partition | Reference log here; hosted partition in a hosting service |
 | Checkpoint cadence | Hourly by default, configurable | Run on the log operator's schedule |
-| Older certificates | Backfilled when the log starts, with no early time evidence | `log backfill`; `t_proven` from the first checkpoint after it |
+| Older certificates | Backfilled when the log starts, with no early time evidence, and marked as backfilled (leaf unchanged) | `log backfill`; `t_proven` from the first checkpoint after it; the bundle's `backfilled`, the configuration's `started_at`, the verdict's `backfilled` |
 | Blind anchors | Not now | Not built |
 | Tree-size padding | None | Not built |
 
