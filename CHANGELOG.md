@@ -5,6 +5,26 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
 
 ## Unreleased
 
+## 0.7.0 — unreleased (tag `v0.7.0` on the merge commit)
+
+Inclusion v1: frozen, verified, logged. A certificate can now carry proof that it sits in its tenant's transparency
+log, checked by both verifiers; the certificate specs (v1 to v1.5), their fixtures and verdicts are unchanged, and
+`verify(cert, keys)` keeps its meaning.
+
+- **`decision-cert-inclusion.v1` frozen** (2026-11-17, owner approval, #65): leaves, C2SP checkpoints cosigned by
+  the tenant's witnesses, inclusion bundles and consistency proofs, with `fixtures/inclusion-v1/`.
+- **Both verifiers** check bundles and consistency proofs with the same error names (`verify-bundle`,
+  `verify-consistency` in both CLIs), including the backfilled mark (#59, #61, #63).
+- **The issuer's side** (`certify --leaf-out`, bundling) and **a reference log and witness** (`log`, `witness`)
+  in the Python package (#62, #64). No new dependency in either package.
+- **`c2sp-interop`**: an informational CI check of the inclusion fixtures against independent Go C2SP libraries
+  (0 disagreements at the freeze).
+- **`cargo deny`**: RUSTSEC-2026-0543 (`chrono` unmaintained; no known vulnerability) is ignored with a re-check
+  date of 2027-02-28 (#67); replacing `chrono`, with RFC 3339 behaviour byte-identical across every fixture set,
+  is tracked in #66.
+
+The entries below, from 0.6.0 to this release, give the detail.
+
 - **`decision-cert-inclusion.v1` frozen** (plan `plans/transparency-log-2026-11.md`, Phase 6; owner approval 2026-11-17):
   the text and its schema move from `spec/drafts/` to
   [`spec/decision-cert-inclusion.v1.md`](spec/decision-cert-inclusion.v1.md) and
@@ -78,7 +98,7 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
   builds acme-bank's log through `FileLog`; every fixture is byte-identical. CI runs the end-to-end test
   (init to verify in both CLIs, consistency, a forked log refused) as its own step in the `python` job.
 
-## 0.6.0 — unreleased (tag `v0.6.0` on the merge commit)
+## 0.6.0 — 2026-11-17 (tag `v0.6.0`)
 
 Spec v1.5: frozen, verified, issued. Verifiers accept v1 to v1.5; v1 to v1.4 certificates, fixtures and
 verdicts are byte-identical, `verify(cert, keys)` keeps its meaning for them, and the issuer's default stays v1.2.

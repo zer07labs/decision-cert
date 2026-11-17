@@ -137,7 +137,7 @@ A per-tenant transparency log as a sidecar, `decision-cert-inclusion.v1`: leaves
 by the tenant's witnesses, inclusion bundles, both verifiers, `fixtures/inclusion-v1/`, the issuer's
 bundling and a reference log and witness. No certificate spec changes. Built (Phases 1 to 5); the spec
 ([`spec/decision-cert-inclusion.v1.md`](../spec/decision-cert-inclusion.v1.md)) is **frozen** (2026-11-17), and
-ships in the next minor release (0.7.0) after the freeze. The build plan, phased, is
+ships in 0.7.0. The build plan, phased, is
 [`plans/transparency-log-2026-11.md`](transparency-log-2026-11.md); the design is
 [`docs/design/transparency-log.md`](../docs/design/transparency-log.md).
 
