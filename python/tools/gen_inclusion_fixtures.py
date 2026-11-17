@@ -734,11 +734,8 @@ def build() -> FixtureSet:
     assert len(names) == len(set(names)), [n for n in names if names.count(n) > 1]
     seen = {c["expect"].get("error") for c in fs.cases if isinstance(c["expect"], dict)}
     assert set(ERROR_NAMES) <= seen, f"error names without a case: {set(ERROR_NAMES) - seen}"
-    # `draft` keeps the path the set was written against, so the frozen set stays byte-identical; the text is
-    # now spec/decision-cert-inclusion.v1.md.
-    fs.put(
-        "manifest.json", {"spec": SPEC_BUNDLE, "draft": "spec/drafts/decision-cert-inclusion.v1.md", "cases": fs.cases}
-    )
+    # `draft` names the spec text (the key predates the freeze; `spec` is taken by the spec string).
+    fs.put("manifest.json", {"spec": SPEC_BUNDLE, "draft": "spec/decision-cert-inclusion.v1.md", "cases": fs.cases})
     return fs
 
 

@@ -10,8 +10,8 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
   [`spec/decision-cert-inclusion.v1.md`](spec/decision-cert-inclusion.v1.md) and
   [`spec/decision-cert-inclusion.v1.schema.json`](spec/decision-cert-inclusion.v1.schema.json) (the schema's `$id`
   with them), with editorial changes only: no member, form, check or error name changes. Corrections from now on go
-  in `spec/ERRATA.md`. Every fixture is byte-identical; `fixtures/inclusion-v1/manifest.json` keeps its `draft`
-  member, the path it was written against. Docs, the README, code comments and CLI help no longer call it a draft.
+  in `spec/ERRATA.md`. The generator's `fixtures/inclusion-v1/manifest.json` names the frozen path in its `draft`
+  member (so the manifest and `INCLUSION.sha256` change); every other fixture is byte-identical. Docs, the README, code comments and CLI help no longer call it a draft.
 - **`interop/c2sp/` and the CI job `c2sp-interop`**: an independent check of `fixtures/inclusion-v1/` with the Go
   C2SP libraries (`golang.org/x/mod/sumdb/note` for signed notes and Ed25519 log signatures,
   `github.com/transparency-dev/formats` for `cosignature/v1` and checkpoint bodies), pinned in its own `go.mod` and

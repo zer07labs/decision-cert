@@ -303,8 +303,8 @@ frozen from then on (corrections go in `spec/ERRATA.md`). Docs updated: `docs/ce
 **Status.** Freeze PR open; frozen on owner approval (pending). The text and schema are at
 [`spec/decision-cert-inclusion.v1.md`](../spec/decision-cert-inclusion.v1.md) and
 [`spec/decision-cert-inclusion.v1.schema.json`](../spec/decision-cert-inclusion.v1.schema.json), with
-editorial changes only; every fixture is byte-identical (`fixtures/inclusion-v1/manifest.json` keeps its
-`draft` member, the path it was written against). The PR also adds `interop/c2sp/` and the CI job
+editorial changes only. `fixtures/inclusion-v1/manifest.json`'s `draft` member now names the frozen path
+(regenerated: only `manifest.json` and `INCLUSION.sha256` change; every other fixture is byte-identical). The PR also adds `interop/c2sp/` and the CI job
 `c2sp-interop`: an independent check of the set's checkpoints with the Go C2SP libraries
 (`golang.org/x/mod/sumdb/note`, `github.com/transparency-dev/formats`), informational
 (`continue-on-error`).
