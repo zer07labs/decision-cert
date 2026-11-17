@@ -215,6 +215,9 @@ c2sp.org/signed-note@v1.1.0). In this version its form is fixed exactly:
   tab). A key name is 1 to 255 characters, printable ASCII (U+0021 to U+007E) other than `+`.
 - **Signature values.** Each decodes, as canonical base64, to at least 5 bytes: a 4-byte key ID,
   big-endian, then the signature.
+- **No repeated key.** No two signature lines have both the same key name and the same key ID
+  (c2sp.org/tlog-checkpoint@v1.1.0, "Signatures"). A checkpoint with two or more lines from one key,
+  a witness's or the log's, is refused, however many of them verify.
 
 A verifier refuses a checkpoint that breaks any rule of this section as `checkpoint_form`, whether or
 not the broken line belongs to a trusted key.
@@ -265,8 +268,8 @@ equals the key ID computed for that key's type above. Following c2sp.org/signed-
   (`bad_log_signature` or `bad_cosignature`);
 - a checkpoint with no line that matches the log's key is refused (`log_signature_missing`).
 
-C2SP producers do not write two lines with the same key name and key ID. A verifier that meets them
-checks each, and counts the witness once (§10, check 11).
+Because no key has two lines (§5.1), each trusted witness has at most one cosignature in a
+checkpoint, and each counts once.
 
 ### 5.5 Key names, key IDs and key ids
 
@@ -449,7 +452,7 @@ order, and refuses at the first failure with that check's error name:
 | 9 | The audit path leads from `leaf_hash(leaf)` at `leaf_index` to the checkpoint's root at its tree size (§6) | `bad_proof` |
 | 10 | A signature line matches that log's key (§5.4), and every line that matches it verifies (§5.2) | `log_signature_missing`, `bad_log_signature` |
 | 11 | Every line that matches a trusted witness verifies (§5.3) and has a timestamp at most 253402300799 | `bad_cosignature` |
-| 12 | At least `m` distinct trusted witnesses have a verified cosignature; each witness counts once however many lines it has, and lines from untrusted keys are ignored | `too_few_cosignatures` |
+| 12 | At least `m` distinct trusted witnesses have a verified cosignature (one line each, §5.1); lines from untrusted keys are ignored | `too_few_cosignatures` |
 
 **The certificate's own verification.** For a `certificate` leaf, the consumer also verifies the
 bundle's certificate under its own spec (for v1.5, for the expected tenant, spec v1.5 §4), separately
@@ -460,9 +463,14 @@ the bundle certificate's id equals that certificate's id; otherwise it refuses t
 
 **The verdict.** On success the verdict reports: `log_id`; the checkpoint's tree size and root hash;
 `leaf_index` and the leaf's `kind`; for a certificate leaf, `certificate_id`; the counted witnesses, each
-with its name, key id and cosignature time (the earliest of its verified lines); and **`t_proven`**,
-the earliest cosignature time among the counted witnesses, as a time (§0). The verdict is for the key-set
-design's compromise rule: a certificate in the log by `t_proven` was signed no later than `t_proven`.
+with its name, key id and cosignature time; and **`t_proven`**, as a time (§0).
+
+**`t_proven`** is the `m`-th earliest cosignature time among the counted witnesses: sort their times
+in ascending order and take the `m`-th (counting from 1). It is the earliest time by which `m`
+distinct trusted witnesses had cosigned the checkpoint, so no fewer than `m` witnesses set it; one
+witness's early time alone does not. For `m` = 1 it is the earliest counted time. The verdict is for
+the key-set design's compromise rule: a certificate in the log by `t_proven` was signed no later than
+`t_proven`.
 
 **What is not compared.** A verifier does not compare a cosignature time with its own clock, nor with
 `fitted_at` or `observed_at`. A consumer MAY refuse cosignature times in its future by its own rule.
@@ -492,7 +500,8 @@ new leaf, ordered by `fitted_at` and then by `certificate_id` (ASCII order). A b
 same form as any other `certificate` leaf; nothing marks it.
 
 A backfilled certificate gets **no early time evidence**: its `t_proven` is the cosignature time of
-the first cosigned checkpoint that includes it, after the log started. Under the key-set design's
+the first checkpoint that includes it and passes §10 (the `m`-th earliest counted cosignature time
+on it), after the log started. Under the key-set design's
 compromise rule it therefore counts as signed when it was logged, not when its `fitted_at` says. A
 log SHOULD append a given certificate's leaf once; if it appears twice, either leaf's bundle proves
 inclusion, and an auditor sees both.
@@ -500,8 +509,8 @@ inclusion, and an auditor sees both.
 ## 13. What inclusion does not claim
 
 - A verified bundle shows that the tenant's log recorded the leaf at or before the checkpoint it
-  carries, and that at least `m` of the tenant's trusted witnesses cosigned that checkpoint, the
-  earliest at `t_proven`. It shows no more.
+  carries, and that at least `m` of the tenant's trusted witnesses cosigned that checkpoint, `m` of
+  them by `t_proven`. It shows no more.
 - It says nothing about whether a measurement was right, whether labels were right, or what outcome
   a decision will have. A certificate describes a measured process and never guarantees an outcome;
   a log records that the process was recorded.
@@ -525,7 +534,7 @@ inclusion, and an auditor sees both.
 | `leaf_mismatch` | a `certificate` leaf does not match its certificate (§10, check 4) |
 | `tenant_mismatch` | a leaf's tenant, or a v1.5 certificate's, is not the configuration's tenant (§2) |
 | `unknown_log` | `log_id` is not one of the expected tenant's logs |
-| `checkpoint_form` | the checkpoint is not a well-formed v1 note (§5.1) |
+| `checkpoint_form` | the checkpoint is not a well-formed v1 note, or has two or more lines from one key (§5.1) |
 | `origin_mismatch` | the checkpoint's origin is not the document's `log_id` |
 | `bad_proof` | the audit path does not lead from the leaf to the root (§6) |
 | `log_signature_missing` | no signature line matches the log's key (§5.4) |
@@ -553,18 +562,11 @@ Implementations name their errors as they choose, and map each to one of these n
 | 2026-11-17 | C2SP revisions | Maintainers: cite `signed-note`, `tlog-checkpoint` and `tlog-cosignature` at v1.1.0 only; Ed25519 log signatures (type `0x01`) and Ed25519 `cosignature/v1` cosignatures (type `0x04`) only; no extension lines; key names in printable ASCII; at most 100 signature lines (§5). |
 | 2026-11-17 | document kinds | Maintainers: the consistency proof document and the trust configuration get their own `spec` strings, `decision-cert-consistency.v1` and `decision-cert-log-trust.v1`, so each document is refused when given in the wrong place (§1). |
 | 2026-11-17 | error names | Maintainers: one stable error name per check (§14), for both verifiers and the fixtures. |
+| 2026-11-17 | `t_proven` | Maintainers: `t_proven` is the `m`-th earliest cosignature time among the counted witnesses, not the earliest, so that `m` witnesses, not one, set it; it is the earliest at `m` = 1 (§10). The verdict also reports every counted witness's time. |
+| 2026-11-17 | duplicate lines | Maintainers: a checkpoint with two or more signature lines with the same key name and key ID (one witness's key, or the log's) is refused as `checkpoint_form`, as c2sp.org/tlog-checkpoint@v1.1.0 requires, rather than counting the witness once (§5.1, §5.4). |
 | 2026-11-17 | schema | Maintainers: one draft schema file covering the bundle, the leaves, the consistency proof document and the trust configuration, moving to `spec/` with this text at the freeze. |
 
 ## Open questions
 
-1. **`t_proven` when `m` is more than 1.** The plan defines `t_proven` as the earliest cosignature
-   time among the counted witnesses, and this draft says so (§10). With `m = 2`, one dishonest
-   witness alone can then set an early `t_proven`, although the consumer asked for two.
-   *Recommendation:* define `t_proven` as the `m`-th earliest time among the counted witnesses (the
-   time by which `m` distinct trusted witnesses had cosigned), which is the earliest time for `m = 1`
-   and so changes nothing at the default. The verdict reports every counted witness's time either way.
-2. **Two lines from one witness.** C2SP tlog-checkpoint@v1.1.0 says a checkpoint MUST NOT carry two
-   signature lines with the same key name and key ID. The plan counts such a witness once rather than
-   refusing the note, and this draft follows the plan (§5.4, §10 check 12). *Recommendation:* refuse
-   such a checkpoint as `checkpoint_form`, matching C2SP; counting once is safe for `m`, but refusing
-   keeps this format no looser than the C2SP one it cites. The planned fixture then becomes a refusal.
+None open. The two questions the first draft raised were decided by the maintainers on 2026-11-17
+(Decision log: `t_proven`, duplicate lines).
