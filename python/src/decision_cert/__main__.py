@@ -20,7 +20,7 @@ often checked after the fact.
 
 `python -m decision_cert verify-bundle <bundle.json> --trust <log-trust.json>` and
 `python -m decision_cert verify-consistency <consistency.json> --trust <log-trust.json>` check an
-inclusion bundle or a consistency proof document (draft `decision-cert-inclusion.v1`) against one
+inclusion bundle or a consistency proof document (`decision-cert-inclusion.v1`) against one
 tenant's log trust configuration, and print one JSON verdict line on stdout: `{"verdict": "accepted",
 ...}` with exit 0, or `{"verdict": "refused", "error": <error name>, "detail": ...}` with exit 1 (the
 reason also on stderr). Exit 2: usage error, an unreadable file, or a log trust configuration that is
@@ -43,14 +43,14 @@ size is not above the index): nothing written; bundle against a later cosigned c
 
 `python -m decision_cert log backfill --tenant <tenant> --leaf-out <leaves.jsonl> <file>...` writes the
 leaf records of certificates issued before the tenant's log existed, for the log to append first, before
-any new leaf, in the draft's §12 order (by `fitted_at`, then `certificate_id`; each certificate once).
+any new leaf, in the spec's §12 order (by `fitted_at`, then `certificate_id`; each certificate once).
 Each file holds a certificate or an issuer's calibration file. Exit 1: a file holds something that is not
 a certificate, or a v1.5 certificate for another tenant; nothing written. Exit 2: usage error or an
 unreadable file. Each record carries `"backfilled": true` (§12), beside the leaf, which is the leaf any
 certificate gets: its hash is unchanged. A backfilled certificate gets no early time evidence: its
 `t_proven` is the first cosigned checkpoint that includes it, after the log started.
 
-The reference log and witness (draft; plan Phase 5), file-based, one log per directory and one tenant per
+The reference log and witness (plan Phase 5), file-based, one log per directory and one tenant per
 log, in the C2SP tlog-tiles layout (`decision_cert._log` describes the files):
 
     python -m decision_cert log init --dir <log> --tenant <tenant> --key <log.pem> [--key-name N]
@@ -167,9 +167,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=d.members,
         help=f"Refuse a pack with more entries than this (default {d.members}).",
     )
-    vb = sub.add_parser(
-        "verify-bundle", help="Verify an inclusion bundle against a tenant's log trust configuration (draft)."
-    )
+    vb = sub.add_parser("verify-bundle", help="Verify an inclusion bundle against a tenant's log trust configuration.")
     vb.add_argument("bundle", type=Path, help="The bundle, a `decision-cert-inclusion.v1` JSON object.")
     vb.add_argument(
         "--trust",
@@ -179,7 +177,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     vc = sub.add_parser(
         "verify-consistency",
-        help="Verify a consistency proof document against a tenant's log trust configuration (draft).",
+        help="Verify a consistency proof document against a tenant's log trust configuration.",
     )
     vc.add_argument("doc", type=Path, help="The document, a `decision-cert-consistency.v1` JSON object.")
     vc.add_argument(
@@ -190,7 +188,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     bd = sub.add_parser(
         "bundle",
-        help="Bundle a certificate with its inclusion proof and a cosigned checkpoint (draft), checked first.",
+        help="Bundle a certificate with its inclusion proof and a cosigned checkpoint, checked first.",
     )
     bd.add_argument("--certificate", type=Path, required=True, help="The certificate as issued, a JSON object.")
     bd.add_argument(
@@ -218,7 +216,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         type=Path,
         help="The certificate's leaf record (a JSON object); its `backfilled` member is carried into the bundle.",
     )
-    lg = sub.add_parser("log", help="The issuer's log tooling (draft).")
+    lg = sub.add_parser("log", help="The issuer's log tooling.")
     lsub = lg.add_subparsers(dest="log_command", required=True)
     bf = lsub.add_parser(
         "backfill",

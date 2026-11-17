@@ -300,6 +300,29 @@ frozen from then on (corrections go in `spec/ERRATA.md`). Docs updated: `docs/ce
 
 **Done when** the owner says go for the freeze and the freeze PR is merged with CI green.
 
+**Status.** Frozen 2026-11-17 on owner approval. The text and schema are at
+[`spec/decision-cert-inclusion.v1.md`](../spec/decision-cert-inclusion.v1.md) and
+[`spec/decision-cert-inclusion.v1.schema.json`](../spec/decision-cert-inclusion.v1.schema.json), with
+editorial changes only. `fixtures/inclusion-v1/manifest.json`'s `draft` member now names the frozen path
+(regenerated: only `manifest.json` and `INCLUSION.sha256` change; every other fixture is byte-identical). The PR also adds `interop/c2sp/` and the CI job
+`c2sp-interop`: an independent check of the set's checkpoints with the Go C2SP libraries
+(`golang.org/x/mod/sumdb/note`, `github.com/transparency-dev/formats`), informational
+(`continue-on-error`).
+
+**`c2sp-interop` result** (CI run 44053500665, job 133936872020, on the freeze PR's first commit
+a50b0a1): **pass**, 0 disagreements. Go 1.27.2 (linux/amd64, `actions/setup-go@v5.5.0`);
+`golang.org/x/mod` v0.43.0, `github.com/transparency-dev/formats` v0.1.1 (with `golang.org/x/crypto`
+v0.52.0 and `filippo.io/mldsa` v0.0.0-20260215214346-43d0283efc3e). Counts, from the job's summary line:
+
+- 48 accepted cases (37 bundles, 11 consistency documents): 59 checkpoints, 59 log signatures and 44
+  witness cosignatures verified by the libraries, each checkpoint body with the manifest's size and root,
+  and each bundle's counted witnesses with the manifest's names and times;
+- 22 signature refusals (18 bundles, 4 consistency documents), each refused by the libraries with the
+  manifest's error name (`bad_log_signature`, `log_signature_missing`, `bad_cosignature`,
+  `too_few_cosignatures`);
+- 1 case stricter than the libraries, `bundle_invalid_cosignature_time_after_9999`: the libraries verify
+  its signature, and the spec refuses its time above 253402300799 (§5.3).
+
 ### Phase 7 — release
 
 A minor release (0.7.0) after the freeze: version bump and `CHANGELOG.md`. The owner pushes the tag;

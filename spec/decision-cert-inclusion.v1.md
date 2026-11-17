@@ -1,11 +1,17 @@
-> **Draft, not frozen.** Phase 1 of the build plan
-> [`plans/transparency-log-2026-11.md`](../../plans/transparency-log-2026-11.md), on the design
-> [`docs/design/transparency-log.md`](../../docs/design/transparency-log.md) and the owner's decisions
-> of 2026-11-17 ([Decision log](#decision-log)). The Rust verifier (`decision_cert::inclusion`) implements
-> it; the Python verifier, fixtures, issuer tooling and reference log follow. The text may change until the owner approves the freeze, when it moves to `spec/decision-cert-inclusion.v1.md`
-> (plan, Phase 6). The certificate specs v1 to v1.5 are frozen and unchanged by it.
+# Decision certificate inclusion, v1: a tenant's transparency log
 
-# Decision certificate inclusion, v1 (draft): a tenant's transparency log
+Status: **frozen** (2026-11-17).
+
+This document was drafted as Phase 1 of the build plan
+[`plans/transparency-log-2026-11.md`](../plans/transparency-log-2026-11.md), on the design
+[`docs/design/transparency-log.md`](../docs/design/transparency-log.md) and the owner's decisions of
+2026-11-17 ([Decision log](#decision-log)), and moved here from `spec/drafts/` at the freeze (plan,
+Phase 6). Once frozen, the members of its documents and leaves and their meaning do not change:
+corrections and clarifications go in [`ERRATA.md`](ERRATA.md) as dated entries, and additions go in a
+later version. Both reference verifiers (the Rust crate's `decision_cert::inclusion` and the Python
+`decision_cert`), the conformance set [`fixtures/inclusion-v1/`](../fixtures/inclusion-v1/), the
+issuer's bundling and the reference log and witness implement it. The certificate specs v1 to v1.5 are
+frozen and unchanged by it.
 
 This document defines how a tenant's append-only log records what was issued, and the offline proof,
 carried next to a certificate, that the log recorded it by a time its witnesses vouch for:
@@ -19,7 +25,7 @@ carried next to a certificate, that the log recorded it by a time its witnesses 
 - the consumer's **log trust configuration**, the **checks** a consumer makes with it, in order, each
   with an error name, and the consumer's **policy** for a certificate without a bundle.
 
-Machine-readable schema (draft): [`decision-cert-inclusion.v1.schema.json`](decision-cert-inclusion.v1.schema.json).
+Machine-readable schema: [`decision-cert-inclusion.v1.schema.json`](decision-cert-inclusion.v1.schema.json).
 
 ## 0. Conventions
 
@@ -38,8 +44,8 @@ described in BCP 14 ([RFC 2119](https://www.rfc-editor.org/rfc/rfc2119),
   ([RFC 8785](https://www.rfc-editor.org/rfc/rfc8785)), as for certificates (spec v1.2 §3).
 - **Hashes.** SHA-256 as in FIPS 180-4. A *document hash* is `sha256:` + the 64 lowercase hex
   characters of SHA-256 of the JCS bytes of the whole signed document, `signature` included: the rule
-  of [`certificate_id`](../ERRATA.md) (ERRATA, 2026-11-15) and of the trust designs
-  ([`docs/design/README.md`](../../docs/design/README.md)).
+  of [`certificate_id`](ERRATA.md) (ERRATA, 2026-11-15) and of the trust designs
+  ([`docs/design/README.md`](../docs/design/README.md)).
 - **base64** is the standard alphabet with `=` padding ([RFC 4648 §4](https://www.rfc-editor.org/rfc/rfc4648#section-4)),
   canonical as in RFC 4648 §3.5: an encoder writes canonical base64 and a decoder refuses any other.
   A 32-byte hash is therefore exactly 44 characters, the 43rd one of `AEIMQUYcgkosw048`, and the
@@ -52,7 +58,7 @@ described in BCP 14 ([RFC 2119](https://www.rfc-editor.org/rfc/rfc2119),
   small-order `R`, and `S` at or above the group order.
 - **Key ids.** A key's id in this repository's form is `ed25519:` + the first 16 lowercase hex
   characters of SHA-256 of the raw 32-byte public key (spec v1.2 §2, `signer_key_id`).
-- **Pinned external specifications.** This draft cites the C2SP specifications at their v1.1.0
+- **Pinned external specifications.** This document cites the C2SP specifications at their v1.1.0
   revisions and no other: [`c2sp.org/signed-note@v1.1.0`](https://c2sp.org/signed-note@v1.1.0),
   [`c2sp.org/tlog-checkpoint@v1.1.0`](https://c2sp.org/tlog-checkpoint@v1.1.0) and
   [`c2sp.org/tlog-cosignature@v1.1.0`](https://c2sp.org/tlog-cosignature@v1.1.0). Where this document
@@ -134,15 +140,15 @@ A `certificate` leaf for a v1 to v1.4 certificate that carries `tenant`, and one
 certificate that lacks it, are refused (`leaf_form`).
 
 **`ledger_entry`.** An entry of a tenant's issuance ledger
-([R1 design](../../docs/design/r1-issuance-ledger.md)). `ledger_id` is `ledger:` + 32 lowercase hex;
+([R1 design](../docs/design/r1-issuance-ledger.md)). `ledger_id` is `ledger:` + 32 lowercase hex;
 `seq` is the entry's position, an integer from 0; `entry` is the entry's document hash.
 
-**`keyset`.** A tenant's key set ([K1 design](../../docs/design/k1-key-revocation-rotation.md)).
+**`keyset`.** A tenant's key set ([K1 design](../docs/design/k1-key-revocation-rotation.md)).
 `keyset_id` is `keyset:` + 32 lowercase hex; `seq` is the key set's sequence number, an integer from
 0; `keyset` is the key set's document hash.
 
 **`attestation`.** An auditor's attestation on a certificate
-([auditor design](../../docs/design/auditor-countersignature.md)). `attestation` is the attestation's
+([auditor design](../docs/design/auditor-countersignature.md)). `attestation` is the attestation's
 document hash; `certificate_id` is the id of the certificate it names.
 
 For these three kinds this document fixes the leaf only. Checking a leaf against its document (that
@@ -276,6 +282,11 @@ equals the key ID computed for that key's type above. Following c2sp.org/signed-
 
 Because no key has two lines (§5.1), each trusted witness has at most one cosignature in a
 checkpoint, and each counts once.
+
+**Note to implementers** (informative). A general-purpose C2SP signed-note or checkpoint library may
+drop a repeated line from one key instead of refusing the note, and does not bound a cosignature's
+time. An implementation built on one adds both checks: no two lines from one key (§5.1,
+`checkpoint_form`) and a cosignature timestamp at most 253402300799 (§5.3, `bad_cosignature`).
 
 ### 5.5 Key names, key IDs and key ids
 
@@ -441,7 +452,7 @@ A consumer that holds several tenants' configurations refuses them when one `log
 appears under two tenants (`trust_cross_tenant`). Witnesses MAY appear under several tenants.
 
 **Before key sets exist.** In v1 the configuration carries the log keys and witness keys directly, as
-trusted keys work today. When the key-set design ([K1](../../docs/design/k1-key-revocation-rotation.md))
+trusted keys work today. When the key-set design ([K1](../docs/design/k1-key-revocation-rotation.md))
 is specified, its `log` and `witness` roles take over `logs[].key` and `witnesses[].key`, and the
 configuration keeps `tenant`, `m` and `policy`. That change is a later version of this configuration;
 v1 configurations keep their meaning.
@@ -625,6 +636,7 @@ Implementations name their errors as they choose, and map each to one of these n
 | 2026-11-17 | schema | Maintainers: one draft schema file covering the bundle, the leaves, the consistency proof document and the trust configuration, moving to `spec/` with this text at the freeze. |
 | 2026-11-17 | clarifications | Maintainers: clarifications from the reference verifier (the Rust crate), with no change of meaning: (1) a malformed checkpoint is `checkpoint_form` at check 7, never `bundle_form`; check 2 and §7.2 take a checkpoint as a string, and an origin other than `log_id` is `origin_mismatch` (§5.1, §10; the schema's checkpoint pattern is dropped to match); (2) a `certificate` beside a non-certificate or unknown leaf kind is `bundle_form` at check 2; (3) witness lines in a consistency proof document are not checked (§7.2); (4) the verdict lists counted witnesses by cosignature time, then name (§10); (5) §6 states that a path can verify for another size with the same root, and why the signed checkpoint makes that no gap; (6) leaf times with seconds `60` are refused (§0). Also: the "no bundle" policy rows are a library policy; `verify-bundle` always takes a bundle (§11). |
 | 2026-11-17 | backfilled mark | Owner: backfilled certificates are added **marked as backfilled**: a reader must see plainly that a certificate was backfilled, beyond the absence of early time evidence. Constraint: the leaf stays byte-identical, with no new leaf member, so every leaf and leaf hash is unchanged. Maintainers' design: the bundle's OPTIONAL `backfilled: true` (the bundler's statement, unauthenticated, §8), the configuration's OPTIONAL per-log `started_at` (trusted input, the authenticated basis, §9), and the verdict's `backfilled` and `backfilled_by` for a certificate leaf (§10). A mark, never a refusal; this replaces "nothing marks it" in §12. |
+| 2026-11-17 | freeze | Owner: frozen. The text and its schema move from `spec/drafts/` to `spec/`, with editorial changes only (this status, the title, relative links, and "draft" wording); no member, form, check or error name changes. |
 
 ## Open questions
 

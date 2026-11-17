@@ -1,5 +1,5 @@
-"""The reference log and the reference witness of `decision-cert-inclusion.v1` (draft,
-spec/drafts/decision-cert-inclusion.v1.md; plan Phase 5): file-based, one log per directory, one tenant
+"""The reference log and the reference witness of `decision-cert-inclusion.v1`
+(spec/decision-cert-inclusion.v1.md; plan Phase 5): file-based, one log per directory, one tenant
 per log, no server and no network.
 
 **The log** (`FileLog`) keeps a tenant's leaves as a Merkle tree (§4) in the C2SP `tlog-tiles` layout
@@ -79,7 +79,7 @@ _MAX_ENTRY = 0xFFFF
 
 
 class LogError(Exception):
-    """A refusal of the reference log or witness. `name` is the draft's error name where one applies
+    """A refusal of the reference log or witness. `name` is the spec's error name where one applies
     (`leaf_form`, `tenant_mismatch`, `checkpoint_form`, `origin_mismatch`, `bad_log_signature`,
     `size_regression`, `split_view`, `bad_consistency_proof`, ...) and otherwise this tool's own
     (`record_form`, `duplicate_leaf`, `backfill_order`, `not_this_log`, `empty_log`, `key`, `state`)."""

@@ -1,6 +1,6 @@
 {
   "spec": "decision-cert-inclusion.v1",
-  "draft": "spec/drafts/decision-cert-inclusion.v1.md",
+  "draft": "spec/decision-cert-inclusion.v1.md",
   "cases": [
     {
       "name": "rfc9162_inclusion_0_in_1",

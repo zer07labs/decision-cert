@@ -110,7 +110,32 @@ behaves the same. Add `--tenant <id>` to verify for an expected tenant (spec v1.
 `--keys` then that tenant's moded keys; without it, a v1.5 certificate is refused (exit 1) and a
 moded keys file is a usage error (exit 2).
 
-## 5. Reporting a disagreement
+## 5. Inclusion proofs
+
+A verifier of the transparency-log sidecar
+([`decision-cert-inclusion.v1`](../spec/decision-cert-inclusion.v1.md)) conforms when it agrees
+with the crate's `decision_cert::inclusion` on every case of
+[`fixtures/inclusion-v1/manifest.json`](../fixtures/inclusion-v1/manifest.json): the verdict, and
+for a refusal the error name of the spec's §14. Pin the set as above, with its hash list:
+
+```bash
+cd fixtures/inclusion-v1 && sha256sum --strict -c INCLUSION.sha256
+```
+
+Each case names its `check` (`bundle`, `consistency`, `trust`, `tenants`, `policy`, `leaf_hash`, and the
+RFC 9162 path vectors `rfc9162_inclusion` and `rfc9162_consistency`), the files it reads, and `expect`,
+what a verifier must say about it. Both CLIs print a verdict as one JSON line:
+
+```bash
+cd rust && cargo run --features cli -- verify-bundle bundle.json --trust log-trust.json
+cd rust && cargo run --features cli -- verify-consistency consistency.json --trust log-trust.json
+```
+
+Exit 0 is accepted, 1 refused (with the error name), 2 an unreadable file or a malformed
+configuration. The checkpoints are C2SP signed notes; [`interop/c2sp/`](../interop/c2sp/) verifies
+their log signatures and witness cosignatures with independent Go libraries (CI job `c2sp-interop`).
+
+## 6. Reporting a disagreement
 
 If your verifier and the crate disagree on a certificate and you believe the crate is wrong, open
 an issue with the certificate and keys (public test material only). A disagreement that lets a

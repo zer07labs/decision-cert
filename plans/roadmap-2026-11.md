@@ -131,11 +131,13 @@ for the tenant it expects ([spec](../spec/decision-certificate.v1.5.md), [draft 
 answers](../spec/drafts/decision-certificate.v1.5.md)). Frozen on 2026-11-17 (owner go) and ships in 0.6.0; v1 to
 v1.4 and their fixtures are unchanged, and issuers still write v1.2 unless asked.
 
-## Phase 8 — transparency log (planned)
+## Phase 8 — transparency log
 
 A per-tenant transparency log as a sidecar, `decision-cert-inclusion.v1`: leaves, checkpoints cosigned
 by the tenant's witnesses, inclusion bundles, both verifiers, `fixtures/inclusion-v1/`, the issuer's
-bundling and a reference log and witness. No certificate spec changes. The build plan, phased, is
+bundling and a reference log and witness. No certificate spec changes. Built (Phases 1 to 5); the spec
+([`spec/decision-cert-inclusion.v1.md`](../spec/decision-cert-inclusion.v1.md)) is **frozen** (2026-11-17), and
+ships in the next minor release (0.7.0) after the freeze. The build plan, phased, is
 [`plans/transparency-log-2026-11.md`](transparency-log-2026-11.md); the design is
 [`docs/design/transparency-log.md`](../docs/design/transparency-log.md).
 

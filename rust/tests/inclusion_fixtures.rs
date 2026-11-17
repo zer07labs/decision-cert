@@ -1,4 +1,4 @@
-//! The crate's inclusion verifier (draft `decision-cert-inclusion.v1`) on every case of
+//! The crate's inclusion verifier (`decision-cert-inclusion.v1`) on every case of
 //! `fixtures/inclusion-v1/manifest.json`, written by `python/tools/gen_inclusion_fixtures.py`: each
 //! case's outcome, in the manifest's shape, equals its `expect` exactly. The Python verifier is held to
 //! the same manifest by `python/tests/test_inclusion.py`, which also runs both command-line verifiers on

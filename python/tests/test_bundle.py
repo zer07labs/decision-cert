@@ -1,4 +1,4 @@
-"""The issuer's side of the inclusion draft (decision_cert._bundle, plan Phase 4): the certificate leaf and
+"""The issuer's side of the inclusion spec (decision_cert._bundle, plan Phase 4): the certificate leaf and
 its record, `certify --leaf-out`, `log backfill`, and `bundle`; then end to end: issue -> leaf -> a
 test-local tree -> proof and a checkpoint signed with the fixtures' test keys -> bundle -> both
 command-line verifiers accept it. The tree, checkpoints and cosignatures are built with the generator's

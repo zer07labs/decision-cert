@@ -24,12 +24,12 @@
 //! the tenant the consumer expects and that tenant's moded keys: [`verify_for_tenant`]. [`verify`]
 //! keeps its meaning for v1 to v1.4 and refuses a v1.5 certificate.
 //!
-//! [`inclusion`] checks the draft `decision-cert-inclusion.v1`
-//! (spec/drafts/decision-cert-inclusion.v1.md) offline: a bundle showing that a tenant's
+//! [`inclusion`] checks `decision-cert-inclusion.v1`
+//! (spec/decision-cert-inclusion.v1.md) offline: a bundle showing that a tenant's
 //! transparency log recorded a leaf in a checkpoint its witnesses cosigned
 //! ([`inclusion::verify_bundle`]), a consistency proof between two checkpoints
 //! ([`inclusion::verify_consistency`]), and the consumer's policy for a certificate without a bundle
-//! ([`inclusion::apply_policy`]). The draft is not frozen, and this module may change with it.
+//! ([`inclusion::apply_policy`]).
 
 pub mod inclusion;
 mod map;

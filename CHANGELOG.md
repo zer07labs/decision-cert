@@ -5,9 +5,22 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
 
 ## Unreleased
 
+- **`decision-cert-inclusion.v1` frozen** (plan `plans/transparency-log-2026-11.md`, Phase 6; owner approval 2026-11-17):
+  the text and its schema move from `spec/drafts/` to
+  [`spec/decision-cert-inclusion.v1.md`](spec/decision-cert-inclusion.v1.md) and
+  [`spec/decision-cert-inclusion.v1.schema.json`](spec/decision-cert-inclusion.v1.schema.json) (the schema's `$id`
+  with them), with editorial changes only: no member, form, check or error name changes. Corrections from now on go
+  in `spec/ERRATA.md`. The generator's `fixtures/inclusion-v1/manifest.json` names the frozen path in its `draft`
+  member (so the manifest and `INCLUSION.sha256` change); every other fixture is byte-identical. Docs, the README, code comments and CLI help no longer call it a draft.
+- **`interop/c2sp/` and the CI job `c2sp-interop`**: an independent check of `fixtures/inclusion-v1/` with the Go
+  C2SP libraries (`golang.org/x/mod/sumdb/note` for signed notes and Ed25519 log signatures,
+  `github.com/transparency-dev/formats` for `cosignature/v1` and checkpoint bodies), pinned in its own `go.mod` and
+  `go.sum`. It verifies the log signature and witness cosignatures of every checkpoint the manifest accepts, and
+  that the library refuses the signature cases the manifest refuses, with the same error name. Informational
+  (`continue-on-error`); no change to the Rust or Python packages.
 - **Inclusion v1 (draft), the Rust verifier** (plan `plans/transparency-log-2026-11.md`, Phase 2): a new
-  module `decision_cert::inclusion`, additive, no new dependency, following the unfrozen draft
-  [`spec/drafts/decision-cert-inclusion.v1.md`](spec/drafts/decision-cert-inclusion.v1.md). RFC 9162
+  module `decision_cert::inclusion`, additive, no new dependency, following the then unfrozen draft
+  (now [`spec/decision-cert-inclusion.v1.md`](spec/decision-cert-inclusion.v1.md)). RFC 9162
   hashing and proofs (`hash_leaf_bytes`, `node_hash`, `root_hash`, `audit_path`, `consistency_path`,
   `verify_inclusion_path`, `verify_consistency_path`), leaf forms and the JCS leaf hash (`Leaf`,
   `leaf_hash`), C2SP checkpoints and `cosignature/v1` (`parse_checkpoint`, `c2sp_key_hash`,

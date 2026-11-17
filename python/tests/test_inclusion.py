@@ -1,4 +1,4 @@
-"""The Python inclusion verifier (`decision_cert._inclusion`, draft decision-cert-inclusion.v1) on every case
+"""The Python inclusion verifier (`decision_cert._inclusion`, decision-cert-inclusion.v1) on every case
 of `fixtures/inclusion-v1/manifest.json`, written by `tools/gen_inclusion_fixtures.py`; then the Python and
 Rust command-line verifiers on every bundle and consistency document there and on random trees, line for
 line. The Rust halves are skipped when cargo is not on PATH (CI always has it)."""

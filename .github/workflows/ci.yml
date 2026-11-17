@@ -170,6 +170,35 @@ jobs:
           sha256sum --strict -c INCLUSION.sha256
           diff <(find . -type f ! -name INCLUSION.sha256 | sed 's|^\./||' | LC_ALL=C sort) <(awk '{print $2}' INCLUSION.sha256 | LC_ALL=C sort)
 
+  c2sp-interop:
+    # An independent check of fixtures/inclusion-v1/ with the Go C2SP libraries (interop/c2sp/, pinned in
+    # its go.mod and go.sum): the log signature and witness cosignatures of every checkpoint the manifest
+    # accepts, and the library's refusal, with the same error name, of every signature case it refuses.
+    # Informational: a disagreement is reported, never fixed by changing the spec or the fixtures.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 10
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: interop/c2sp
+    env:
+      GOTOOLCHAIN: local
+      GOFLAGS: -mod=readonly
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5.5.0
+        with:
+          go-version: "1.27.2"
+          cache-dependency-path: interop/c2sp/go.sum
+      - name: the C2SP libraries verify the inclusion-v1 checkpoints
+        run: go run . ../../fixtures/inclusion-v1
+      - name: the toolchain and the library versions it ran with
+        if: always()
+        run: |
+          go version
+          go list -m -f '{{.Path}} {{.Version}}' github.com/transparency-dev/formats golang.org/x/mod golang.org/x/crypto
+
   python:
     # The Python verifier: lint, types, the shared fixture loop, the differential test against the
     # Rust crate (needs cargo), the reference log and witness end to end through both CLIs, and the

@@ -231,11 +231,11 @@ The crate has the same (`tenant_keys_from_json`, `verify_for_tenant`), and both 
 A consumer holding several tenants' keys refuses a configuration in which one key id appears under
 two tenants.
 
-### Recording it in the tenant's log (draft)
+### Recording it in the tenant's log
 
 A tenant can keep an append-only transparency log of what was issued for it, and carry, next to each
 certificate, a bundle that shows the log recorded it by a time the tenant's witnesses cosigned
-([draft `decision-cert-inclusion.v1`](../spec/drafts/decision-cert-inclusion.v1.md), not frozen). The
+([`decision-cert-inclusion.v1`](../spec/decision-cert-inclusion.v1.md)). The
 certificate does not change, and verifies exactly as before with or without a bundle. The issuer never
 calls the log: it writes files and reads files.
 
@@ -282,7 +282,7 @@ calls the log: it writes files and reads files.
    gives the log's `started_at` (its first entry's time) and the certificate's `fitted_at` is earlier.
    Configure `started_at` and the mark does not depend on the bundle. The mark never refuses anything.
 
-#### The reference log and witness (draft)
+#### The reference log and witness
 
 A tenant that runs its own log can use the reference log: files in a directory, the C2SP `tlog-tiles`
 layout, no server. One directory holds one log for one tenant. Keys are Ed25519 PEM files the operator
@@ -326,7 +326,7 @@ python -m decision_cert log consistency --dir acme-log --older cosigned.txt     
 - **`log prove`** writes the proof `bundle --proof` takes, and with `--record-out` the leaf's record,
   so `bundle --leaf-record` carries a backfilled certificate's mark. It exits 3 while the checkpoint
   does not include the leaf yet.
-- **`log consistency`** writes the consistency proof document (draft §7.2) between two checkpoints.
+- **`log consistency`** writes the consistency proof document (spec §7.2) between two checkpoints.
 
 Each command prints one JSON line; exit 1 is a refusal with the error name, exit 2 a usage error, an
 unreadable file, or a key that is not the log's or the witness's. On disk:

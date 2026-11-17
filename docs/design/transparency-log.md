@@ -1,11 +1,13 @@
 # A transparency log for issued certificates (#28)
 
-> **Design only** (owner go for design docs, 2026-11-16). The owner's answers to its open questions
-> are recorded below ([Decided](#decided-owner-2026-11-17), 2026-11-17). No code and no spec freeze
-> are approved, and no third party has been contacted. Tracks
-> [#28](https://github.com/zer07labs/decision-cert/issues/28). Shared rules: [README](README.md).
->
-> **Build plan:** [`plans/transparency-log-2026-11.md`](../../plans/transparency-log-2026-11.md).
+> **Built.** Designed on the owner's go for design docs (2026-11-16), with the owner's answers to its
+> open questions recorded below ([Decided](#decided-owner-2026-11-17), 2026-11-17), and built under the
+> [build plan](../../plans/transparency-log-2026-11.md): the spec
+> [`decision-cert-inclusion.v1`](../../spec/decision-cert-inclusion.v1.md)
+> (**frozen** 2026-11-17), both verifiers, `fixtures/inclusion-v1/`, the issuer's bundling
+> and the reference log and witness. Where this design and the spec differ (the CLI command names and
+> the fixtures directory, for example), the spec and the code are what was built. No third party has
+> been contacted. Tracks [#28](https://github.com/zer07labs/decision-cert/issues/28). Shared rules: [README](README.md).
 
 ## The problem
 
