@@ -1,8 +1,9 @@
 # A transparency log for issued certificates (#28)
 
-> **Design only** (owner go for design docs, 2026-11-16). No code, no spec freeze, no third party
-> contacted. Tracks [#28](https://github.com/zer07labs/decision-cert/issues/28). Shared rules:
-> [README](README.md).
+> **Design only** (owner go for design docs, 2026-11-16). The owner's answers to its open questions
+> are recorded below ([Decided](#decided-owner-2026-11-17), 2026-11-17). No code and no spec freeze
+> are approved, and no third party has been contacted. Tracks
+> [#28](https://github.com/zer07labs/decision-cert/issues/28). Shared rules: [README](README.md).
 
 ## The problem
 
@@ -45,8 +46,8 @@ issuance.
 
 ### One log per tenant
 
-- **Where.** In the tenant's scope: run by the tenant itself, or by the hosting service inside that
-  tenant's partition. Never one log across tenants.
+- **Where.** In the tenant's scope. The tenant chooses who runs it: the tenant itself, or the
+  hosting service inside that tenant's partition (owner, 2026-11-17). Never one log across tenants.
 - **Identity.** `log_id` is random (`log:<32 hex>`), so it does not name the tenant.
 - **Key.** The log signs checkpoints with a key of role `log` in the tenant's key set
   ([K1](k1-key-revocation-rotation.md)).
@@ -81,6 +82,12 @@ tenant's auditor, a second system of the tenant's outside the log operator's con
 independent witness that sees only checkpoints. At least one should be outside the control of
 whoever runs the log.
 
+The number of cosignatures a consumer requires, `m`, is configurable per tenant, default `m = 1`
+(owner, 2026-11-17).
+
+The log issues a checkpoint **hourly by default**, configurable per log (owner, 2026-11-17). The
+cadence sets how long an issuer waits for a proof.
+
 ### The inclusion proof (a sidecar)
 
 ```json
@@ -112,17 +119,19 @@ checkpoint's signatures.
    certificate.
 2. The audit path leads from the leaf's hash at `leaf_index` to the checkpoint's root.
 3. The checkpoint is signed by a `log` key in the tenant's key set that K1 accepts, and cosigned by
-   at least `m` `witness` keys from it.
+   at least `m` `witness` keys from it (default `m = 1`, configurable per tenant).
 4. The earliest witness timestamp is `t_proven` for K1's compromise rule.
 
-A consumer's policy for a certificate without a proof is `off`, `warn` or `refuse`. Everything is in
+A consumer's policy for a certificate without a proof is `off`, `warn` or `refuse`. The default is
+`warn` at first: a missing proof warns and is not refused (owner, 2026-11-17). Everything is in
 the sidecar and the configuration, so loading a certificate never needs the log (#28's question
 "what does a consumer do when the log is unreachable": it never needs to reach it).
 
 ### Issuing with a log
 
 The issuer signs the certificate, appends its leaf (and the ledger's `end` entry), waits for the
-next cosigned checkpoint, and attaches the proof. If the log is down, the certificate exists but has
+next cosigned checkpoint (within the hour, at the default cadence), and attaches the proof. If the
+log is down, the certificate exists but has
 no proof yet; a consumer with policy `refuse` does not load it until the proof arrives. The log
 client lives outside this library: the issuer writes the leaf and accepts a proof file, and never
 makes a network call itself.
@@ -147,21 +156,21 @@ log. Seeing what else is in it is the auditor's job, inside the tenant's scope.
 |---|---|---|
 | Leaves, certificates, ledger entries, attestations | Nobody outside the tenant, except the auditor the tenant exports to | — |
 | Inclusion proofs | Whoever the tenant gives the certificate to | The proof's node hashes reveal nothing about other leaves without those leaves. |
-| Checkpoints (log id, size, root hash) | The tenant's witnesses | The number of leaves, so roughly how active the tenant's issuance is. No certificate, id or name. |
-| Blind anchors (optional, owner decision) | A public log | Nothing: a hiding commitment (below). |
+| Checkpoints (log id, size, root hash) | The tenant's witnesses | The number of leaves, so roughly how active the tenant's issuance is. No certificate, id or name. The log does not pad it (owner, 2026-11-17). |
+| Blind anchors (not now, owner 2026-11-17) | A public log | Nothing: a hiding commitment (below). |
 
 **The optional blind anchor.** To gain public ordering without a public view, the tenant could
 publish only `sha256(nonce ‖ checkpoint)`, with a fresh 32-byte nonce kept in its scope, to a public
 log. Nobody without the nonce learns anything from it, and fresh nonces make anchors unlinkable to
 each other. Only the tenant's auditor, given the nonce, can check it. It adds little over honest
-witnesses, and it is still a public artefact whose timing is visible. **Off unless the owner
-decides otherwise.**
+witnesses, and it is still a public artefact whose timing is visible. **Not now** (owner,
+2026-11-17): no anchors are published; the design is kept for a later decision.
 
 ## Composition with frozen certificates
 
 - No certificate field changes. v1 to v1.4 certificates are logged by `certificate_id` exactly as
-  they are, including ones issued before the log existed (appended later, with no early time
-  evidence).
+  they are. Certificates issued before a tenant's log existed are backfilled into it when the log
+  starts (owner, 2026-11-17), with no early time evidence for them.
 - The proof is a sidecar carried next to the certificate, like R1's ledger segment and #29's
   attestations.
 - A consumer that records `certificate_id` with every decision (spec v1.2 §4) can later show, with
@@ -183,19 +192,19 @@ decides otherwise.**
   checkpoints) fits this design. Choosing one is an implementation decision, not part of the
   format.
 
-## Open questions for the owner
+## Decided (owner, 2026-11-17)
 
-1. **Witnesses.** Who: the tenant's auditor, a second system of the tenant's, an independent witness
-   that sees only checkpoints, or a mix? How many cosignatures (`m`) does a consumer require?
-2. **Blind anchors.** Allowed under tenant-only, or not (recommended: not now)?
-3. **Tree size.** Is the number of leaves a witness sees acceptable, or should the log pad it?
-4. **Consumer default** for a certificate without a proof: `off`, `warn` (recommended at first) or
-   `refuse`?
-5. **Who runs a self-hosted tenant's log:** the tenant, or the hosting service in a partition of its
-   own?
-6. **Checkpoint cadence,** which sets how long an issuer waits for a proof.
-7. **Old certificates.** Append existing v1 to v1.4 certificates when a tenant's log starts, with no
-   early time evidence for them?
+- **Q1. Witnesses: who, and how many (`m`)?** Configurable per tenant, default `m = 1`.
+- **Q4. Consumer default for a certificate without a proof?** `warn` at first, not `refuse`.
+- **Q5. Who runs a tenant's log?** The tenant chooses: itself, or a hosted partition.
+- **Q6. Checkpoint cadence?** Hourly by default, configurable.
+- **Q7. Old certificates?** Backfilled into the tenant's log when it starts, with no early time
+  evidence for them.
+- **Q2. Blind anchors under tenant-only?** Not now.
+- **Q3. Tree size: is the number of leaves a witness sees acceptable, or should the log pad it?**
+  Acceptable; no padding.
+
+These answers record design choices only. No code and no spec freeze are approved.
 
 ## What an implementation would touch
 
