@@ -448,8 +448,8 @@ class FileLog:
             cid = leaf.get_str("certificate_id") if leaf.kind == "certificate" else None
             if "certificate_id" in rec and rec["certificate_id"] != cid:
                 raise LogError("record_form", f"{where}: certificate_id is not its certificate leaf's")
-            backfilled = rec.get("backfilled", False)
-            if backfilled is not False and (backfilled is not True or leaf.kind != "certificate"):
+            backfilled = rec.get("backfilled") is True
+            if "backfilled" in rec and (not backfilled or leaf.kind != "certificate"):
                 raise LogError("record_form", f"{where}: backfilled is true, and only for a certificate leaf")
             t = leaf.get_str("tenant")
             if t is not None and t != cfg.tenant:

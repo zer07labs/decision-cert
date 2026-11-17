@@ -346,7 +346,8 @@ def test_end_to_end_issue_log_cosign_prove_bundle_verify(tmp_path: Path, rust_bi
     # the log grows: a leaf not in the cosigned checkpoint yet waits (exit 3) for the next one
     more = tmp_path / "more.jsonl"
     more.write_text("".join(json.dumps({"leaf": x}) + "\n" for x in leaves(20, 1000)))
-    ok(["log", "append", "--dir", str(d), str(more), "--now", time_of(t1 + 1800)])
+    code, appended_out, _ = cli(["log", "append", "--dir", str(d), str(more), "--now", time_of(t1 + 1800)])
+    assert code == 0 and [json.loads(x)["leaf_index"] for x in appended_out.splitlines()] == list(range(8, 28))
     refused(["log", "prove", "--dir", str(d), "--checkpoint", str(cosigned1), "--index", str(len(OLDER) + 3),
              "--out", str(proof)], "bad_proof", 3)  # fmt: skip
     t2 = t1 + 3600
