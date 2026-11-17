@@ -1,7 +1,7 @@
-> **Draft.** Owner go to draft, 2026-11-16 ("Draft v1.5 hosted-signer mode"). Design only:
-> - No field, check, schema or fixture of this draft exists in any verifier or issuer.
-> - Freezing it, and building it, are later owner decisions, taken separately.
-> - v1 to v1.4 stay frozen and unchanged.
+> **Draft, answered.** Owner go to draft, 2026-11-16 ("Draft v1.5 hosted-signer mode"). The owner answered the five
+> open questions on 2026-11-17 ([Owner answers](#owner-answers-2026-11-17)) and approved freezing v1.5 on those
+> answers. The frozen text is [`spec/decision-certificate.v1.5.md`](../decision-certificate.v1.5.md); this draft is
+> kept as the record of how it was reached. v1 to v1.4 stay frozen and unchanged.
 
 # Decision certificate, v1.5 (draft): tenant binding and a hosted signer
 
@@ -47,7 +47,7 @@ v1.4's fields, plus two:
 | Field | Type | Meaning |
 |---|---|---|
 | `tenant` | string | The tenant the certificate is issued for: 1 to 128 characters from `A-Z a-z 0-9 . _ : -`. An operator that signs its own certificates is its own tenant and writes its own id. Opaque to verifiers; compared only for byte equality. |
-| `signer` | object | Who signed. Either `{"mode": "operator"}` (the tenant signed, with its own key, as in v1 to v1.4) or `{"mode": "hosted", "host": <string>}` (a hosting service signed for `tenant`, with a key it holds for that tenant only; `host` names the service in the same character set and length as `tenant`). |
+| `signer` | object | Who signed. Either `{"mode": "operator"}` (the tenant signed, with its own key, as in v1 to v1.4) or `{"mode": "hosted", "host": <key id>}` (a hosting service signed for `tenant`, with a key it holds for that tenant only). `host` is the key id of the hosting service's own key, in `signer_key_id`'s form (`ed25519:` and 16 lowercase hex), so a consumer can pin the host as well as the tenant (answer 4). |
 
 - `signer_key_id`, `signature` and every v1.4 field keep their meaning.
 - A v1.5 certificate without `tenant` or `signer` fails the schema.
@@ -91,10 +91,11 @@ A v1.5 verifier is given:
 
 - the **expected tenant**, a string from the consumer's configuration;
 - that tenant's **trusted keys**, in which each key states the mode it may sign in: `operator`, or `hosted` with
-  its `host`.
+  its `host` (the hosting service's key id).
 
-For today's flat map (key id to public key), every entry is an `operator` key. A hosted key needs the richer
-entry; its form is an open question below, shared with K1.
+For today's flat map (key id to public key), every entry is an `operator` key. A hosted key's entry carries the
+mode as an attribute of the same certificate-signing role, `{"key": <public key>, "mode": "hosted", "host": <key
+id>}` (answer 3); K1's key set would carry the same attributes on its `certificate` role.
 
 The verifier refuses the certificate when any of these fails, in addition to every v1.4 check:
 
@@ -103,10 +104,15 @@ The verifier refuses the certificate when any of these fails, in addition to eve
    to the id, as today.
 3. **Key allowed for the mode.**
    - When `signer.mode` is `operator`, the key's entry is an `operator` key.
-   - When it is `hosted`, the entry is a `hosted` key whose `host` equals `signer.host`.
+   - When it is `hosted`, the entry is a `hosted` key whose `host` equals `signer.host`, byte for byte.
 4. **Signature.** It verifies strictly over the v1.5 signed bytes above, built with the **expected** tenant.
 
 A consumer still applies v1.4 §4 (domain, decision, options, map, costs, segments, expiry) after these checks.
+
+**Earlier certificates under an expected tenant (answer 1).** A v1 to v1.4 certificate binds no tenant. A verifier
+given an expected tenant accepts one only when its `signer_key_id` is in that tenant's trusted keys as an `operator`
+key, relying on check 2. A `hosted` key signs v1.5 certificates only, so an earlier certificate under a hosted key is
+refused.
 
 A verifier cannot see another tenant's configuration, so it cannot itself detect one key listed under two tenants.
 "No key signs for two tenants" is an issuer and hosting-service rule. A consumer that holds several tenants'
@@ -133,6 +139,8 @@ K1 changes no certificate field, so it composes with v1.5 unchanged. The one lin
 
 ## Open questions for the owner
 
+Answered by the owner on 2026-11-17; see [Owner answers](#owner-answers-2026-11-17). The questions as they were put:
+
 1. **Pre-v1.5 certificates in a hosted consumer.** May a consumer that hosts several tenants accept a v1 to v1.4
    certificate, which binds no tenant? Recommended: yes, for an `operator` key only, relying on check 2 (a key in
    one tenant's set). A `hosted` key signs only v1.5.
@@ -144,9 +152,18 @@ K1 changes no certificate field, so it composes with v1.5 unchanged. The one lin
    pin the host as well as the tenant?
 5. **Tenant id form.** The proposed character set fits common tenant ids. Is 128 characters the right ceiling?
 
+## Owner answers (2026-11-17)
+
+1. **Earlier certificates:** accepted under an `operator` key only (as recommended).
+2. **Tenant:** in both the prefix and the field (as recommended).
+3. **Hosted key entry:** the same certificate-signing role, with `mode` and `host` attributes (as recommended).
+4. **`host`:** the key id of the hosting service's own key, which a consumer can pin. This is the alternative to the
+   free string the draft proposed; the fields and checks above are amended to it.
+5. **Tenant id:** 1 to 128 characters of `A-Z a-z 0-9 . _ : -` (as recommended).
+
 ## What freezing would touch
 
-None of this is approved:
+Approved by the owner on 2026-11-17, on the answers above:
 
 - **Spec and schema.** `spec/decision-certificate.v1.5.md` and `decision-certificate.v1.5.schema.json`.
 - **Verifiers.** The Rust crate and the Python verifier would gain the expected-tenant input and checks 1 to 4.
@@ -166,3 +183,5 @@ None of this is approved:
 | Date | Item | Decision |
 |---|---|---|
 | 2026-11-16 | draft | Opened as a design draft (owner go: "Draft v1.5 hosted-signer mode"). Nothing approved for implementation or freezing. |
+| 2026-11-17 | answers | The owner answered the five open questions (above); `host` became the hosting service's key id. |
+| 2026-11-17 | freeze | Owner go to freeze v1.5 on these answers: [`spec/decision-certificate.v1.5.md`](../decision-certificate.v1.5.md), with the schema, both verifiers, the issuer and `fixtures/v1.5/`. |

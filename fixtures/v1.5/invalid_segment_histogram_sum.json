@@ -1,0 +1,190 @@
+{
+  "name": "invalid_segment_histogram_sum",
+  "certificate": {
+    "spec": "decision-certificate.v1.5",
+    "domain": "hmda-approval",
+    "decision": "approved",
+    "options": [
+      "yes",
+      "no"
+    ],
+    "model_id": "b1/lightgbm@lgbm-4.7.0-seed7",
+    "manifest_hash": "sha256:abababababababababababababababababababababababababababababababab",
+    "data_hash": "sha256:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+    "n_cal": 2500,
+    "n_temperature": 2500,
+    "split": {
+      "method": "time",
+      "seed": null
+    },
+    "calibration_map": {
+      "kind": "temperature",
+      "params": {
+        "temperature": 1.3173913043478263
+      },
+      "label_budget": null
+    },
+    "rule": {
+      "cannot_tell_above": 0.5,
+      "unscored": "abstain"
+    },
+    "alpha": 0.05,
+    "delta": 0.1,
+    "method": "ltt",
+    "risk": "selective_error",
+    "n": 2500,
+    "abstain_below": 0.8829170572757721,
+    "coverage": 0.4116,
+    "ucb": 0.032977066870911,
+    "realized_band": {
+      "level": 0.95,
+      "low": 0.0011834410146505043,
+      "high": 0.04314473389094683
+    },
+    "segments": [
+      {
+        "field": "region",
+        "n": 600,
+        "abstain_below": 0.9,
+        "coverage": 0.25,
+        "ucb": 0.04,
+        "realized_band": {
+          "level": 0.95,
+          "low": 0.0011834410146505043,
+          "high": 0.04314473389094683
+        },
+        "value": "east",
+        "inherited": false,
+        "confidence_histogram": {
+          "counts": [
+            0,
+            60,
+            70,
+            80,
+            70,
+            80,
+            90,
+            100,
+            40
+          ],
+          "unscored": 9
+        },
+        "loss_sum": null,
+        "realized_cost": null,
+        "automated": {
+          "coverage": 0.25,
+          "ucb": 0.04,
+          "realized_band": {
+            "level": 0.95,
+            "low": 0.0011834410146505043,
+            "high": 0.04314473389094683
+          },
+          "loss_sum": null,
+          "realized_cost": null
+        }
+      },
+      {
+        "field": "region",
+        "n": 600,
+        "abstain_below": 0.8829170572757721,
+        "coverage": 0.25,
+        "ucb": null,
+        "realized_band": null,
+        "value": "zürich ☃",
+        "inherited": true,
+        "confidence_histogram": null,
+        "loss_sum": null,
+        "realized_cost": null,
+        "automated": {
+          "coverage": 0.25,
+          "ucb": null,
+          "realized_band": null,
+          "loss_sum": null,
+          "realized_cost": null
+        }
+      }
+    ],
+    "window": {
+      "start": "2023-01-02T00:00:00Z",
+      "end": "2023-12-29T23:59:59Z"
+    },
+    "fitted_at": "2026-10-25T12:00:00Z",
+    "expires_at": "2027-01-23T12:00:00Z",
+    "audit": {
+      "mode": "sample",
+      "rate": 0.05,
+      "n": 5000,
+      "propensity_logged": true
+    },
+    "issuer": {
+      "tool": "decision-cert",
+      "version": "0.4.0"
+    },
+    "confidence_bins": [
+      0,
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.85,
+      0.9,
+      0.95,
+      0.99,
+      1
+    ],
+    "confidence_histogram": {
+      "counts": [
+        0,
+        310,
+        320,
+        330,
+        280,
+        300,
+        340,
+        420,
+        150
+      ],
+      "unscored": 50
+    },
+    "automate_options": [
+      "yes",
+      "no"
+    ],
+    "cost": null,
+    "pvalue": "binomial",
+    "loss_sum": null,
+    "realized_cost": null,
+    "tenant": "acme-bank",
+    "signer": {
+      "mode": "operator"
+    },
+    "automated": {
+      "coverage": 0.4116,
+      "ucb": 0.032977066870911,
+      "realized_band": {
+        "level": 0.95,
+        "low": 0.0011834410146505043,
+        "high": 0.04314473389094683
+      },
+      "loss_sum": null,
+      "realized_cost": null
+    },
+    "signer_key_id": "ed25519:56475aa75463474c",
+    "signature": "H2E8_J768CqKMtHI6z1WysOiYYzqBlC9DaKfzZMvctvWFX-OfoA_ES46HXyUCCAUpr3k-ojdd_mali_XEZjUCg"
+  },
+  "tenant": "acme-bank",
+  "keys": {
+    "ed25519:56475aa75463474c": {
+      "key": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg",
+      "mode": "operator"
+    },
+    "ed25519:24f6ed6acbfe1009": {
+      "key": "Kay64UG8yvCyLhqU000LxzYeUm0L_hLIl5S8kyKWbdc",
+      "mode": "operator"
+    }
+  },
+  "body_jcs_b64": "eyJhYnN0YWluX2JlbG93IjowLjg4MjkxNzA1NzI3NTc3MjEsImFscGhhIjowLjA1LCJhdWRpdCI6eyJtb2RlIjoic2FtcGxlIiwibiI6NTAwMCwicHJvcGVuc2l0eV9sb2dnZWQiOnRydWUsInJhdGUiOjAuMDV9LCJhdXRvbWF0ZV9vcHRpb25zIjpbInllcyIsIm5vIl0sImF1dG9tYXRlZCI6eyJjb3ZlcmFnZSI6MC40MTE2LCJsb3NzX3N1bSI6bnVsbCwicmVhbGl6ZWRfYmFuZCI6eyJoaWdoIjowLjA0MzE0NDczMzg5MDk0NjgzLCJsZXZlbCI6MC45NSwibG93IjowLjAwMTE4MzQ0MTAxNDY1MDUwNDN9LCJyZWFsaXplZF9jb3N0IjpudWxsLCJ1Y2IiOjAuMDMyOTc3MDY2ODcwOTExfSwiY2FsaWJyYXRpb25fbWFwIjp7ImtpbmQiOiJ0ZW1wZXJhdHVyZSIsImxhYmVsX2J1ZGdldCI6bnVsbCwicGFyYW1zIjp7InRlbXBlcmF0dXJlIjoxLjMxNzM5MTMwNDM0NzgyNjN9fSwiY29uZmlkZW5jZV9iaW5zIjpbMCwwLjUsMC42LDAuNywwLjgsMC44NSwwLjksMC45NSwwLjk5LDFdLCJjb25maWRlbmNlX2hpc3RvZ3JhbSI6eyJjb3VudHMiOlswLDMxMCwzMjAsMzMwLDI4MCwzMDAsMzQwLDQyMCwxNTBdLCJ1bnNjb3JlZCI6NTB9LCJjb3N0IjpudWxsLCJjb3ZlcmFnZSI6MC40MTE2LCJkYXRhX2hhc2giOiJzaGEyNTY6MGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZjBmMGYwZiIsImRlY2lzaW9uIjoiYXBwcm92ZWQiLCJkZWx0YSI6MC4xLCJkb21haW4iOiJobWRhLWFwcHJvdmFsIiwiZXhwaXJlc19hdCI6IjIwMjctMDEtMjNUMTI6MDA6MDBaIiwiZml0dGVkX2F0IjoiMjAyNi0xMC0yNVQxMjowMDowMFoiLCJpc3N1ZXIiOnsidG9vbCI6ImRlY2lzaW9uLWNlcnQiLCJ2ZXJzaW9uIjoiMC40LjAifSwibG9zc19zdW0iOm51bGwsIm1hbmlmZXN0X2hhc2giOiJzaGEyNTY6YWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsIm1ldGhvZCI6Imx0dCIsIm1vZGVsX2lkIjoiYjEvbGlnaHRnYm1AbGdibS00LjcuMC1zZWVkNyIsIm4iOjI1MDAsIm5fY2FsIjoyNTAwLCJuX3RlbXBlcmF0dXJlIjoyNTAwLCJvcHRpb25zIjpbInllcyIsIm5vIl0sInB2YWx1ZSI6ImJpbm9taWFsIiwicmVhbGl6ZWRfYmFuZCI6eyJoaWdoIjowLjA0MzE0NDczMzg5MDk0NjgzLCJsZXZlbCI6MC45NSwibG93IjowLjAwMTE4MzQ0MTAxNDY1MDUwNDN9LCJyZWFsaXplZF9jb3N0IjpudWxsLCJyaXNrIjoic2VsZWN0aXZlX2Vycm9yIiwicnVsZSI6eyJjYW5ub3RfdGVsbF9hYm92ZSI6MC41LCJ1bnNjb3JlZCI6ImFic3RhaW4ifSwic2VnbWVudHMiOlt7ImFic3RhaW5fYmVsb3ciOjAuOSwiYXV0b21hdGVkIjp7ImNvdmVyYWdlIjowLjI1LCJsb3NzX3N1bSI6bnVsbCwicmVhbGl6ZWRfYmFuZCI6eyJoaWdoIjowLjA0MzE0NDczMzg5MDk0NjgzLCJsZXZlbCI6MC45NSwibG93IjowLjAwMTE4MzQ0MTAxNDY1MDUwNDN9LCJyZWFsaXplZF9jb3N0IjpudWxsLCJ1Y2IiOjAuMDR9LCJjb25maWRlbmNlX2hpc3RvZ3JhbSI6eyJjb3VudHMiOlswLDYwLDcwLDgwLDcwLDgwLDkwLDEwMCw0MF0sInVuc2NvcmVkIjo5fSwiY292ZXJhZ2UiOjAuMjUsImZpZWxkIjoicmVnaW9uIiwiaW5oZXJpdGVkIjpmYWxzZSwibG9zc19zdW0iOm51bGwsIm4iOjYwMCwicmVhbGl6ZWRfYmFuZCI6eyJoaWdoIjowLjA0MzE0NDczMzg5MDk0NjgzLCJsZXZlbCI6MC45NSwibG93IjowLjAwMTE4MzQ0MTAxNDY1MDUwNDN9LCJyZWFsaXplZF9jb3N0IjpudWxsLCJ1Y2IiOjAuMDQsInZhbHVlIjoiZWFzdCJ9LHsiYWJzdGFpbl9iZWxvdyI6MC44ODI5MTcwNTcyNzU3NzIxLCJhdXRvbWF0ZWQiOnsiY292ZXJhZ2UiOjAuMjUsImxvc3Nfc3VtIjpudWxsLCJyZWFsaXplZF9iYW5kIjpudWxsLCJyZWFsaXplZF9jb3N0IjpudWxsLCJ1Y2IiOm51bGx9LCJjb25maWRlbmNlX2hpc3RvZ3JhbSI6bnVsbCwiY292ZXJhZ2UiOjAuMjUsImZpZWxkIjoicmVnaW9uIiwiaW5oZXJpdGVkIjp0cnVlLCJsb3NzX3N1bSI6bnVsbCwibiI6NjAwLCJyZWFsaXplZF9iYW5kIjpudWxsLCJyZWFsaXplZF9jb3N0IjpudWxsLCJ1Y2IiOm51bGwsInZhbHVlIjoiesO8cmljaCDimIMifV0sInNpZ25lciI6eyJtb2RlIjoib3BlcmF0b3IifSwic2lnbmVyX2tleV9pZCI6ImVkMjU1MTk6NTY0NzVhYTc1NDYzNDc0YyIsInNwZWMiOiJkZWNpc2lvbi1jZXJ0aWZpY2F0ZS52MS41Iiwic3BsaXQiOnsibWV0aG9kIjoidGltZSIsInNlZWQiOm51bGx9LCJ0ZW5hbnQiOiJhY21lLWJhbmsiLCJ1Y2IiOjAuMDMyOTc3MDY2ODcwOTExLCJ3aW5kb3ciOnsiZW5kIjoiMjAyMy0xMi0yOVQyMzo1OTo1OVoiLCJzdGFydCI6IjIwMjMtMDEtMDJUMDA6MDA6MDBaIn19",
+  "certificate_id": "sha256:83317fb4590779398e8ccdaecd8e52c4122e24f06bf13811ed6ebbb00de709ae",
+  "valid": false,
+  "error": "confidence_histogram needs"
+}

@@ -148,7 +148,8 @@ changes, a new required field, or a change to the layout or the cases format is 
 (`decision-evidence-pack.v2`), which a v1 verifier refuses as an unknown format.
 
 The certificates inside follow their own specs: a v1 pack carries certificates of any spec the
-verifier accepts (v1 to v1.4 today).
+verifier accepts through `verify` (v1 to v1.4 today). A v1.5 certificate is verified for an
+expected tenant (spec v1.5 §4), which this pack version does not carry, so `verify-pack` refuses one.
 
 ## Verifying a pack
 

@@ -68,10 +68,10 @@ certificate and its expiry.
 
 | Path | What |
 |---|---|
-| [`spec/`](spec/) | [`decision-certificate.v1.4.md`](spec/decision-certificate.v1.4.md) and [`decision-certificate.v1.3.md`](spec/decision-certificate.v1.3.md) (**frozen** 2026-11-12), [`decision-certificate.v1.2.md`](spec/decision-certificate.v1.2.md) (**frozen** 2026-11-08), [`decision-certificate.v1.1.md`](spec/decision-certificate.v1.1.md) (**frozen** 2026-11-08), [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (**frozen** 2026-10-25), and a JSON Schema for each |
+| [`spec/`](spec/) | [`decision-certificate.v1.5.md`](spec/decision-certificate.v1.5.md) (**frozen** 2026-11-17), [`decision-certificate.v1.4.md`](spec/decision-certificate.v1.4.md) and [`decision-certificate.v1.3.md`](spec/decision-certificate.v1.3.md) (**frozen** 2026-11-12), [`decision-certificate.v1.2.md`](spec/decision-certificate.v1.2.md) (**frozen** 2026-11-08), [`decision-certificate.v1.1.md`](spec/decision-certificate.v1.1.md) (**frozen** 2026-11-08), [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (**frozen** 2026-10-25), and a JSON Schema for each |
 | [`rust/`](rust/) | the `decision-cert` crate: `verify`, `canonical`, `certificate_id`, `key_id`, segment thresholds, expiry, the v1.2 calibration maps (`probabilities`, `confidence`) and shift score |
 | [`python/`](python/) | a pure-Python verifier (`decision_cert`), a port of the crate that passes the same fixtures |
-| [`fixtures/`](fixtures/) | conformance fixtures: signed certificates with their canonical bytes, ids and expected verdicts, plus `mutations/schema_invalid.json`, schema-invalid certificates a verifier must reject; v1 at the top level, v1.1 in `fixtures/v1.1/`, v1.2 in `fixtures/v1.2/`, v1.3 in `fixtures/v1.3/`, v1.4 in `fixtures/v1.4/` |
+| [`fixtures/`](fixtures/) | conformance fixtures: signed certificates with their canonical bytes, ids and expected verdicts, plus `mutations/schema_invalid.json`, schema-invalid certificates a verifier must reject; v1 at the top level, v1.1 in `fixtures/v1.1/`, v1.2 in `fixtures/v1.2/`, v1.3 in `fixtures/v1.3/`, v1.4 in `fixtures/v1.4/`, v1.5 in `fixtures/v1.5/` |
 | [`docs/certificates.md`](docs/certificates.md) | how a certificate is issued, verified and applied |
 | [`docs/credit-approval.md`](docs/credit-approval.md) | a profile: one certificate per credit-approval deployment, with the label-free drift alarm and an audit sample for selective labels |
 | [`docs/method.md`](docs/method.md) | the method explained: how the threshold is chosen, what the claim is, what the numbers describe, and the limits |
@@ -79,7 +79,7 @@ certificate and its expiry.
 | [`docs/evidence-pack.md`](docs/evidence-pack.md) | the evidence pack format (`decision-evidence-pack.v1`): one tenant's certificates, trusted keys and measured cases with a hashed manifest, and `verify-pack`, which checks one |
 | [`plans/`](plans/) | the public roadmap |
 
-v1 to v1.4 are frozen, and verifiers accept all five. v1 and v1.1 have the same fields; v1.1
+v1 to v1.5 are frozen, and verifiers accept all six. v1 and v1.1 have the same fields; v1.1
 changes one step of the issuing procedure (each test starts the threshold grid on its own cases) and
 clarifies the text. v1.2 keeps v1.1's procedure and adds fields under its own `spec` value: the
 confidence histogram for monitoring without labels. It also defines a second calibration map kind,
@@ -88,8 +88,10 @@ adds to v1.2 the options a consumer decides automatically, with each test's answ
 error among them (descriptive: the bound still covers every answered case), and binds each case's
 `cannot_tell` value in `data_hash`. v1.4 adds to v1.3 a cost
 risk, `selective_cost`: from a consumer's cost matrix, it bounds the expected cost of the answered
-cases instead of their error rate (equal costs stay v1's error test). Issuers write v1.2 unless
-asked for v1.3 or v1.4. A frozen spec's fields never change meaning, and
+cases instead of their error rate (equal costs stay v1's error test). v1.5 adds to v1.4 the `tenant`
+a certificate is issued for, bound into its signature, and a `signer` that says whether the tenant
+signed it or a hosting service signed it for the tenant; a v1.5 certificate is verified for an
+expected tenant (`verify_for_tenant`). Issuers write v1.2 unless asked for v1.3, v1.4 or v1.5. A frozen spec's fields never change meaning, and
 verifiers reject unknown fields. Corrections to frozen text go in [`spec/ERRATA.md`](spec/ERRATA.md), never in the text.
 
 From the command line, in Rust or Python (exit 0 verified and unexpired, 1 rejected or expired,

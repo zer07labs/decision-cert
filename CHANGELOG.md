@@ -1,10 +1,25 @@
 # Changelog
 
-All notable changes to this repository. The spec (`decision-certificate.v1`, `v1.1`, `v1.2`, `v1.3` and `v1.4`, all
+All notable changes to this repository. The spec (`decision-certificate.v1`, `v1.1`, `v1.2`, `v1.3`, `v1.4` and `v1.5`, all
 frozen) is versioned separately; this log covers the crate, the verifiers, the fixtures and the docs.
 
 ## Unreleased
 
+- **Spec v1.5 frozen: tenant binding and a hosted signer** (2026-11-17, owner go,
+  [`spec/decision-certificate.v1.5.md`](spec/decision-certificate.v1.5.md)). v1.4 plus `tenant` and
+  `signer` (`{"mode": "operator"}` or `{"mode": "hosted", "host": <key id>}`). A v1.5 signature is over
+  `"decision-cert/certificate.v1.5" 0x0A tenant 0x0A JCS(body)`, built with the tenant the verifier
+  expects. `certificate_id` is unchanged.
+  - Both verifiers: `verify_for_tenant(cert, tenant, keys)` with moded trusted keys
+    (`tenant_keys_from_json`: a bare public key is an operator key, or `{"key", "mode", "host"}`),
+    checks 1 to 4 (tenant, key in the tenant's set, key mode and host, signature), the errors
+    `WrongTenant` and `KeyMode`, and `Verified::tenant` / `signer`. A v1 to v1.4 certificate under an
+    expected tenant is accepted under an operator key only. `verify(cert, keys)` keeps its meaning for
+    v1 to v1.4 and refuses a v1.5 certificate. Both CLIs take `--tenant`.
+  - The issuer: `--spec decision-certificate.v1.5 --tenant <id> [--signer-mode hosted --host <key id>]`;
+    the default stays v1.2.
+  - `decision-certificate.v1.5.schema.json`, and `fixtures/v1.5/` (108 files and its mutations), with the
+    tenant, key-mode and framing negatives. v1 to v1.4 fixtures and the v1 manifest are byte-identical.
 - **Evidence packs** (`decision-evidence-pack.v1`, [`docs/evidence-pack.md`](docs/evidence-pack.md)): one
   tenant's certificates, the trusted keys, where the measured cases live (and optionally the cases, the
   members of `data_hash`), and a manifest with every file's sha256, as a directory or a tar. Versioned

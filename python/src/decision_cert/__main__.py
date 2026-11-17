@@ -1,10 +1,12 @@
-"""`python -m decision_cert verify <cert.json> --keys <keys.json> [--now <ts>]`
+"""`python -m decision_cert verify <cert.json> --keys <keys.json> [--tenant <tenant>] [--now <ts>]`
 
 Exit 0: the certificate verifies against the trusted keys and has not expired at `--now` (default:
 the current time); its id is printed on stdout.
 Exit 1: it does not verify, or it has expired; the reason is printed on stderr.
-Exit 2: usage error, an unreadable file, or a keys file that is not a JSON object of strings.
-The Rust `decision-cert verify` behaves the same.
+Exit 2: usage error, an unreadable file, or a keys file that is not a JSON object of strings (with
+`--tenant`: of key entries, spec v1.5 §4).
+With `--tenant`, the certificate is verified for that expected tenant (any spec; a v1.5 certificate
+needs it). The Rust `decision-cert verify` behaves the same.
 
 `python -m decision_cert verify-pack <pack> [--keys <keys.json>] [--now <ts>] [--no-recompute | --require-recompute]
 [--max-total-bytes N] [--max-member-bytes N] [--max-members N]`
@@ -25,7 +27,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from . import CertError, Invalid, loads, timestamp, verify
+from . import CertError, Invalid, loads, tenant_keys_from_json, timestamp, verify, verify_for_tenant
 from ._pack import DEFAULT_LIMITS, Limits, PackError, render, verify_pack
 
 
@@ -49,7 +51,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="command", required=True)
     v = sub.add_parser("verify", help="Verify a certificate against trusted keys and check its expiry.")
     v.add_argument("cert", type=Path, help="The certificate, a JSON object.")
-    v.add_argument("--keys", type=Path, required=True, help="Trusted keys: key id -> base64url public key.")
+    v.add_argument(
+        "--keys",
+        type=Path,
+        required=True,
+        help="Trusted keys: key id -> base64url public key (with --tenant, an entry may also be "
+        '{"key", "mode", "host"}).',
+    )
+    v.add_argument("--tenant", help="The tenant the certificate must be for (spec v1.5); its keys are --keys.")
     v.add_argument("--now", help="The time to check expiry at, YYYY-MM-DDTHH:MM:SSZ (default: now).")
     vp = sub.add_parser("verify-pack", help="Verify an evidence pack (a directory or a tar).")
     vp.add_argument("pack", type=Path, help="The pack: a directory holding pack.json, or a tar of one.")
@@ -91,12 +100,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         keys_text = args.keys.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as e:
         return _usage(f"{args.keys}: {e}")
-    try:
-        keys = loads(keys_text)
-    except Invalid as e:
-        return _usage(f"{args.keys}: not a JSON object of key id -> public key: {e}")
-    if not isinstance(keys, dict) or not all(isinstance(k, str) and isinstance(x, str) for k, x in keys.items()):
-        return _usage(f"{args.keys}: not a JSON object of key id -> public key")
+    tenant_keys = None
+    if args.tenant is not None:
+        try:
+            tenant_keys = tenant_keys_from_json(loads(keys_text))
+        except CertError as e:
+            return _usage(f"{args.keys}: not a JSON object of key id -> key entry: {e}")
+        keys = {}
+    else:
+        try:
+            keys = loads(keys_text)
+        except Invalid as e:
+            return _usage(f"{args.keys}: not a JSON object of key id -> public key: {e}")
+        if not isinstance(keys, dict) or not all(isinstance(k, str) and isinstance(x, str) for k, x in keys.items()):
+            return _usage(f"{args.keys}: not a JSON object of key id -> public key")
     if args.now is None:
         now = dt.datetime.now(dt.UTC)
     else:
@@ -110,7 +127,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _usage(f"{args.cert}: {e}")
 
     try:
-        cert = verify(loads(text), keys)
+        if tenant_keys is not None:
+            cert = verify_for_tenant(loads(text), args.tenant, tenant_keys)
+        else:
+            cert = verify(loads(text), keys)
     except CertError as e:
         print(f"{args.cert}: {e}", file=sys.stderr)
         return 1

@@ -1,7 +1,8 @@
 //! Load, verify and apply decision certificates: `decision-certificate.v1`
 //! (spec/decision-certificate.v1.md), `decision-certificate.v1.1` (spec/decision-certificate.v1.1.md)
-//! `decision-certificate.v1.2` (spec/decision-certificate.v1.2.md) and `decision-certificate.v1.3`
-//! (spec/decision-certificate.v1.3.md).
+//! `decision-certificate.v1.2` (spec/decision-certificate.v1.2.md), `decision-certificate.v1.3`
+//! (spec/decision-certificate.v1.3.md), `decision-certificate.v1.4` (spec/decision-certificate.v1.4.md)
+//! and `decision-certificate.v1.5` (spec/decision-certificate.v1.5.md).
 //!
 //! Verification canonicalises the JSON value exactly as received (RFC 8785, JCS), never a
 //! re-serialised struct, so number formatting can't drift from the issuer's. The typed
@@ -17,6 +18,11 @@
 //!
 //! A v1.3 certificate also names the options a consumer automates (`automate_options`) and reports,
 //! per test, the share and error of the answered cases whose answer is one of them ([`Automated`]).
+//!
+//! A v1.5 certificate also names its `tenant` and who signed it ([`Signer`]: the tenant as operator,
+//! or a hosting service for the tenant), and its signature covers the tenant. It is verified with
+//! the tenant the consumer expects and that tenant's moded keys: [`verify_for_tenant`]. [`verify`]
+//! keeps its meaning for v1 to v1.4 and refuses a v1.5 certificate.
 
 mod map;
 mod monitor;
@@ -43,9 +49,16 @@ pub const SPEC_V1_2: &str = "decision-certificate.v1.2";
 pub const SPEC_V1_3: &str = "decision-certificate.v1.3";
 /// The `spec` of a v1.4 certificate: v1.3, plus the cost risk `selective_cost`.
 pub const SPEC_V1_4: &str = "decision-certificate.v1.4";
+/// The `spec` of a v1.5 certificate: v1.4, plus `tenant` and `signer`, signed over bytes that bind
+/// the tenant.
+pub const SPEC_V1_5: &str = "decision-certificate.v1.5";
 /// Every `spec` this verifier accepts. v1 and v1.1 have the same fields; v1.2 adds some, v1.3 more,
-/// v1.4 more again.
-pub const SPECS: [&str; 5] = [SPEC, SPEC_V1_1, SPEC_V1_2, SPEC_V1_3, SPEC_V1_4];
+/// v1.4 more again, v1.5 more again.
+pub const SPECS: [&str; 6] = [SPEC, SPEC_V1_1, SPEC_V1_2, SPEC_V1_3, SPEC_V1_4, SPEC_V1_5];
+/// The context string a v1.5 signature's bytes start with (spec v1.5 §3).
+pub const CONTEXT_V1_5: &str = "decision-cert/certificate.v1.5";
+/// The longest `tenant` (spec v1.5 §2).
+pub const MAX_TENANT: usize = 128;
 /// Most bins a `confidence_bins` may define.
 pub const MAX_BINS: usize = 100;
 /// `abstain_below` that abstains on every case (as `dk calibrate` writes it).
@@ -61,6 +74,13 @@ pub enum CertError {
     BadKey(String),
     #[error("certificate signature does not verify")]
     BadSignature,
+    /// v1.5 check 1: the certificate's `tenant` is not the tenant the verifier expects.
+    #[error("certificate is for tenant {0}, not the expected tenant")]
+    WrongTenant(String),
+    /// v1.5 check 3 (and an earlier certificate under a hosted key): the key's entry does not allow
+    /// the certificate's signer mode, or its `host` is not the certificate's.
+    #[error("trusted key {0} may not sign in this mode")]
+    KeyMode(String),
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq)]
@@ -187,6 +207,17 @@ pub struct Issuer {
     pub version: String,
 }
 
+/// Who signed a v1.5 certificate: `mode` `operator` (the tenant, with its own key; no `host`), or
+/// `hosted` (a hosting service for the tenant; `host` is the hosting service's own key id,
+/// `ed25519:<16 lowercase hex>`).
+#[derive(Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Signer {
+    pub mode: String,
+    #[serde(default, deserialize_with = "present")]
+    pub host: Option<String>,
+}
+
 /// Every field is required; `Option` fields must be present (as null): a missing field is an error.
 #[derive(Deserialize, Clone, Debug, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -250,6 +281,12 @@ pub struct Certificate {
     /// v1.4 only: the remainder's mean normalised cost of its answered cases (descriptive).
     #[serde(default, deserialize_with = "present")]
     pub realized_cost: Option<Option<f64>>,
+    /// v1.5 only (absent before v1.5): the tenant the certificate is issued for.
+    #[serde(default, deserialize_with = "present")]
+    pub tenant: Option<String>,
+    /// v1.5 only: who signed, the tenant as operator or a hosting service for it.
+    #[serde(default, deserialize_with = "present")]
+    pub signer: Option<Signer>,
 }
 
 /// A field that may be absent (with `default`, as None) but, when present, is read as `T`: so a
@@ -343,6 +380,17 @@ impl Verified {
         self.cert.cost.as_ref().and_then(|c| c.as_ref())
     }
 
+    /// A v1.5 certificate's tenant (equal to the expected tenant it was verified with); None before
+    /// v1.5.
+    pub fn tenant(&self) -> Option<&str> {
+        self.cert.tenant.as_deref()
+    }
+
+    /// Who signed a v1.5 certificate; None before v1.5.
+    pub fn signer(&self) -> Option<&Signer> {
+        self.cert.signer.as_ref()
+    }
+
     /// The probabilities the certificate's calibration map gives a case's raw scores, one per
     /// option (spec v1.2 §1, [`probabilities`]). None when the map's kind is not one this crate
     /// applies ([`MAP_KINDS`]), its params do not fit that kind, or `scores` does not have one score
@@ -352,7 +400,8 @@ impl Verified {
         let defined = self.cert.calibration_map.kind == "temperature"
             || self.cert.spec == SPEC_V1_2
             || self.cert.spec == SPEC_V1_3
-            || self.cert.spec == SPEC_V1_4;
+            || self.cert.spec == SPEC_V1_4
+            || self.cert.spec == SPEC_V1_5;
         (defined && scores.len() == self.cert.options.len())
             .then(|| probabilities(&self.cert.calibration_map, scores))
             .flatten()
@@ -388,42 +437,210 @@ pub fn key_id(key: &VerifyingKey) -> String {
 }
 
 /// Verify `v` against `keys` (key id → base64url raw public key) and read it.
+///
+/// For v1 to v1.4. A v1.5 certificate binds a tenant, so it is refused here; verify it with the
+/// tenant the consumer expects, [`verify_for_tenant`].
 pub fn verify(
     v: &serde_json::Value,
     keys: &BTreeMap<String, String>,
 ) -> Result<Verified, CertError> {
+    let (obj, cert) = read(v)?;
+    if cert.spec == SPEC_V1_5 {
+        return Err(CertError::Invalid(
+            "a v1.5 certificate is verified with its expected tenant (verify_for_tenant)".into(),
+        ));
+    }
+    let raw = keys
+        .get(&cert.signer_key_id)
+        .ok_or_else(|| CertError::UntrustedKey(cert.signer_key_id.clone()))?;
+    let key = public_key(raw, &cert.signer_key_id)?;
+    check_signature(&key, &cert, &bare_body(obj)?)?;
+    verified(v, cert)
+}
+
+/// The mode a trusted key may sign in (spec v1.5 §4): `Operator` (the tenant's own key, as every key
+/// in v1 to v1.4), or `Hosted` by the hosting service whose own key id is `host`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum KeyMode {
+    Operator,
+    Hosted { host: String },
+}
+
+/// A trusted certificate-signing key of one tenant: the base64url raw Ed25519 public key, and the
+/// mode it may sign in.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TrustedKey {
+    pub key: String,
+    pub mode: KeyMode,
+}
+
+/// One tenant's trusted keys: key id → [`TrustedKey`].
+pub type TenantKeys = BTreeMap<String, TrustedKey>;
+
+/// Read a tenant's trusted keys from a JSON object of key id → entry. An entry is a bare base64url
+/// string (an `operator` key, as in a v1 to v1.4 key map), `{"key": ..., "mode": "operator"}`, or
+/// `{"key": ..., "mode": "hosted", "host": "ed25519:<16 lowercase hex>"}` (spec v1.5 §4). Any
+/// other entry, an unknown field, or a `host` not in that form is refused as [`CertError::BadKey`].
+/// The key is checked against its id when a certificate is verified, as in [`verify`].
+pub fn tenant_keys_from_json(v: &serde_json::Value) -> Result<TenantKeys, CertError> {
+    let obj = v.as_object().ok_or_else(|| {
+        CertError::Invalid("trusted keys are not a JSON object of key id -> key entry".into())
+    })?;
+    let mut out = TenantKeys::new();
+    for (kid, entry) in obj {
+        let bad = || CertError::BadKey(kid.clone());
+        let trusted = match entry {
+            serde_json::Value::String(key) => TrustedKey {
+                key: key.clone(),
+                mode: KeyMode::Operator,
+            },
+            serde_json::Value::Object(e) => {
+                if e.keys()
+                    .any(|k| !matches!(k.as_str(), "key" | "mode" | "host"))
+                {
+                    return Err(bad());
+                }
+                let key = e.get("key").and_then(|k| k.as_str()).ok_or_else(bad)?;
+                let host = e.get("host");
+                let mode = match (e.get("mode").and_then(|m| m.as_str()), host) {
+                    (Some("operator"), None) => KeyMode::Operator,
+                    (Some("hosted"), Some(serde_json::Value::String(h))) if key_id_form(h) => {
+                        KeyMode::Hosted { host: h.clone() }
+                    }
+                    _ => return Err(bad()),
+                };
+                TrustedKey {
+                    key: key.to_string(),
+                    mode,
+                }
+            }
+            _ => return Err(bad()),
+        };
+        out.insert(kid.clone(), trusted);
+    }
+    Ok(out)
+}
+
+/// Verify `v` for the tenant the consumer expects, against that tenant's moded keys, and read it
+/// (spec v1.5 §4).
+///
+/// A v1.5 certificate: its `tenant` equals `tenant` (check 1, [`CertError::WrongTenant`]); its key
+/// is in `keys` and hashes to its id (check 2); the key's entry allows the certificate's signer mode,
+/// a hosted entry with the certificate's `host` (check 3, [`CertError::KeyMode`]); and the signature
+/// verifies strictly over `"decision-cert/certificate.v1.5" 0x0A tenant 0x0A JCS(body)`, built with
+/// the expected `tenant` (check 4). A v1 to v1.4 certificate binds no tenant: it verifies as with
+/// [`verify`], and only under an `operator` entry.
+pub fn verify_for_tenant(
+    v: &serde_json::Value,
+    tenant: &str,
+    keys: &TenantKeys,
+) -> Result<Verified, CertError> {
+    if !tenant_ok(tenant) {
+        return Err(CertError::Invalid(format!(
+            "the expected tenant must be 1 to {MAX_TENANT} characters of A-Z a-z 0-9 . _ : -"
+        )));
+    }
+    let (obj, cert) = read(v)?;
+    let kid = &cert.signer_key_id;
+    if cert.spec != SPEC_V1_5 {
+        let entry = keys
+            .get(kid)
+            .ok_or_else(|| CertError::UntrustedKey(kid.clone()))?;
+        let key = public_key(&entry.key, kid)?;
+        if entry.mode != KeyMode::Operator {
+            return Err(CertError::KeyMode(kid.clone()));
+        }
+        check_signature(&key, &cert, &bare_body(obj)?)?;
+        return verified(v, cert);
+    }
+    // check() has made both present, the tenant well-formed and the signer one of the two modes
+    let (Some(own), Some(signer)) = (&cert.tenant, &cert.signer) else {
+        return Err(CertError::Invalid(
+            "a v1.5 certificate needs tenant and signer".into(),
+        ));
+    };
+    if own != tenant {
+        return Err(CertError::WrongTenant(own.clone()));
+    }
+    let entry = keys
+        .get(kid)
+        .ok_or_else(|| CertError::UntrustedKey(kid.clone()))?;
+    let key = public_key(&entry.key, kid)?;
+    let allowed = match (&entry.mode, signer.mode.as_str()) {
+        (KeyMode::Operator, "operator") => true,
+        (KeyMode::Hosted { host }, "hosted") => signer.host.as_deref() == Some(host.as_str()),
+        _ => false,
+    };
+    if !allowed {
+        return Err(CertError::KeyMode(kid.clone()));
+    }
+    let mut msg = format!("{CONTEXT_V1_5}\n{tenant}\n").into_bytes();
+    msg.extend(bare_body(obj)?);
+    check_signature(&key, &cert, &msg)?;
+    verified(v, cert)
+}
+
+/// The value as a JSON object and its typed, checked certificate.
+fn read(
+    v: &serde_json::Value,
+) -> Result<(&serde_json::Map<String, serde_json::Value>, Certificate), CertError> {
     let obj = v
         .as_object()
         .ok_or_else(|| CertError::Invalid("not a JSON object".into()))?;
     let cert: Certificate =
         serde_json::from_value(v.clone()).map_err(|e| CertError::Invalid(e.to_string()))?;
     check(&cert)?;
+    Ok((obj, cert))
+}
 
-    let raw = keys
-        .get(&cert.signer_key_id)
-        .ok_or_else(|| CertError::UntrustedKey(cert.signer_key_id.clone()))?;
-    let key = URL_SAFE_NO_PAD
+/// A trusted key's base64url raw public key, which must hash to `kid`.
+fn public_key(raw: &str, kid: &str) -> Result<VerifyingKey, CertError> {
+    URL_SAFE_NO_PAD
         .decode(raw)
         .ok()
         .and_then(|b| <[u8; 32]>::try_from(b).ok())
         .and_then(|b| VerifyingKey::from_bytes(&b).ok())
-        .filter(|k| key_id(k) == cert.signer_key_id)
-        .ok_or_else(|| CertError::BadKey(cert.signer_key_id.clone()))?;
+        .filter(|k| key_id(k) == kid)
+        .ok_or_else(|| CertError::BadKey(kid.to_string()))
+}
+
+/// The JCS bytes of the certificate without `signature`.
+fn bare_body(obj: &serde_json::Map<String, serde_json::Value>) -> Result<Vec<u8>, CertError> {
+    let mut body = obj.clone();
+    body.remove("signature");
+    canonical(&serde_json::Value::Object(body))
+}
+
+/// `verify_strict` of the certificate's signature over `msg`.
+fn check_signature(key: &VerifyingKey, cert: &Certificate, msg: &[u8]) -> Result<(), CertError> {
     let sig = URL_SAFE_NO_PAD
         .decode(&cert.signature)
         .ok()
         .and_then(|b| Signature::from_slice(&b).ok())
         .ok_or(CertError::BadSignature)?;
-    let mut body = obj.clone();
-    body.remove("signature");
-    key.verify_strict(&canonical(&serde_json::Value::Object(body))?, &sig)
-        .map_err(|_| CertError::BadSignature)?;
+    key.verify_strict(msg, &sig)
+        .map_err(|_| CertError::BadSignature)
+}
 
+fn verified(v: &serde_json::Value, cert: Certificate) -> Result<Verified, CertError> {
     Ok(Verified {
         id: certificate_id(v)?,
         expires_at: timestamp(&cert.expires_at)?,
         cert,
     })
+}
+
+/// 1 to 128 characters of `A-Z a-z 0-9 . _ : -` (spec v1.5 §2).
+fn tenant_ok(t: &str) -> bool {
+    (1..=MAX_TENANT).contains(&t.len())
+        && t.bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b':' | b'-'))
+}
+
+/// `ed25519:` and 16 lowercase hex characters: a key id's form.
+fn key_id_form(s: &str) -> bool {
+    s.strip_prefix("ed25519:")
+        .is_some_and(|h| h.len() == 16 && lower_hex(h))
 }
 
 /// The schema's constraints (spec/decision-certificate.v1.schema.json, the v1.1 schema, which
@@ -436,7 +653,7 @@ fn check(c: &Certificate) -> Result<(), CertError> {
     let open = |x: f64| x > 0.0 && x < 1.0;
     let threshold = |x: f64| (0.0..=ABSTAIN_ALL).contains(&x);
     if !SPECS.contains(&c.spec.as_str()) {
-        return bad("spec is not decision-certificate.v1, decision-certificate.v1.1, decision-certificate.v1.2, decision-certificate.v1.3 or decision-certificate.v1.4");
+        return bad("spec is not decision-certificate.v1, decision-certificate.v1.1, decision-certificate.v1.2, decision-certificate.v1.3, decision-certificate.v1.4 or decision-certificate.v1.5");
     }
     fields_for_spec(c)?;
     let mut seen = std::collections::BTreeSet::new();
@@ -455,7 +672,8 @@ fn check(c: &Certificate) -> Result<(), CertError> {
     {
         return bad("domain, decision, calibration_map.kind and issuer must be non-empty");
     }
-    let v14 = c.spec == SPEC_V1_4;
+    let v15 = c.spec == SPEC_V1_5;
+    let v14 = c.spec == SPEC_V1_4 || v15;
     match (c.method.as_str(), c.risk.as_str(), c.delta, c.ucb) {
         ("ltt", "selective_error", Some(d), _) if open(d) => {}
         ("ltt", "selective_cost", Some(d), _) if v14 && open(d) => {}
@@ -498,8 +716,7 @@ fn check(c: &Certificate) -> Result<(), CertError> {
     if !sha256_ok(&c.data_hash) || c.manifest_hash.as_deref().is_some_and(|h| !sha256_ok(h)) {
         return bad("data_hash and manifest_hash must be sha256:<64 hex>");
     }
-    let key_hex = c.signer_key_id.strip_prefix("ed25519:");
-    if !key_hex.is_some_and(|h| h.len() == 16 && lower_hex(h)) {
+    if !key_id_form(&c.signer_key_id) {
         return bad("signer_key_id must be ed25519:<16 hex>");
     }
     if c.signature.len() != 86
@@ -526,6 +743,24 @@ fn check(c: &Certificate) -> Result<(), CertError> {
     if v14 {
         cost(c)?;
     }
+    if v15 {
+        if !c.tenant.as_deref().is_some_and(tenant_ok) {
+            return Err(CertError::Invalid(format!(
+                "tenant must be 1 to {MAX_TENANT} characters of A-Z a-z 0-9 . _ : -"
+            )));
+        }
+        let signer_ok =
+            c.signer
+                .as_ref()
+                .is_some_and(|s| match (s.mode.as_str(), s.host.as_deref()) {
+                    ("operator", None) => true,
+                    ("hosted", Some(h)) => key_id_form(h),
+                    _ => false,
+                });
+        if !signer_ok {
+            return bad("signer must be {\"mode\": \"operator\"} or {\"mode\": \"hosted\", \"host\": \"ed25519:<16 hex>\"}");
+        }
+    }
     Ok(())
 }
 
@@ -534,7 +769,8 @@ fn check(c: &Certificate) -> Result<(), CertError> {
 /// fields belong to another spec is refused as a spec it is not, so a v1.1-shaped certificate naming
 /// v1.2, or a v1.2-shaped one naming v1.3, is still refused as an unknown spec.
 fn fields_for_spec(c: &Certificate) -> Result<(), CertError> {
-    let v14 = c.spec == SPEC_V1_4;
+    let v15 = c.spec == SPEC_V1_5;
+    let v14 = c.spec == SPEC_V1_4 || v15;
     let v13 = c.spec == SPEC_V1_3 || v14;
     let v12 = c.spec == SPEC_V1_2 || v13;
     // (name, present, required by this spec): the v1.2 fields first, then the v1.3 ones.
@@ -551,6 +787,8 @@ fn fields_for_spec(c: &Certificate) -> Result<(), CertError> {
         ("pvalue", c.pvalue.is_some(), v14),
         ("loss_sum", c.loss_sum.is_some(), v14),
         ("realized_cost", c.realized_cost.is_some(), v14),
+        ("tenant", c.tenant.is_some(), v15),
+        ("signer", c.signer.is_some(), v15),
     ];
     for s in &c.segments {
         present.push((

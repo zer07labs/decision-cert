@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from support import KEYS, base, resign, set_path
+from support import HOST_ID, KEYS, KID, base, resign, resign_for, set_path
 
 import decision_cert as dc
 
@@ -243,6 +243,35 @@ V14_VALUES: list[Any] = [
     {"matrix": [[0, 1], [5, 0]], "c_max": 5, "unit": "usd"},
 ]
 
+V15_PATHS = [
+    "tenant",
+    "signer",
+    "signer.mode",
+    "signer.host",
+    "signer.extra",
+    "spec",
+    "cost",
+    "automate_options",
+]
+
+V15_VALUES: list[Any] = [
+    "acme-bank",
+    "other-bank",
+    "acme bank",
+    "a" * 128,
+    "a" * 129,
+    "operator",
+    "hosted",
+    HOST_ID,
+    "ed25519:0123456789ABCDEF",
+    {"mode": "operator"},
+    {"mode": "hosted", "host": HOST_ID},
+    {"mode": "hosted"},
+    {"mode": "operator", "host": HOST_ID},
+    "decision-certificate.v1.4",
+    "decision-certificate.v1.5",
+]
+
 DR_PATHS = [
     "calibration_map.kind",
     "calibration_map.params",
@@ -338,6 +367,31 @@ def cases() -> list[tuple[str, str]]:
             add(f"v14-edit{i}-{path}", resign(c))
         except dc.Invalid:
             add(f"v14-unsigned{i}-{path}", c)
+    v15 = [
+        "v1.5/valid_operator",
+        "v1.5/valid_hosted",
+        "v1.5/valid_cost_segments",
+        "v1.5/valid_crc_abstain_all",
+        "v1.5/valid_earlier_spec_under_operator_key",
+    ]
+    for i in range(400):
+        c = base(rng.choice(v15))
+        path = rng.choice(V15_PATHS + PATHS[:4])
+        value = rng.choice(V15_VALUES + EDGE_VALUES[:24])
+        try:
+            c = set_path(c, path, value)
+        except (KeyError, IndexError, TypeError):
+            continue
+        # the tenant's key entry for KEY: operator, or hosted by HOST_ID; the expected tenant, mostly acme-bank
+        entry: Any = rng.choice([KEYS[KID], {"key": KEYS[KID], "mode": "operator"}])
+        if rng.random() < 0.4:
+            entry = {"key": KEYS[KID], "mode": "hosted", "host": HOST_ID}
+        tenant = rng.choice(["acme-bank"] * 4 + ["other-bank"])
+        try:
+            cert = resign_for(c, tenant)
+        except dc.Invalid:
+            cert = c
+        out.append((f"v15-edit{i}-{path}", json.dumps({"certificate": cert, "keys": {KID: entry}, "tenant": tenant})))
     for name, raw in [("minus-zero-int", '"n": -0'), ("float-int", '"n": 2500.0'), ("exp-int", '"n": 25e2')]:
         c = resign(base())
         text = json.dumps({"certificate": c, "keys": KEYS}).replace('"n": 2500', raw, 1)
@@ -348,14 +402,24 @@ def cases() -> list[tuple[str, str]]:
 def python_verdict(text: str) -> dict[str, Any]:
     try:
         f = dc.loads(text)
-        v = dc.verify(f["certificate"], f["keys"])
+        if "tenant" in f:
+            v = dc.verify_for_tenant(f["certificate"], f["tenant"], dc.tenant_keys_from_json(f["keys"]))
+        else:
+            v = dc.verify(f["certificate"], f["keys"])
         return {"valid": True, "id": v.id}
     except dc.CertError as e:
         return {"valid": False, "error": str(e)}
 
 
 def kind(error: str) -> str:
-    for k in ("not a valid", "not a trusted key", "trusted key", "signature does not verify"):
+    for k in (
+        "not a valid",
+        "is for tenant",
+        "may not sign in this mode",
+        "not a trusted key",
+        "trusted key",
+        "signature does not verify",
+    ):
         if k in error:
             return k
     return error
