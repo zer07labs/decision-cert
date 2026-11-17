@@ -4,6 +4,8 @@
 > are recorded below ([Decided](#decided-owner-2026-11-17), 2026-11-17). No code and no spec freeze
 > are approved, and no third party has been contacted. Tracks
 > [#28](https://github.com/zer07labs/decision-cert/issues/28). Shared rules: [README](README.md).
+>
+> **Build plan:** [`plans/transparency-log-2026-11.md`](../../plans/transparency-log-2026-11.md).
 
 ## The problem
 
