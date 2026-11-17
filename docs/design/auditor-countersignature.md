@@ -1,8 +1,9 @@
 # An independent auditor's countersignature (#29)
 
-> **Design only** (owner go for design docs, 2026-11-16). No code, no spec freeze, no third party
-> contacted. Tracks [#29](https://github.com/zer07labs/decision-cert/issues/29). Shared rules:
-> [README](README.md).
+> **Design only** (owner go for design docs, 2026-11-16). The owner's answers to its open questions
+> are recorded below ([Decided](#decided-owner-2026-11-17), 2026-11-17). No code and no spec freeze
+> are approved, and no third party has been contacted. Tracks
+> [#29](https://github.com/zer07labs/decision-cert/issues/29). Shared rules: [README](README.md).
 
 ## The problem
 
@@ -29,7 +30,8 @@ the certificate it names; nothing about it is published.
 | T5 | Outsiders | Learn about the tenant | The attestation holds only the certificate id, the checks and hashes, and stays in the tenant's scope. |
 
 **Out of scope.** Whether the labels are right, beyond a re-label sample the auditor reports; how the
-auditor obtains the data (the tenant's export process); accreditation of auditors as a profession.
+auditor obtains the data (the tenant's export process, and for a hosted tenant the hosting
+service's multi-tenant design, owner 2026-11-17); accreditation of auditors as a profession.
 
 ## Design
 
@@ -77,14 +79,18 @@ re-label, become separate checks rather than one statement):
 |---|---|---|
 | `data_hash` | Recomputed `data_hash` from the labelled cases the tenant exported, with the tuple of the certificate's `spec` (spec v1.3 §2 adds `cannot_tell`). | the data |
 | `manifest_hash` | Hashed the manifest file. `not_applicable` when the certificate's is null. | the manifest |
-| `reproduce` | Re-ran an issuer on the same inputs and configuration and compared every measured field: all fields except `fitted_at`, `expires_at` (which follows it when `window` is null), `issuer`, `signer_key_id` and `signature`. `comparison` is `exact`, or `tolerance` with the bound used (open question 2). | the data, predictions, configuration |
+| `reproduce` | Re-ran an issuer on the same inputs and configuration and compared every measured field: all fields except `fitted_at`, `expires_at` (which follows it when `window` is null), `issuer`, `signer_key_id` and `signature`. `comparison` is `exact`, or `tolerance` with the float tolerance used, stated in the attestation (owner, 2026-11-17). Counts are always exact. | the data, predictions, configuration |
 | `ledger` | Verified the ledger chain through `through_seq` and counted the attempts on the same threshold split ([R1](r1-issuance-ledger.md)). | the ledger |
 | `roles` | Checked the role declarations against the tenant's records of training, tuning and selection, and opened the role commitments with the salt (R1). | the salt and records |
 | `inclusion` | Checked the certificate's inclusion and the log's consistency ([#28](transparency-log.md)). | the log export |
-| `relabel_sample` | Re-labelled a random sample of the labelled cases and reports how many labels differ. Descriptive: no bound is claimed for it. | the cases, a labeller |
+| `relabel_sample` | Re-labelled a random sample of the labelled cases and reports how many labels differ. Descriptive: no bound is claimed for it. Deferred by the owner (2026-11-17): not in the first version. | the cases, a labeller |
 
 An attestation can carry a `mismatch`. A negative attestation is still signed and still useful: it
 records that the check was done and failed.
+
+**The minimum attestation** (owner, 2026-11-17) is `data_hash` and `reproduce`: the data hash
+recomputed, plus a re-run, with the float tolerance stated in the attestation when `comparison` is
+`tolerance`.
 
 **The statement.** An attestation records that the attester ran the listed checks on the inputs the
 tenant provided, and their results. It says nothing more about the decisions than the certificate
@@ -97,8 +103,8 @@ out checkable by someone other than the operator.
 An auditor's key has role `attester` in the tenant's key set ([K1](k1-key-revocation-rotation.md)),
 so the tenant chooses which auditors its consumers trust, and K1 rotates and revokes those keys like
 any other. There is no central list of auditors: a shared registry would be a cross-tenant view of
-who audits whom. Whether any recognised list should ever exist is an open question (#29's third
-question).
+who audits whom. The owner decided on 2026-11-17 that the tenant chooses its auditors, with no
+recognised list (#29's third question).
 
 ### What a consumer checks, offline
 
@@ -110,7 +116,7 @@ question).
 certificate:
   attestations:
     required: 1                            # at least this many attestations
-    checks: [data_hash, reproduce]         # each with result match
+    checks: [data_hash, reproduce]         # the minimum; each with result match
     on_missing: warn                       # off | warn | refuse
 ```
 
@@ -119,7 +125,8 @@ from keys it trusts, as #29 proposes. Nothing needs the network.
 
 ### Attestations in the tenant log
 
-Each attestation is appended to the tenant log as a leaf ([#28](transparency-log.md)), so an auditor
+Every attestation, `mismatch` included, is appended to the tenant log as a leaf
+([#28](transparency-log.md); owner, 2026-11-17), so an auditor
 cannot quietly withdraw one and a tenant cannot quietly drop a negative one: the tenant's next
 auditor sees every attestation ever made for a certificate.
 
@@ -141,23 +148,24 @@ auditor sees every attestation ever made for a certificate.
 - **in-toto attestations in a DSSE envelope.** A reasonable envelope: DSSE separates contexts by
   design, and in-toto's statement names a subject by digest, which `certificate_id` is. Against it:
   a second canonicalisation and envelope beside JCS, and more dependencies for the verifiers, which
-  keep two. Left as an open question.
+  keep two. Not chosen: the owner chose this repository's JCS form (2026-11-17).
 - **W3C Verifiable Credentials.** Heavier still (JSON-LD, identifiers), with nothing this needs.
 - **Status quo: the auditor re-runs and writes a report.** Leaves no machine-checkable trace.
 
-## Open questions for the owner
+## Decided (owner, 2026-11-17)
 
-1. **The minimum attestation.** Which checks must an attestation have for a consumer's default
-   policy: `data_hash` and `reproduce` (recommended)?
-2. **Reproduction across versions.** `exact` only with the same issuer version, or a stated
-   tolerance on floating-point fields (the temperature and the thresholds that follow from it,
-   `ucb`, the bands) when the auditor's numeric libraries differ? Counts would always be exact.
-3. **Accreditation.** Tenant-chosen auditors only (recommended), or a recognised list later?
-4. **Re-label samples.** In the first version, and with which sampling rule?
-5. **Envelope.** This repository's JCS form (recommended), or in-toto with DSSE?
-6. **Negative attestations.** Must every attestation, `mismatch` included, go into the tenant log?
-7. **The auditor's access** to a hosted tenant's data: part of the hosted multi-tenant design, not
-   this format. Confirm.
+- **Q1. The minimum attestation?** `data_hash` plus a `reproduce` re-run.
+- **Q2. Reproduction across versions?** A stated float tolerance is allowed: the attestation states
+  the tolerance it used for floating-point fields. Counts are always exact.
+- **Q3. Accreditation?** The tenant chooses its auditors. No recognised list.
+- **Q4. Re-label samples?** Later: deferred, not in the first version. The sampling rule is decided
+  then.
+- **Q5. Envelope?** This repository's JCS form, not in-toto with DSSE.
+- **Q6. Negative attestations?** Every attestation, `mismatch` included, goes into the tenant log.
+- **Q7. The auditor's access to a hosted tenant's data?** Confirmed: it belongs to the hosting
+  service's multi-tenant design, not this format.
+
+These answers record design choices only. No code and no spec freeze are approved.
 
 ## What an implementation would touch
 
