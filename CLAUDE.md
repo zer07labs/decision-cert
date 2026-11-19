@@ -4,8 +4,8 @@ The open `decision-certificate.v1`, `v1.1`, `v1.2`, `v1.3`, `v1.4` and `v1.5` sp
 sidecar spec `decision-cert-inclusion.v1`, the Rust verifier crate (`rust/`), the Python verifier
 (`python/`), and the conformance fixtures. See [`README.md`](README.md).
 
-decision-cert depends on nothing else of ours. Consumers pin a released version (crates.io and
-PyPI, both `decision-cert`) or a git revision. It holds no data and never calls a network service.
+decision-cert depends on nothing else of ours. Consumers pin a released version (crates.io,
+PyPI and npm, all `decision-cert`) or a git revision. It holds no data and never calls a network service.
 
 ## Repo rules
 
@@ -41,6 +41,8 @@ PyPI, both `decision-cert`) or a git revision. It holds no data and never calls 
 | `cd python && uv run python tools/gen_negative_fixtures.py` | regenerate the negative fixtures and `fixtures/FIXTURES.sha256` |
 | `cd python && uv run python tools/gen_inclusion_fixtures.py` | regenerate `fixtures/inclusion-v1/` (trees, bundles, consistency documents, trust configurations, `manifest.json`, `INCLUSION.sha256`) from fixed seeds |
 | `cd python && uv run python -m decision_cert log init\|append\|checkpoint\|prove\|consistency\|info` / `witness init\|cosign` | the reference log and witness (inclusion v1, file-based, one tenant per log); see `docs/certificates.md` |
+| `wasm/build.sh` | build the npm package `decision-cert` (the crate as WebAssembly, wasm-pack `--target nodejs`) into `wasm/dist/`; prints the `.wasm` SHA-256 |
+| `node wasm/conformance.cjs wasm/dist fixtures [set ...]` | every fixture set through the WebAssembly build against the Rust tests' verdicts (CI job `wasm`) |
 | `cd interop/c2sp && go run . ../../fixtures/inclusion-v1` | the independent check of the inclusion checkpoints with the Go C2SP libraries (CI job `c2sp-interop`, informational) |
 | `cd python && uv run python tools/gen_demos.py` | rewrite `demo/example/` and `demo/DEMOS.sha256` |
 | `cd python && uv run python -m decision_cert verify-pack <pack> [--keys <keys>]` | verify an evidence pack ([`docs/evidence-pack.md`](docs/evidence-pack.md)) |
