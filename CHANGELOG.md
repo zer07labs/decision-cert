@@ -3,7 +3,7 @@
 All notable changes to this repository. The spec (`decision-certificate.v1`, `v1.1`, `v1.2`, `v1.3`, `v1.4` and `v1.5`, all
 frozen) is versioned separately; this log covers the crate, the verifiers, the fixtures and the docs.
 
-## Unreleased
+## 0.8.0 — unreleased (tag `v0.8.0` on the merge commit)
 
 - **`chrono` replaced by `time`** (#66; RUSTSEC-2026-0543, `chrono` unmaintained). The RUSTSEC-2026-0543 ignore is
   removed from `rust/deny.toml`. Timestamps accepted and refused, error messages and every verifier line are
@@ -23,7 +23,7 @@ frozen) is versioned separately; this log covers the crate, the verifiers, the f
     `v.is_expired(decision_cert::UtcDateTime::now())`, when it moves to the release with this change. JSON and CLI
     output are unchanged, so callers of the CLI or the Python package need no change.
 
-## 0.7.0 — unreleased (tag `v0.7.0` on the merge commit)
+## 0.7.0 — 2026-11-17 (tag `v0.7.0`)
 
 Inclusion v1: frozen, verified, logged. A certificate can now carry proof that it sits in its tenant's transparency
 log, checked by both verifiers; the certificate specs (v1 to v1.5), their fixtures and verdicts are unchanged, and
