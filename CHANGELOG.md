@@ -3,7 +3,39 @@
 All notable changes to this repository. The spec (`decision-certificate.v1`, `v1.1`, `v1.2`, `v1.3`, `v1.4` and `v1.5`, all
 frozen) is versioned separately; this log covers the crate, the verifiers, the fixtures and the docs.
 
-## 0.8.0 — unreleased (tag `v0.8.0` on the merge commit)
+## 0.9.0 — unreleased (tag `v0.9.0` on the merge commit)
+
+A public WebAssembly verifier on npm, so a Node.js service and an auditor offline run the same check as
+the Rust crate. Additive: no spec, fixture or verdict changes, and every existing function is unchanged.
+
+- **`verify_document(v, tenant, keys, now)`** (Rust): exactly `verify_for_tenant`, plus the expiry at the
+  caller's `now` (`Verified::is_expired`) and the certificate id recomputed from the document, returned
+  as separate results in a `DocumentVerdict` (`certificate_id`, `verification`, `expiry`, with the new
+  `Expiry { now, expires_at, expired }`), never one yes or no. The crate still reads no clock. A new
+  conformance test holds it to the existing verdict on every fixture of v1 to v1.5, with expiry checked
+  at each certificate's `fitted_at` and `expires_at`. The Python package is unchanged apart from its
+  version: it already has `verify_for_tenant` and `Verified.is_expired`, and the verdicts it must agree
+  on are unchanged.
+- **The npm package `decision-cert`** (`wasm/`): a thin wasm-bindgen layer over the crate, a separate
+  crate so the Rust package gains no dependency, built with wasm-pack `--target nodejs` (no wasm-opt).
+  It exports `verifyDocument`, `certificateId`, `verifyBundle`, and the rest of the inclusion checks
+  (`verifyConsistency`, `readTrust`, `checkTenants`, `applyPolicy`, `leafHash`, `hashLeafBytes`,
+  `verifyInclusionPath`, `verifyConsistencyPath`), with TypeScript types. Documents are passed as JSON
+  text and `now` as an RFC 3339 string. A refused certificate carries the `CertError` variant name and
+  its message; relay the name (the `WrongTenant` message names the certificate's tenant). The inclusion
+  checks return the CLI's verdict lines with the spec's error names.
+- **CI job `wasm`**: builds the package with pinned tools (Rust 1.100.0, wasm-pack 0.15.1,
+  wasm-bindgen 0.2.130, Node 22.23.4) and runs every fixture set (v1 to v1.5 with their mutations, and
+  every inclusion-v1 case) through it in Node with `wasm/conformance.cjs`, comparing each verdict with
+  the one the Rust tests expect and printing a count per set; it also checks the package's files
+  (`npm pack --dry-run`), its LICENSE and version, and `cargo deny` for `wasm/`.
+- **Release**: an `npm` job (environment `npm`) builds the same way, runs every fixture set, and runs
+  `npm publish --access public --provenance`; the `target` input is now `all`, `crates-io`, `pypi` or
+  `npm`. The `.wasm`'s SHA-256 is in the job summary and log, and the readback installs the tagged
+  version fresh from npm, checks that its `.wasm` has the published digest, and verifies the v1.5
+  fixtures with it.
+
+## 0.8.0 — 2026-11-19 (tag `v0.8.0`)
 
 - **`chrono` replaced by `time`** (#66; RUSTSEC-2026-0543, `chrono` unmaintained). The RUSTSEC-2026-0543 ignore is
   removed from `rust/deny.toml`. Timestamps accepted and refused, error messages and every verifier line are
