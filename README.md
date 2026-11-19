@@ -70,6 +70,7 @@ certificate and its expiry.
 |---|---|
 | [`spec/`](spec/) | [`decision-cert-inclusion.v1.md`](spec/decision-cert-inclusion.v1.md), the transparency-log sidecar (**frozen** 2026-11-17), [`decision-certificate.v1.5.md`](spec/decision-certificate.v1.5.md) (**frozen** 2026-11-17), [`decision-certificate.v1.4.md`](spec/decision-certificate.v1.4.md) and [`decision-certificate.v1.3.md`](spec/decision-certificate.v1.3.md) (**frozen** 2026-11-12), [`decision-certificate.v1.2.md`](spec/decision-certificate.v1.2.md) (**frozen** 2026-11-08), [`decision-certificate.v1.1.md`](spec/decision-certificate.v1.1.md) (**frozen** 2026-11-08), [`decision-certificate.v1.md`](spec/decision-certificate.v1.md) (**frozen** 2026-10-25), and a JSON Schema for each |
 | [`rust/`](rust/) | the `decision-cert` crate: `verify`, `canonical`, `certificate_id`, `key_id`, segment thresholds, expiry, the v1.2 calibration maps (`probabilities`, `confidence`) and shift score, and `inclusion`, the verifier for the transparency-log inclusion proofs ([`spec/decision-cert-inclusion.v1.md`](spec/decision-cert-inclusion.v1.md): `verify_bundle`, `verify_consistency`, `apply_policy`) |
+| [`wasm/`](wasm/) | the npm package `decision-cert`: the crate compiled to WebAssembly for Node.js (`verifyDocument`, `certificateId`, `verifyBundle` and the rest of the inclusion checks), with [`wasm/conformance.cjs`](wasm/conformance.cjs), which runs every fixture set through it |
 | [`python/`](python/) | a pure-Python verifier (`decision_cert`), a port of the crate that passes the same fixtures, the inclusion verifier included |
 | [`fixtures/`](fixtures/) | conformance fixtures: signed certificates with their canonical bytes, ids and expected verdicts, plus `mutations/schema_invalid.json`, schema-invalid certificates a verifier must reject; v1 at the top level, v1.1 in `fixtures/v1.1/`, v1.2 in `fixtures/v1.2/`, v1.3 in `fixtures/v1.3/`, v1.4 in `fixtures/v1.4/`, v1.5 in `fixtures/v1.5/` |
 | [`interop/c2sp/`](interop/c2sp/) | an independent check of the inclusion fixtures' checkpoints with the Go C2SP libraries (CI job `c2sp-interop`) |
@@ -138,6 +139,7 @@ decision-cert = "0.1"
 
 ```bash
 pip install decision-cert      # Python 3.12+, depends on rfc8785 and cryptography only
+npm install decision-cert      # Node.js: the Rust crate compiled to WebAssembly
 ```
 
 Releases are tagged `vX.Y.Z` on `main` and published from CI
@@ -154,6 +156,41 @@ Working on this repository:
 cd rust && cargo test --all-features     # unit tests + the conformance suite over ../fixtures
 cd python && uv sync && uv run pytest     # the Python verifier, incl. agreement with the crate
 ```
+
+## In Node.js, or offline
+
+The npm package `decision-cert` is the Rust crate compiled to WebAssembly
+([`wasm/`](wasm/), [`wasm/npm/README.md`](wasm/npm/README.md)), so a service in Node.js and an auditor
+on a machine with no network run the same check, with the same verdicts:
+
+```js
+const { verifyDocument } = require("decision-cert");
+const r = verifyDocument(certText, "acme-bank", trustedKeysText, "2026-11-19T00:00:00Z");
+r.verification; // { verdict: "accepted", certificate_id, ... } or { verdict: "refused", error: "WrongTenant", message }
+r.expiry;       // { now, expires_at, expired } when accepted, else null
+r.certificate_id;
+```
+
+It reads no clock and calls no network service: the caller passes the time to check expiry at, so
+the same certificate, keys and time give the same three results anywhere. The verification, the
+expiry and the id are separate results, never one yes or no. A refusal carries the crate's
+`CertError` variant name (`Invalid`, `UntrustedKey`, `BadKey`, `BadSignature`, `WrongTenant`,
+`KeyMode`); relay the name, since `WrongTenant`'s message names the certificate's tenant. The inclusion
+checks (`verifyBundle`, `verifyConsistency`, `applyPolicy`) return the CLI's verdict lines.
+
+An auditor can check the package before relying on it: CI runs every fixture set (v1 to v1.5 with
+their mutations, and inclusion-v1) through the WebAssembly build and compares each verdict with the
+crate's, and each release records the SHA-256 of `decision_cert_bg.wasm` in its workflow log, checked
+again after installing the published version from npm. Offline, with the repository and an installed
+copy:
+
+```bash
+sha256sum node_modules/decision-cert/decision_cert_bg.wasm
+node wasm/conformance.cjs node_modules/decision-cert fixtures
+```
+
+In Rust the same call is `decision_cert::verify_document(&cert, tenant, &keys, now)`, which returns a
+`DocumentVerdict` with the same three results.
 
 ## Writing another verifier
 

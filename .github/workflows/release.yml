@@ -1,10 +1,12 @@
 name: release
 
-# Publishes decision-cert to crates.io and PyPI when the owner pushes a tag vX.Y.Z on main.
+# Publishes decision-cert to crates.io, PyPI and npm when the owner pushes a tag vX.Y.Z on main.
 # crates.io: the CRATES_IO_TOKEN repository secret. PyPI: trusted publishing (OIDC), no token;
 # the PyPI project trusts this repository, workflow `release.yml` and environment `pypi`.
+# npm: the NPM_TOKEN secret of environment `npm`, published with provenance (OIDC, `id-token: write`);
+# the package is the WebAssembly build in wasm/, built with the tool versions the CI `wasm` job pins.
 #
-# The two registries are separate jobs: a failure in one never blocks the other. To publish one
+# The three registries are separate jobs: a failure in one never blocks the others. To publish one
 # registry alone (e.g. PyPI once trusted publishing is set up, after crates.io went out), run this
 # workflow by hand on the tag (Actions -> release -> Run workflow, "Use workflow from": the tag)
 # and pick the target, or re-run just that failed job.
@@ -17,8 +19,8 @@ on:
       target:
         description: Registry to publish to (run on a vX.Y.Z tag)
         type: choice
-        options: [both, crates-io, pypi]
-        default: both
+        options: [all, crates-io, pypi, npm]
+        default: all
 
 concurrency:
   group: release-${{ github.ref }}
@@ -35,7 +37,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: the tag is on main and matches both package versions
+      - name: the tag is on main and matches every package version
         run: |
           if [ "$GITHUB_REF_TYPE" != tag ]; then echo "run on a vX.Y.Z tag, not $GITHUB_REF"; exit 1; fi
           v="${GITHUB_REF_NAME#v}"
@@ -43,6 +45,8 @@ jobs:
           grep -qx "version = \"$v\"" rust/Cargo.toml
           grep -qx "version = \"$v\"" python/pyproject.toml
           grep -qx "__version__ = \"$v\"" python/src/decision_cert/__init__.py
+          grep -qx "version = \"$v\"" wasm/Cargo.toml
+          test "$(jq -r .version wasm/npm/package.json)" = "$v"
       - uses: dtolnay/rust-toolchain@stable
       - uses: astral-sh/setup-uv@v6
       - name: the full test suite passes at the tag
@@ -52,7 +56,7 @@ jobs:
 
   crates-io:
     needs: check
-    if: github.event_name == 'push' || inputs.target != 'pypi'
+    if: github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'crates-io'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
     environment: crates-io
@@ -67,7 +71,7 @@ jobs:
 
   pypi:
     needs: check
-    if: github.event_name == 'push' || inputs.target != 'crates-io'
+    if: github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'pypi'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
     environment: pypi
@@ -84,10 +88,59 @@ jobs:
         with:
           packages-dir: python/dist
 
+  npm:
+    # The WebAssembly build, with the tool versions the CI `wasm` job pins (change them together); every
+    # fixture set runs through it before it is published. The .wasm's SHA-256 is in the job summary and
+    # log, and the readback checks the published file against it.
+    needs: check
+    if: github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'npm'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write  # npm provenance
+    outputs:
+      wasm_sha256: ${{ steps.build.outputs.wasm_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.100.0"
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.15.1,wasm-bindgen@0.2.130
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.4"
+          registry-url: https://registry.npmjs.org
+      - name: the pinned tool versions
+        run: |
+          rustc --version | grep -F 'rustc 1.100.0 '
+          test "$(wasm-pack --version)" = "wasm-pack 0.15.1"
+          test "$(wasm-bindgen --version)" = "wasm-bindgen 0.2.130"
+          test "$(node --version)" = "v22.23.4"
+      - name: build the package, and its .wasm's SHA-256
+        id: build
+        run: |
+          wasm/build.sh
+          d="$(sha256sum wasm/dist/decision_cert_bg.wasm | cut -d' ' -f1)"
+          echo "wasm_sha256=$d" >> "$GITHUB_OUTPUT"
+          echo "decision-cert ${GITHUB_REF_NAME#v} (npm): decision_cert_bg.wasm sha256 $d"
+          { echo "### decision-cert ${GITHUB_REF_NAME#v} on npm"; echo; echo "\`decision_cert_bg.wasm\` sha256: \`$d\`"; } >> "$GITHUB_STEP_SUMMARY"
+      - name: every fixture set through the package before it is published
+        run: node wasm/conformance.cjs wasm/dist fixtures
+      - name: npm publish
+        working-directory: wasm/dist
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
+
   readback:
-    # After both publishes: install the tagged version fresh from PyPI and crates.io, with no repository
-    # source on the path, and check every fixture of the newest spec against its recorded verdict.
-    needs: [crates-io, pypi]
+    # After the publishes: install the tagged version fresh from PyPI, crates.io and npm, with no
+    # repository source on the path, and check fixtures against their recorded verdicts.
+    needs: [crates-io, pypi, npm]
     if: github.event_name == 'push'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 30
@@ -95,6 +148,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.4"
       - name: PyPI serves the version, and a fresh install verifies the v1.4 fixtures
         run: |
           v="${GITHUB_REF_NAME#v}"; fx="$GITHUB_WORKSPACE/fixtures/v1.4"; rb="$RUNNER_TEMP/rb-py"
@@ -156,3 +212,20 @@ jobs:
           done
           grep -A1 'name = "decision-cert"' "$rb/Cargo.lock"
           (cd "$rb" && cargo run -q --release -- "$GITHUB_WORKSPACE"/fixtures/v1.4/*.json)
+      - name: npm serves the version, its .wasm is the one published, and a fresh install verifies the v1.5 fixtures
+        env:
+          WASM_SHA256: ${{ needs.npm.outputs.wasm_sha256 }}
+        run: |
+          v="${GITHUB_REF_NAME#v}"; rb="$RUNNER_TEMP/rb-npm"
+          mkdir -p "$rb" && cd "$rb" && npm init -y >/dev/null
+          for i in $(seq 1 40); do
+            npm install -q --ignore-scripts --no-audit --no-fund --prefer-online "decision-cert@$v" && break
+            [ "$i" = 40 ] && { echo "npm does not serve $v"; exit 1; }; sleep 15
+          done
+          test "$(jq -r .version node_modules/decision-cert/package.json)" = "$v"
+          echo "npm dist.integrity: $(npm view "decision-cert@$v" dist.integrity)"
+          d="$(sha256sum node_modules/decision-cert/decision_cert_bg.wasm | cut -d' ' -f1)"
+          echo "decision-cert $v from npm: decision_cert_bg.wasm sha256 $d (built and published: $WASM_SHA256)"
+          test "$d" = "$WASM_SHA256"
+          { echo "### decision-cert $v from npm"; echo; echo "\`decision_cert_bg.wasm\` sha256: \`$d\`"; } >> "$GITHUB_STEP_SUMMARY"
+          node "$GITHUB_WORKSPACE/wasm/conformance.cjs" "$rb/node_modules/decision-cert" "$GITHUB_WORKSPACE/fixtures" v1.5

@@ -1,0 +1,30 @@
+[package]
+name = "decision-cert-wasm"
+version = "0.9.0"
+edition = "2021"
+description = "The decision-cert verifier compiled to WebAssembly: the npm package `decision-cert`"
+license = "Apache-2.0"
+repository = "https://github.com/zer07labs/decision-cert"
+# Published to npm as `decision-cert` (wasm/npm/package.json), never to crates.io.
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+decision-cert = { path = "../rust" }
+base64 = "0.22"
+js-sys = "=0.3.107"
+serde_json = { version = "1", features = ["float_roundtrip"] }
+time = { version = "0.3.47", features = ["parsing"] }
+# Must equal the wasm-bindgen CLI version pinned in .github/workflows/ci.yml and release.yml.
+wasm-bindgen = "=0.2.130"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+
+# wasm-opt would download binaryen at build time, unpinned; the package ships wasm-bindgen's output.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: no outcome promises in spec, docs or top-level docs
         run: |
-          hits="$(grep -rniE 'warrant|guarantee|assur|underwrit' spec docs plans demo README.md CONTRIBUTING.md SECURITY.md CHANGELOG.md \
+          hits="$(grep -rniE 'warrant|guarantee|assur|underwrit' spec docs plans demo README.md CONTRIBUTING.md SECURITY.md CHANGELOG.md wasm/npm/README.md \
             | grep -viE 'never guarantees? (an|one) outcome' || true)"
           if [ -n "$hits" ]; then echo "$hits"; exit 1; fi
 
@@ -70,6 +70,68 @@ jobs:
           manifest-path: rust/Cargo.toml
           command: check
           arguments: --all-features
+
+  wasm:
+    # The npm package `decision-cert`: the crate compiled to WebAssembly (wasm/), built with pinned tools,
+    # then every fixture set (v1 to v1.5 with their mutations, and inclusion-v1) run through it in Node
+    # and compared with the verdicts the Rust tests expect. The Rust crate is the oracle. The versions
+    # here are the release workflow's npm job's; change them together.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.100.0"
+          targets: wasm32-unknown-unknown
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: wasm
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.15.1,wasm-bindgen@0.2.130
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.4"
+      - name: the pinned tool versions
+        run: |
+          rustc --version | grep -F 'rustc 1.100.0 '
+          test "$(wasm-pack --version)" = "wasm-pack 0.15.1"
+          test "$(wasm-bindgen --version)" = "wasm-bindgen 0.2.130"
+          test "$(node --version)" = "v22.23.4"
+          grep -A1 '^name = "wasm-bindgen"$' wasm/Cargo.lock | grep -qx 'version = "0.2.130"'
+      - name: fmt and clippy (wasm32)
+        working-directory: wasm
+        run: |
+          cargo fmt --check
+          cargo clippy --target wasm32-unknown-unknown --all-targets --locked -- -D warnings
+      - name: the npm package's name, version and LICENSE
+        run: |
+          v="$(grep -m1 '^version = ' rust/Cargo.toml | cut -d'"' -f2)"
+          test "$(jq -r .name wasm/npm/package.json)" = decision-cert
+          test "$(jq -r .version wasm/npm/package.json)" = "$v"
+          grep -qx "version = \"$v\"" wasm/Cargo.toml
+          test "$(jq -r .license wasm/npm/package.json)" = Apache-2.0
+          cmp LICENSE wasm/npm/LICENSE
+      - name: build the npm package (wasm-pack --target nodejs)
+        run: wasm/build.sh
+      - name: every fixture set through the WebAssembly build, against the Rust tests' verdicts
+        run: |
+          set -o pipefail
+          node wasm/conformance.cjs wasm/dist fixtures | tee "$RUNNER_TEMP/conformance.txt"
+          { echo '```'; cat "$RUNNER_TEMP/conformance.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: npm pack --dry-run lists exactly the package's files
+        working-directory: wasm/dist
+        run: |
+          npm pack --dry-run --json > "$RUNNER_TEMP/pack.json"
+          jq -r '.[0].files[].path' "$RUNNER_TEMP/pack.json" | LC_ALL=C sort | tee "$RUNNER_TEMP/files.txt"
+          diff "$RUNNER_TEMP/files.txt" <(printf '%s\n' LICENSE README.md decision_cert.d.ts decision_cert.js decision_cert_bg.wasm decision_cert_bg.wasm.d.ts package.json | LC_ALL=C sort)
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: wasm/Cargo.toml
+          command: check
 
   publish-readiness:
     # Release readiness without publishing: the crate packages and dry-runs, the docs build as

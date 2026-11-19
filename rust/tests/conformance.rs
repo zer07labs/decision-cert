@@ -9,8 +9,8 @@ use std::{collections::BTreeMap, path::PathBuf};
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use decision_cert::{
-    canonical, certificate_id, tenant_keys_from_json, verify, verify_for_tenant, CertError,
-    Verified,
+    canonical, certificate_id, tenant_keys_from_json, timestamp, verify, verify_document,
+    verify_for_tenant, CertError, Verified,
 };
 
 /// A fixture's verdict: for its expected tenant when it has one (v1.5), else with `verify`.
@@ -310,6 +310,63 @@ fn maps_are_applied_for_the_kinds_v1_2_defines() {
     assert!(read("valid_other_map_kind")
         .probabilities(&[1.0, 0.0])
         .is_none());
+}
+
+/// `verify_document` gives every fixture the verdict and id `verdict` gives it (a fixture without an
+/// expected tenant is checked under a fixed one, which v1 to v1.4 do not bind), and its expiry at the
+/// certificate's `fitted_at` and `expires_at` is `Verified::is_expired`'s.
+#[test]
+fn verify_document_agrees_with_the_verdict_on_every_fixture() {
+    let mut n = 0;
+    for (set, min) in [
+        ("", 14),
+        ("v1.1", 9),
+        ("v1.2", 25),
+        ("v1.3", 43),
+        ("v1.4", 70),
+        ("v1.5", 100),
+    ] {
+        for (name, f) in fixtures(set, min) {
+            let cert = &f["certificate"];
+            let tenant = f["tenant"].as_str().unwrap_or("conformance");
+            let keys = tenant_keys_from_json(&f["keys"]).unwrap();
+            let want = verdict(&f, cert);
+            // a document whose timestamps do not parse is refused; check it at a fixed time
+            let mut nows: Vec<_> = ["fitted_at", "expires_at"]
+                .into_iter()
+                .filter_map(|at| Some((at, timestamp(cert[at].as_str()?).ok()?)))
+                .collect();
+            if nows.is_empty() {
+                nows.push(("fixed", timestamp("2026-01-01T00:00:00Z").unwrap()));
+            }
+            for (at, now) in nows {
+                let got = verify_document(cert, tenant, &keys, now);
+                assert_eq!(
+                    got.certificate_id.as_deref(),
+                    f["certificate_id"].as_str(),
+                    "{set}/{name}"
+                );
+                match (&want, &got.verification) {
+                    (Ok(w), Ok(g)) => {
+                        assert_eq!(w, g, "{set}/{name}");
+                        let e = got.expiry.unwrap();
+                        assert_eq!((e.now, e.expires_at), (now, w.expires_at), "{set}/{name}");
+                        assert_eq!(e.expired, w.is_expired(now), "{set}/{name}");
+                        if at == "expires_at" {
+                            assert!(e.expired, "{set}/{name}");
+                        }
+                    }
+                    (Err(w), Err(g)) => {
+                        assert_eq!(w.to_string(), g.to_string(), "{set}/{name}");
+                        assert!(got.expiry.is_none(), "{set}/{name}");
+                    }
+                    (w, g) => panic!("{set}/{name}: verdict {w:?}, verify_document {g:?}"),
+                }
+                n += 1;
+            }
+        }
+    }
+    assert!(n >= 261, "{n}");
 }
 
 fn agree_on(set: Vec<(String, serde_json::Value)>) {

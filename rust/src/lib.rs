@@ -592,6 +592,55 @@ pub fn verify_for_tenant(
     verified(v, cert)
 }
 
+/// A verified certificate's expiry at the caller's `now` ([`Verified::is_expired`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Expiry {
+    /// The time the caller checked expiry at.
+    pub now: UtcDateTime,
+    /// The certificate's `expires_at`.
+    pub expires_at: UtcDateTime,
+    /// Whether `now` is not before `expires_at`.
+    pub expired: bool,
+}
+
+/// The separate results of [`verify_document`]. They are never folded into one yes or no: a
+/// consumer reads each.
+#[derive(Debug)]
+pub struct DocumentVerdict {
+    /// `sha256:<hex>` of the document's JCS bytes, as [`certificate_id`] computes it, whatever the
+    /// verdict; None only when the document cannot be canonicalised.
+    pub certificate_id: Option<String>,
+    /// What [`verify_for_tenant`] returns for the document: the form, tenant, key, key mode and
+    /// signature checks.
+    pub verification: Result<Verified, CertError>,
+    /// The expiry at `now`, when the document verified; None when it did not.
+    pub expiry: Option<Expiry>,
+}
+
+/// Verify `v` for the expected `tenant` exactly as [`verify_for_tenant`] does, check its expiry at
+/// the caller's `now`, and recompute its id, returning the three as separate results.
+///
+/// The crate reads no clock: the caller passes `now`, so the same document, keys and `now` give the
+/// same verdict wherever it runs.
+pub fn verify_document(
+    v: &serde_json::Value,
+    tenant: &str,
+    keys: &TenantKeys,
+    now: UtcDateTime,
+) -> DocumentVerdict {
+    let verification = verify_for_tenant(v, tenant, keys);
+    let expiry = verification.as_ref().ok().map(|x| Expiry {
+        now,
+        expires_at: x.expires_at,
+        expired: x.is_expired(now),
+    });
+    DocumentVerdict {
+        certificate_id: certificate_id(v).ok(),
+        verification,
+        expiry,
+    }
+}
+
 /// The value as a JSON object and its typed, checked certificate.
 fn read(
     v: &serde_json::Value,
