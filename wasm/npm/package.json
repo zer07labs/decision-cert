@@ -1,6 +1,6 @@
 {
   "name": "decision-cert",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Verify decision certificates (decision-certificate.v1 to v1.5) and their transparency-log inclusion proofs, offline: the Rust verifier compiled to WebAssembly",
   "license": "Apache-2.0",
   "repository": {

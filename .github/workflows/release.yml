@@ -94,7 +94,7 @@ jobs:
     # log, and the readback checks the published file against it.
     needs: check
     if: github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'npm'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04  # GitHub-hosted: npm accepts provenance only from GitHub-hosted runners
     timeout-minutes: 20
     environment: npm
     permissions:

@@ -89,7 +89,7 @@ dependencies = [
 
 [[package]]
 name = "decision-cert"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "base64",
  "ed25519-dalek",
@@ -103,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "decision-cert-wasm"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "base64",
  "decision-cert",
