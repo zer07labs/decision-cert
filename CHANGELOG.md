@@ -3,7 +3,13 @@
 All notable changes to this repository. The spec (`decision-certificate.v1`, `v1.1`, `v1.2`, `v1.3`, `v1.4` and `v1.5`, all
 frozen) is versioned separately; this log covers the crate, the verifiers, the fixtures and the docs.
 
-## 0.9.0 — unreleased (tag `v0.9.0` on the merge commit)
+## 0.9.1 — unreleased (tag `v0.9.1` on the merge commit)
+
+Release pipeline only; no code, spec, fixture or verdict change from 0.9.0. The first npm release: 0.9.0's npm
+job ran on a self-hosted runner, and npm refuses provenance from one (E422), so 0.9.0 is on crates.io and PyPI
+only. The npm job now runs on a GitHub-hosted runner. crates.io and PyPI get 0.9.1 too, so the three stay aligned.
+
+## 0.9.0 — 2026-11-19 (tag `v0.9.0`; crates.io and PyPI only)
 
 A public WebAssembly verifier on npm, so a Node.js service and an auditor offline run the same check as
 the Rust crate. Additive: no spec, fixture or verdict changes, and every existing function is unchanged.
